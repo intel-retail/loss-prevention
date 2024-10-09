@@ -150,9 +150,40 @@ downloadPersonDetection() {
     fi
 }
 
+downloadFaceDetection() {
+    faceDetectionRetail0005="face-detection-retail-0005"
+    modelType="object_detection"
+    facejsonModelPath="$modelType/$faceDetectionRetail0005/$modelPrecisionFP16INT8/$faceDetectionRetail0005.bin"
+    echo $facejsonModelPath
+
+    if [ ! -f $facejsonModelPath ]; then
+        getModelFiles $faceDetectionRetail0005 $openVINOModelZoo$faceDetectionRetail0005 $modelPrecisionFP16INT8 $modelType                
+    else
+        echo "faceDetectionRetail0005 $modelPrecisionFP16INT8 model already exists, skip downloading..."
+    fi
+}
+
+downloadAgeGenderRecognition() {
+    modelProc="https://raw.githubusercontent.com/dlstreamer/dlstreamer/refs/heads/master/samples/gstreamer/gst_launch/face_detection_and_classification/model_proc/"
+    ageGenderRecognitionRetail0013="age-gender-recognition-retail-0013"
+    modelType="object_classification"
+    ageGenderjsonModelPath="$modelType/$ageGenderRecognitionRetail0013/$modelPrecisionFP16INT8/$ageGenderRecognitionRetail0013.bin"
+
+    echo $ageGenderjsonModelPath
+
+    if [ ! -f $ageGenderjsonModelPath ]; then
+        getModelFiles $ageGenderRecognitionRetail0013 $openVINOModelZoo$ageGenderRecognitionRetail0013 $modelPrecisionFP16INT8 $modelType                
+        getProcessFile $ageGenderRecognitionRetail0013 $modelProc $ageGenderRecognitionRetail0013 $ageGenderRecognitionRetail0013 $modelType
+    else
+        echo "ageGenderRecognitionRetail0013 $modelPrecisionFP16INT8 model already exists, skip downloading..."
+    fi
+}
+
 ### Run custom downloader section below:
 downloadYolov5sFP16INT8
 downloadEfficientnetb0
 downloadHorizontalText
 downloadTextRecognition
 downloadPersonDetection
+downloadFaceDetection
+downloadAgeGenderRecognition
