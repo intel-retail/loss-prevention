@@ -4,6 +4,7 @@
 .PHONY: build build-realsense run down
 .PHONY: build-telegraf run-telegraf run-portainer clean-all clean-results clean-telegraf clean-models down-portainer
 .PHONY: download-models clean-test run-demo run-headless download-yolov8s
+.PHONY: clean-benchmark-results
 
 MKDOCS_IMAGE ?= asc-mkdocs
 PIPELINE_COUNT ?= 1
@@ -11,6 +12,7 @@ TARGET_FPS ?= 14.95
 DOCKER_COMPOSE ?= docker-compose.yml
 RESULTS_DIR ?= $(PWD)/results
 RETAIL_USE_CASE_ROOT ?= $(PWD)
+BENCHMARK_DURATION ?= 45
 
 download-models: download-yolov8s
 	./download_models/downloadModels.sh	
@@ -88,10 +90,19 @@ build-benchmark:
 	cd performance-tools && $(MAKE) build-benchmark-docker
 
 benchmark: build-benchmark download-models
-	cd performance-tools/benchmark-scripts && python benchmark.py --compose_file ../../src/docker-compose.yml --pipeline $(PIPELINE_COUNT)
+	cd performance-tools/benchmark-scripts && python benchmark.py --compose_file ../../src/docker-compose.yml \
+	--pipeline $(PIPELINE_COUNT) --duration $(BENCHMARK_DURATION) --results_dir $(RESULTS_DIR)
+# consolidate to show the summary csv
+	@cd performance-tools/benchmark-scripts && ROOT_DIRECTORY=$(RESULTS_DIR) $(MAKE) --no-print-directory consolidate && \
+	echo "Loss Prevention benchmark results are saved in $(RESULTS_DIR)/summary.csv file" && \
+	echo "====== Loss prevention benchmark results summary: " && cat $(RESULTS_DIR)/summary.csv
 
 benchmark-stream-density: build-benchmark download-models
-	cd performance-tools/benchmark-scripts && python benchmark.py --compose_file ../../src/docker-compose.yml --target_fps $(TARGET_FPS) --density_increment 1 --results_dir $(RESULTS_DIR)
+	cd performance-tools/benchmark-scripts && python benchmark.py --compose_file ../../src/docker-compose.yml \
+	--target_fps $(TARGET_FPS) --density_increment 1 --results_dir $(RESULTS_DIR)
+
+clean-benchmark-results:
+	cd performance-tools/benchmark-scripts && rm -rf $(RESULTS_DIR)/* || true
 
 build-telegraf:
 	cd telegraf && $(MAKE) build

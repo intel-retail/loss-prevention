@@ -34,6 +34,11 @@ stop containers:
 make down
 ```
 
+## Pipeline Benchmark
+
+Go here for [the documentation of loss prevention pipeline benchmark](./benchmark.md)
+
+
 ## [Advanced Documentation](https://intel-retail.github.io/documentation/use-cases/loss-prevention/loss-prevention.html)
 
 ## Join the community 
