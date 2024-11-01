@@ -48,6 +48,8 @@ You can tune some benchmark paramters when you benchmark loss-prevention pipelin
 | BENCHMARK_DURATION     | 45              | the time period of benchmarking will be run in second                |
 | TARGET_FPS             | 14.95           | used for stream density maintaining that target frames per second (fps) while having maximum number of pipelines running |
 | RESULTS_DIR            | ./results       | the directory of the outputs for running pipeline logs and fps info  |
+| PIPELINE_SCRIPT        | yolov5s.sh      | the script to run the pipeline, for yolov8, you can use yolov8s_roi.sh for running region of interest pipeline |
+| RENDER_MODE            | 0               | to display the input source video and some of inferencing results like bounding boxes and/or region of interests |
 
 
 As an example, the following command with parameter `PIPELINE_COUNT` will do the benchmark for 2 loss-prevention pipelines:
