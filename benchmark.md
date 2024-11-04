@@ -27,7 +27,7 @@ make benchmark
 ```
 
 !!! Note
-    For more detials on how this works, you can check the the documentation of performance-tools in [Benchmark a CV Pipeline](https://github.com/intel-retail/documentation/blob/main/docs_src/performance-tools/benchmark.md#benchmark-a-cv-pipeline) section.
+    For more details on how this works, you can check the documentation of performance-tools in [Benchmark a CV Pipeline](https://github.com/intel-retail/documentation/blob/main/docs_src/performance-tools/benchmark.md#benchmark-a-cv-pipeline) section.
 
 1. Benchmarking the stream density of the loss-prevention pipelines:
 
@@ -36,11 +36,11 @@ make benchmark-stream-density
 ```
 
 !!! Note
-    For more detials on how this works, you can check the the documentation of performance-tools in [Benchmark Stream Density for CV Pipelines](https://github.com/intel-retail/documentation/blob/main/docs_src/performance-tools/benchmark.md#benchmark-stream-density-for-cv-pipelines) section.
+    For more details on how this works, you can check the documentation of performance-tools in [Benchmark Stream Density for CV Pipelines](https://github.com/intel-retail/documentation/blob/main/docs_src/performance-tools/benchmark.md#benchmark-stream-density-for-cv-pipelines) section.
 
 ## Tuning Benchmark Parameters
 
-You can tune some benchmark paramters when you benchmark loss-prevention pipelines:
+You can tune some benchmark parameters when you benchmark loss-prevention pipelines:
 
 | Parameter Name         | Default Value   | Description                                                          |
 | -----------------------|-----------------|----------------------------------------------------------------------|
@@ -49,8 +49,7 @@ You can tune some benchmark paramters when you benchmark loss-prevention pipelin
 | TARGET_FPS             | 14.95           | used for stream density maintaining that target frames per second (fps) while having maximum number of pipelines running |
 | RESULTS_DIR            | ./results       | the directory of the outputs for running pipeline logs and fps info  |
 | PIPELINE_SCRIPT        | yolov5s.sh      | the script to run the pipeline, for yolov8, you can use yolov8s_roi.sh for running region of interest pipeline |
-| RENDER_MODE            | 0               | to display the input source video and some of inferencing results like bounding boxes and/or region of interests |
-
+| RENDER_MODE            | 0               | when it is set to 1, another popup winodw will display the input source video and some of inferencing results like bounding boxes and/or region of interests |
 
 As an example, the following command with parameter `PIPELINE_COUNT` will do the benchmark for 2 loss-prevention pipelines:
 
@@ -66,4 +65,4 @@ To clean up all the benchmark results, run the command:
 make clean-benchmark-results
 ```
 
-This comes handy when you want to have a new set of benchmark for different benchmark use cases like different pipelines or running duration.
+This comes in handy when you want to have a new set of benchmarks for different benchmark use cases like different pipelines or running duration.
