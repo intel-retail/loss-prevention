@@ -7,7 +7,7 @@
 
 PRE_PROCESS="${PRE_PROCESS:=""}" #""|pre-process-backend=vaapi-surface-sharing|pre-process-backend=vaapi-surface-sharing pre-process-config=VAAPI_FAST_SCALE_LOAD_FACTOR=1 
 AGGREGATE="${AGGREGATE:="gvametaaggregate name=aggregate !"}" # Aggregate function at the end of the pipeline ex. "" | gvametaaggregate name=aggregate
-PUBLISH="${PUBLISH:="name=destination file-format=2 file-path=/tmp/results/r$cid\"_gst\".jsonl"}" # address=localhost:1883 topic=inferenceEvent method=mqtt
+PUBLISH="${PUBLISH:="name=destination file-format=2 file-path=/tmp/results/r$cid.jsonl"}" # address=localhost:1883 topic=inferenceEvent method=mqtt
 
 CLASS_IDS="46,39,47" # YOLOv8 classes to be detected example "0,1,30"
 MQTT_HOST="127.0.0.1:1883"
@@ -28,7 +28,7 @@ $AGGREGATE gvametaconvert name=metaconvert add-empty-results=true ! \
 gvapython module=/home/pipeline-server/extensions/gva_roi_metadata.py class=RoiMetadata kwarg=\"{\\\"rois\\\": \\\"$ROI\\\"}\" ! \
 gvametapublish method=mqtt file-format=2 address="$MQTT_HOST" mqtt-client-id=yolov8 topic=event/detection ! \
 queue ! \
-gvametapublish name=destination file-format=2 file-path=/tmp/results/r$cid\"_gst\".jsonl $OUTPUT 2>&1 | tee >/tmp/results/gst-launch_$cid\"_gst\".log >(stdbuf -oL sed -n -e 's/^.*current: //p' | stdbuf -oL cut -d , -f 1 > /tmp/results/pipeline$cid\"_gst\".log)"
+gvametapublish name=destination file-format=2 file-path=/tmp/results/r$cid.jsonl $OUTPUT 2>&1 | tee >/tmp/results/gst-launch_$cid.log >(stdbuf -oL sed -n -e 's/^.*current: //p' | stdbuf -oL cut -d , -f 1 > /tmp/results/pipeline$cid.log)"
 
 
 echo "$gstLaunchCmd"

@@ -90,7 +90,7 @@ build-benchmark:
 	cd performance-tools && $(MAKE) build-benchmark-docker
 
 benchmark: build-benchmark download-models
-	cd performance-tools/benchmark-scripts && python benchmark.py --compose_file ../../src/docker-compose.yml \
+	cd performance-tools/benchmark-scripts && python benchmark.py --compose_file ../../src/$(DOCKER_COMPOSE) \
 	--pipeline $(PIPELINE_COUNT) --duration $(BENCHMARK_DURATION) --results_dir $(RESULTS_DIR)
 # consolidate to show the summary csv
 	@cd performance-tools/benchmark-scripts && ROOT_DIRECTORY=$(RESULTS_DIR) $(MAKE) --no-print-directory consolidate && \
@@ -98,7 +98,7 @@ benchmark: build-benchmark download-models
 	echo "====== Loss prevention benchmark results summary: " && cat $(RESULTS_DIR)/summary.csv
 
 benchmark-stream-density: build-benchmark download-models
-	cd performance-tools/benchmark-scripts && python benchmark.py --compose_file ../../src/docker-compose.yml \
+	cd performance-tools/benchmark-scripts && python benchmark.py --compose_file ../../src/$(DOCKER_COMPOSE) \
 	--target_fps $(TARGET_FPS) --density_increment 1 --results_dir $(RESULTS_DIR)
 
 clean-benchmark-results:
