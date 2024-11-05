@@ -16,13 +16,13 @@ jobs:
       runs-on: ubuntu-latest
       steps:
           - name: Checkout code
-            uses: actions/checkout@v3
+            uses: actions/checkout@v4
           - name: Make dlstreamer Docker images
             run: docker build --build-arg HTTPS_PROXY=${HTTPS_PROXY} --build-arg HTTP_PROXY=${HTTP_PROXY} --target build-default -t dlstreamer:dev -f src/Dockerfile src/
   build_LP:
       runs-on: ubuntu-latest
       steps:
           - name: Checkout code
-            uses: actions/checkout@v3
+            uses: actions/checkout@v4
           - name: Make Loss Prevention Docker images
             run: docker build --build-arg HTTPS_PROXY=${HTTPS_PROXY} --build-arg HTTP_PROXY=${HTTP_PROXY} -t loss-prevention:dev -f src/app/Dockerfile src/app
