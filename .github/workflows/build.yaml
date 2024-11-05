@@ -1,32 +1,28 @@
 name: Build docker images
 
-on: workflow_dispatch
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches:
+      - main
+
 
 permissions:
   contents: read
 
 jobs:
-  build_SOC:
+  build:
       runs-on: ubuntu-latest
       steps:
           - name: Checkout code
             uses: actions/checkout@v3
-          - name: Make soc Docker images
-            run: |
-              make build-soc
-  build_DGPU:
+          - name: Make dlstreamer Docker images
+            run: docker build --build-arg HTTPS_PROXY=${HTTPS_PROXY} --build-arg HTTP_PROXY=${HTTP_PROXY} --target build-default -t dlstreamer:dev -f src/Dockerfile src/
+  build_LP:
       runs-on: ubuntu-latest
       steps:
           - name: Checkout code
             uses: actions/checkout@v3
-          - name: Make dgpu Docker images
-            run: |
-              make build-dgpu
-  build_OVMS_Profile_Launcher:
-      runs-on: ubuntu-latest
-      steps:
-          - name: Checkout code
-            uses: actions/checkout@v3
-          - name: Build ovms profile launcher
-            run: |
-              make build-profile-launcher
+          - name: Make Loss Prevention Docker images
+            run: docker build --build-arg HTTPS_PROXY=${HTTPS_PROXY} --build-arg HTTP_PROXY=${HTTP_PROXY} -t loss-prevention:dev -f src/app/Dockerfile src/app
