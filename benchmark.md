@@ -52,7 +52,13 @@ and then re-build the whole benchmark tools:
 make build-benchmark
 ```
 
-and you can benchmark multiple different running pipelines in that compose file via:
+then clean up the previous results to have a fresh start:
+
+```bash
+make clean-benchmark-results
+```
+
+and then you can benchmark multiple different running pipelines in that compose file via:
 
 ```bash
 make DOCKER_COMPOSE=docker-compose-2-clients.yml BENCHMARK_DURATION=90 benchmark
