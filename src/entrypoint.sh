@@ -126,7 +126,9 @@ fi
 
 # generate unique container id based on the date with the precision upto nano-seconds
 cid=$(date +%Y%m%d%H%M%S%N)
+CONTAINER_NAME="${CONTAINER_NAME//\"/}" # Ensure to remove all double quotes from CONTAINER_NAME
 cid="${cid}"_${CONTAINER_NAME}
+echo "CONTAINER_NAME: ${CONTAINER_NAME}"
 echo "cid: $cid"
 
 touch /tmp/results/r"$cid".jsonl

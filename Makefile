@@ -9,10 +9,12 @@
 MKDOCS_IMAGE ?= asc-mkdocs
 PIPELINE_COUNT ?= 1
 TARGET_FPS ?= 14.95
+CONTAINER_NAMES ?= gst0
 DOCKER_COMPOSE ?= docker-compose.yml
 RESULTS_DIR ?= $(PWD)/results
 RETAIL_USE_CASE_ROOT ?= $(PWD)
 BENCHMARK_DURATION ?= 45
+DENSITY_INCREMENT ?= 1
 
 download-models: download-yolov8s
 	./download_models/downloadModels.sh	
@@ -98,8 +100,20 @@ benchmark: build-benchmark download-models
 	echo "====== Loss prevention benchmark results summary: " && cat $(RESULTS_DIR)/summary.csv
 
 benchmark-stream-density: build-benchmark download-models
+# example commands:
+# 1. for single container pipeline stream density
+# ```console
+#     make PIPELINE_SCRIPT=yolov8s_roi.sh benchmark-stream-density
+# ```
+# 2. for multiple container pipelines stream density:
+# ```console
+#     make DOCKER_COMPOSE=docker-compose-2-clients.yml BENCHMARK_DURATION=90 TARGET_FPS="10.95 2.95" CONTAINER_NAMES="gst1 gst2" \
+#				benchmark-stream-density
+# ```
+#
 	cd performance-tools/benchmark-scripts && python benchmark.py --compose_file ../../src/$(DOCKER_COMPOSE) \
-	--target_fps $(TARGET_FPS) --density_increment 1 --results_dir $(RESULTS_DIR)
+	--target_fps $(TARGET_FPS) --container_names $(CONTAINER_NAMES) \
+	--density_increment $(DENSITY_INCREMENT) --results_dir $(RESULTS_DIR)
 
 clean-benchmark-results:
 	cd performance-tools/benchmark-scripts && rm -rf $(RESULTS_DIR)/* || true
