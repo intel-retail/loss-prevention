@@ -74,7 +74,7 @@ services:
       - ${DEVICE_ENV:-res/all-cpu.env}
     environment:
       - CONTAINER_NAME=gst2
-      - INPUTSRC=${INPUTSRC:-rtsp://localhost:8554/camera_0}
+      - INPUTSRC=${INPUTSRC:-https://github.com/openvinotoolkit/openvino_notebooks/raw/refs/heads/recipes/recipes/automated_self_checkout/data/example.mp4}
       - RENDER_MODE=${RENDER_MODE:-0} #RENDER_MODE=1 will work only after running xhost +local:docker
       - DISPLAY=$DISPLAY
       - HTTP_PROXY
@@ -108,6 +108,18 @@ services:
       - MQTT_PORT=1883
       - MQTT_TOPIC=event/detection
       - ROI_NAME=BASKET
+    restart: always
+    depends_on:
+      - mosquitto
+
+  loss-prevention:
+    image: loss-prevention:dev
+    network_mode: "host"
+    environment:
+      - MQTT_URL=127.0.0.1
+      - MQTT_PORT=1883
+      - MQTT_TOPIC=event/detection
+      - ROI_NAME=BASKET,BAGGING
     restart: always
     depends_on:
       - mosquitto
