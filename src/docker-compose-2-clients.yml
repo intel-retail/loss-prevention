@@ -30,7 +30,7 @@ services:
     volumes:
       - ${RETAIL_USE_CASE_ROOT:-..}/performance-tools/sample-media:/home/pipeline-server/sample-media
 
-  OvmsClientGst1:
+  GstClient1:
     image: dlstreamer:dev
     deploy:
       mode: replicated
@@ -60,7 +60,7 @@ services:
       - ./pipelines/:/home/pipeline-server/pipelines
       - ./extensions/:/home/pipeline-server/extensions
 
-  OvmsClientGst2:
+  GstClient2:
     image: dlstreamer:dev
     deploy:
       mode: replicated
@@ -97,8 +97,8 @@ services:
     ports:
       - "127.0.0.1:1883:1883"
     depends_on:
-      - OvmsClientGst1
-      - OvmsClientGst2    
+      - GstClient1
+      - GstClient2
   
   mqtt_tracker:
     image: loss-prevention:dev

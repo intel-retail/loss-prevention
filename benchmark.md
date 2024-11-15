@@ -40,7 +40,7 @@ make benchmark-stream-density
 
 ### Benchmark for multiple pipelines in parallel
 
-There is an example docker-compose file under src/ directory, named `docker-compose-2-clients.yml` that can be used to show case both of benchmarks of parallel running pipelines and stream density benchmarks of running pipelines.  This docker-compose file contains two different running pipelines: one is running yolov5s pipeline and the other one is yolov8 region of interests pipeline.  Follow the follow command examples to do the benchmarks:
+There is an example docker-compose file under src/ directory, named `docker-compose-2-clients.yml` that can be used to show case both of benchmarks of parallel running pipelines and stream density benchmarks of running pipelines.  This docker-compose file contains two different running pipelines: one is running yolov5s pipeline and the other one is yolov8 region of interests pipeline.  Use the following command examples to do the benchmarks:
 
 ```bash
 make update-submodules
