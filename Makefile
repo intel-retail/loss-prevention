@@ -3,16 +3,18 @@
 
 .PHONY: build build-realsense run down
 .PHONY: build-telegraf run-telegraf run-portainer clean-all clean-results clean-telegraf clean-models down-portainer
-.PHONY: download-models clean-test run-demo run-headless download-yolov8s
+.PHONY: download-models clean-test run-demo run-headless download-yolov8s logs
 .PHONY: clean-benchmark-results
 
 MKDOCS_IMAGE ?= asc-mkdocs
 PIPELINE_COUNT ?= 1
 TARGET_FPS ?= 14.95
+CONTAINER_NAMES ?= gst0
 DOCKER_COMPOSE ?= docker-compose.yml
 RESULTS_DIR ?= $(PWD)/results
 RETAIL_USE_CASE_ROOT ?= $(PWD)
 BENCHMARK_DURATION ?= 45
+DENSITY_INCREMENT ?= 1
 
 download-models: download-yolov8s
 	./download_models/downloadModels.sh	
@@ -90,7 +92,7 @@ build-benchmark:
 	cd performance-tools && $(MAKE) build-benchmark-docker
 
 benchmark: build-benchmark download-models
-	cd performance-tools/benchmark-scripts && python benchmark.py --compose_file ../../src/docker-compose.yml \
+	cd performance-tools/benchmark-scripts && python benchmark.py --compose_file ../../src/$(DOCKER_COMPOSE) \
 	--pipeline $(PIPELINE_COUNT) --duration $(BENCHMARK_DURATION) --results_dir $(RESULTS_DIR)
 # consolidate to show the summary csv
 	@cd performance-tools/benchmark-scripts && ROOT_DIRECTORY=$(RESULTS_DIR) $(MAKE) --no-print-directory consolidate && \
@@ -98,8 +100,20 @@ benchmark: build-benchmark download-models
 	echo "====== Loss prevention benchmark results summary: " && cat $(RESULTS_DIR)/summary.csv
 
 benchmark-stream-density: build-benchmark download-models
-	cd performance-tools/benchmark-scripts && python benchmark.py --compose_file ../../src/docker-compose.yml \
-	--target_fps $(TARGET_FPS) --density_increment 1 --results_dir $(RESULTS_DIR)
+# example commands:
+# 1. for single container pipeline stream density
+# ```console
+#     make PIPELINE_SCRIPT=yolov8s_roi.sh benchmark-stream-density
+# ```
+# 2. for multiple container pipelines stream density:
+# ```console
+#     make DOCKER_COMPOSE=docker-compose-2-clients.yml BENCHMARK_DURATION=90 TARGET_FPS="10.95 2.95" CONTAINER_NAMES="gst1 gst2" \
+#				benchmark-stream-density
+# ```
+#
+	cd performance-tools/benchmark-scripts && python benchmark.py --compose_file ../../src/$(DOCKER_COMPOSE) \
+	--target_fps $(TARGET_FPS) --container_names $(CONTAINER_NAMES) \
+	--density_increment $(DENSITY_INCREMENT) --results_dir $(RESULTS_DIR)
 
 clean-benchmark-results:
 	cd performance-tools/benchmark-scripts && rm -rf $(RESULTS_DIR)/* || true
@@ -161,3 +175,11 @@ helm-package:
 	helm package helm/
 	helm repo index .
 	helm repo index --url https://github.com/intel-retail/loss-prevention .
+
+logs:
+	@CONTAINER_ID=$(shell docker ps --filter "name=loss-prevention" --format "{{.ID}}") && \
+	if [ -n "$$CONTAINER_ID" ]; then \
+		docker logs -f $$CONTAINER_ID; \
+	else \
+		echo "No running container found with name containing 'loss-prevention'"; \
+	fi
