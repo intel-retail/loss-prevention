@@ -1,0 +1,14 @@
+# Use an official Python runtime as a parent image
+FROM ubuntu:22.04
+RUN apt-get update -y || true; DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+    build-essential \
+    git \
+    python3 \
+    python3-pip \
+    libusb-1.0-0-dev
+# Set the working directory in the container
+WORKDIR /app
+COPY ./requirements.txt /requirements.txt
+RUN pip install --upgrade pip
+RUN pip3 install --upgrade pip --no-cache-dir -r /requirements.txt
+#docker run --rm -it --network=host -v ./:/app pandasai:dev /bin/bash
