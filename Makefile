@@ -54,6 +54,9 @@ build:
 	docker build --build-arg HTTPS_PROXY=${HTTPS_PROXY} --build-arg HTTP_PROXY=${HTTP_PROXY} --target build-default -t dlstreamer:dev -f src/Dockerfile src/
 	docker build --build-arg HTTPS_PROXY=${HTTPS_PROXY} --build-arg HTTP_PROXY=${HTTP_PROXY} -t loss-prevention:dev -f src/app/Dockerfile src/app
 
+build-scale:
+	docker build --build-arg HTTPS_PROXY=${HTTPS_PROXY} --build-arg HTTP_PROXY=${HTTP_PROXY} -t lp-scale:dev -f src/weightScale/Dockerfile src/weightScale
+
 build-realsense:
 	docker build --build-arg HTTPS_PROXY=${HTTPS_PROXY} --build-arg HTTP_PROXY=${HTTP_PROXY} --target build-realsense -t dlstreamer:realsense -f src/Dockerfile src/
 
@@ -70,15 +73,17 @@ run-render-mode:
 down:
 	docker compose -f src/$(DOCKER_COMPOSE) down
 
-run-demo: | download-models update-submodules download-sample-videos
+run-demo: | download-models download-sample-videos
 	@echo "Building Loss Prevention app"	
 	$(MAKE) build
+	$(MAKE) build-scale
 	@echo Running Loss Prevention pipeline
 	$(MAKE) run-render-mode
 
-run-headless: | download-models update-submodules download-sample-videos
+run-headless: | download-models download-sample-videos
 	@echo "Building Loss Prevention app"
 	$(MAKE) build
+	$(MAKE) build-scale
 	@echo Running Loss Prevention pipeline
 	$(MAKE) run
 
