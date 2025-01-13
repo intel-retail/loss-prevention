@@ -11,4 +11,7 @@ WORKDIR /app
 COPY ./requirements.txt /requirements.txt
 RUN pip install --upgrade pip
 RUN pip3 install --upgrade pip --no-cache-dir -r /requirements.txt
-#docker run --rm -it --network=host -v ./:/app pandasai:dev /bin/bash
+
+COPY barcode-scanner.py barcode-scanner.py
+
+ENTRYPOINT python3 barcode-scanner.py

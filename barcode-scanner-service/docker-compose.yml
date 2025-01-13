@@ -4,9 +4,10 @@ services:
     - /usr/sbin/mosquitto
     - -c
     - /mosquitto-no-auth.conf
-    container_name: edgex-mqtt-broker
-    hostname: edgex-mqtt-broker
+    container_name: mqtt-broker
+    hostname: mqtt-broker
     image: eclipse-mosquitto:2.0.18
+    network_mode: "host"
     ports:
     - mode: ingress
       host_ip: 127.0.0.1
@@ -18,3 +19,15 @@ services:
     security_opt:
     - no-new-privileges:true
     user: 2002:2001
+  barcode:
+    image: barcode:dev
+    build:
+      context: .
+      dockerfile: Dockerfile.python
+    devices:
+      - /dev/:/dev/
+    privileged: true
+    network_mode: "host"
+    volumes:
+      - /dev/bus/usb:/dev/bus/usb
+      - /etc/udev/rules.d:/etc/udev/rules.d

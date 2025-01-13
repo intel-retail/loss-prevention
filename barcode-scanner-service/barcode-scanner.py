@@ -1,6 +1,5 @@
 import usb.core
 import usb.util
-import numpy
 import paho.mqtt.client as paho
 
 """
@@ -172,7 +171,7 @@ assert ep is not None, "Endpoint for USB device not found. Something is wrong."
 mqttClient = paho.Client()
 mqttClient.connect("localhost", 1883, 60)
 mqttClient.loop_start()
-print("mqtt conencted")
+print("mqtt connected")
 
 # Loop through a series of 8-byte transactions and convert each to an
 # ASCII character. Print output after 0.5 seconds of no data.
