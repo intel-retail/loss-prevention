@@ -13,8 +13,8 @@ port_name = '/dev/ttyUSB0'
 baud_rate = 9600
 timeout = 1  # 1 second timeout
 parity = serial.PARITY_EVEN
-bytesize = serial.SEVENBITS
-stopbits = serial.STOPBITS_ONE
+byte_size = serial.SEVENBITS
+stop_bits = serial.STOPBITS_ONE
 
 MQTT_BROKER_URL = os.getenv("MQTT_URL", "127.0.0.1")
 MQTT_PORT = int(os.getenv("MQTT_PORT", "1883"))
@@ -28,16 +28,16 @@ class Reading:
         self.value = value
         self.unit = unit
 
-    def printWeight(self):
+    def print_weight(self):
         return (f"Weight: {self.value} {self.unit}")
 
-    def toString(self):
+    def to_string(self):
         if self.status == "OK" or self.status == "Motion":
-            return (f"Status: {self.status}, {self.printWeight()}")
+            return (f"Status: {self.status}, {self.print_weight()}")
         else:
             return (f"Status: {self.status}")
 
-def readScale(dev:serial.Serial):
+def read_scale(dev:serial.Serial):
     # build buffer
     buffer_bytes = bytearray()
 
@@ -54,7 +54,7 @@ def readScale(dev:serial.Serial):
     print(f"Received data (hex): {buffer_str}")
     return buffer_str
 
-def processScaleHex(buf:str):
+def process_scale_hex(buf:str):
     status_ending = b"0D03"  # Status ending in response
     weight_ending = b"0D0A"  # Weight reading ending in response
     weight_value_start = b"0A3"  # Start of weight data
@@ -109,15 +109,15 @@ def processScaleHex(buf:str):
 def main():
     while True:
         try:
-            with serial.Serial(port_name, baud_rate, bytesize, parity, stopbits, timeout ) as ser:
+            with serial.Serial(port_name, baud_rate, byte_size, parity, stop_bits, timeout ) as ser:
                 print(f"Connected to {port_name}")
 
-                buffer_str = readScale(ser)
+                buffer_str = read_scale(ser)
 
-                result = processScaleHex(buffer_str)
+                result = process_scale_hex(buffer_str)
 
-                print(result.toString())
-                client.publish(topic=MQTT_TOPIC, payload=result.printWeight())
+                print(result.to_string())
+                client.publish(topic=MQTT_TOPIC, payload=result.print_weight())
 
         except serial.SerialException as e:
             print(f"Error connecting to the port: {e}")

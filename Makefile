@@ -73,14 +73,14 @@ run-render-mode:
 down:
 	docker compose -f src/$(DOCKER_COMPOSE) down
 
-run-demo: | download-models download-sample-videos
+run-demo: | download-models update-submodules download-sample-videos
 	@echo "Building Loss Prevention app"	
 	$(MAKE) build
 	$(MAKE) build-scale
 	@echo Running Loss Prevention pipeline
 	$(MAKE) run-render-mode
 
-run-headless: | download-models download-sample-videos
+run-headless: | download-models update-submodules download-sample-videos
 	@echo "Building Loss Prevention app"
 	$(MAKE) build
 	$(MAKE) build-scale
