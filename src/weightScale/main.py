@@ -21,7 +21,7 @@ MQTT_PORT = int(os.getenv("MQTT_PORT", "1883"))
 MQTT_TOPIC = os.getenv("MQTT_TOPIC", "event/scale")
 
 
-# Reading from the scale
+# Reading class object to hold data from the scale
 class Reading:
     def __init__(self, status, value, unit):
         self.status = status
@@ -41,7 +41,7 @@ def read_scale(dev:serial.Serial):
     # build buffer
     buffer_bytes = bytearray()
 
-    # Try reading a small chunk of data to verify communication
+    # Try reading a small chunk of data to verify communication - need to update code based on device used
     weight_request = bytes([0x57, 0x0D])
     dev.write(weight_request)
 
@@ -55,6 +55,7 @@ def read_scale(dev:serial.Serial):
     return buffer_str
 
 def process_scale_hex(buf:str):
+    # Need to update code based on device used
     status_ending = b"0D03"  # Status ending in response
     weight_ending = b"0D0A"  # Weight reading ending in response
     weight_value_start = b"0A3"  # Start of weight data
