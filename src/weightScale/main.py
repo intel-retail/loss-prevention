@@ -1,7 +1,7 @@
 #
 # Copyright (C) 2024-25 Intel Corporation.
 #
-# SPDX-License-Identifier:
+# SPDX-License-Identifier: Apache-2.0
 #
 
 import serial
@@ -9,6 +9,7 @@ import time
 import os
 import paho.mqtt.client as mqtt
 
+# need to update code based on device used
 port_name = '/dev/ttyUSB0' 
 baud_rate = 9600
 timeout = 1  # 1 second timeout
