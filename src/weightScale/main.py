@@ -24,7 +24,7 @@ MQTT_TOPIC = os.getenv("MQTT_TOPIC", "event/scale")
 
 # Reading class object to hold data from the scale
 class Reading:
-    def __init__(self, status, value, unit):
+    def __init__(self, status="", value="", unit=""):
         self.status = status
         self.value = value
         self.unit = unit
