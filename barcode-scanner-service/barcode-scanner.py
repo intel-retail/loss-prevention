@@ -8,6 +8,7 @@ import usb.core
 import usb.util
 import paho.mqtt.client as paho
 import argparse
+import time
 
 def hid2ascii(lst):
     """The USB HID device sends an 8-byte code for every character. This
@@ -105,9 +106,9 @@ def hid2ascii(lst):
 
 
 parser = argparse.ArgumentParser(description='Sends requests via KServe gRPC API using images in format supported by OpenCV. It displays performance statistics and optionally the model accuracy')
-parser.add_argument('--vid', required=True, default=0x05e0, help='Vendor ID of the barcode scanner')
-parser.add_argument('--pid', required=True, default=0x1200, help='Product ID of the barcode scanner')
-parser.add_argument('--mqtt_host', required=True, default="localhost", help='Product ID of the barcode scanner')
+parser.add_argument('--vid', required=False, default=0x05e0, help='Vendor ID of the barcode scanner')
+parser.add_argument('--pid', required=False, default=0x1200, help='Product ID of the barcode scanner')
+parser.add_argument('--mqtt_host', required=False, default="localhost", help='Product ID of the barcode scanner')
 args = vars(parser.parse_args())
 
 # Find our device using the VID (Vendor ID) and PID (Product ID)
@@ -154,6 +155,7 @@ while True:
         data = ep.read(1000, 250)
 
         # Split the input array into n sized arrays for parsing
+        scanTime = time.time()
         arraySize = 8
         lst = [data[i:i + arraySize] for i in range(0, len(data), arraySize)]
 
@@ -172,7 +174,7 @@ while True:
         # Timed out. End of the data stream. Print the scan line.
         if len(line) > 0:
             print(line)
-            mqttClient.publish("barcode",line)
+            mqttClient.publish("barcode",'{"time":' + str(scanTime) + ',"barcode":"' + str(line) + '"}')
             line = ''
 
 mqttClient.loop_stop()
