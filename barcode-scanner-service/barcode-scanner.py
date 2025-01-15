@@ -1,46 +1,13 @@
+#
+# Copyright (C) 2024-25 Intel Corporation.
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
 import usb.core
 import usb.util
 import paho.mqtt.client as paho
-
-"""
-This uses the pyusb module to read the popular LS2208 USB barcode 
-scanner in Linux. This barcode scanner is sold under many labels. It
-is a USB HID device and shows up as a keyboard so a scan will "type"
-the data into any program. But that also becomes its limitation. Often,
-you don't want it to act like it's typing on a keyboard; you just want
-to get data directly from it.
-
-This program detaches the device from the kernel so it will not "type"
-anything, and reads directly from the device without needing any device-
-specific USB drivers.
-
-It does use pyusb to do low-level USB comm. See 
-https://github.com/pyusb/pyusb for installation requirements. Basically, 
-you need to install pyusb:
-
-    pip install pyusb
-
-To install the backend that pyusb uses, you can use libusb (among
-others):
-
-    sudo apt install libusb-1.0-0-dev
-    
-You need to make sure your user is a member of plugdev to use USB 
-devices (in Debian linux):
-
-    sudo addgroup <myuser> plugdev
-    
-You also need to create a udev rule to allow all users to access the
-barcode scanner. In /etc/udev/rules.d, create a file that ends in .rules
-such as 55-barcode-scanner.rules with these contents:
-
-    (TBD)
-"""
-
-def chunks(lst, n):
-    """Yield successive n-sized chunks from lst."""
-    for i in range(0, len(lst), n):
-        yield lst[i:i + n]
+import argparse
 
 def hid2ascii(lst):
     """The USB HID device sends an 8-byte code for every character. This
@@ -61,7 +28,6 @@ def hid2ascii(lst):
     if len(lst) > 8:
         lst = lst[0:8]
 
-    print(lst)
     assert len(lst) == 8, 'Invalid data length (needs 8 bytes)'
     conv_table = {
         0:['', ''],
@@ -138,8 +104,14 @@ def hid2ascii(lst):
 
 
 
+parser = argparse.ArgumentParser(description='Sends requests via KServe gRPC API using images in format supported by OpenCV. It displays performance statistics and optionally the model accuracy')
+parser.add_argument('--vid', required=True, default=0x05e0, help='Vendor ID of the barcode scanner')
+parser.add_argument('--pid', required=True, default=0x1200, help='Product ID of the barcode scanner')
+parser.add_argument('--mqtt_host', required=True, default="localhost", help='Product ID of the barcode scanner')
+args = vars(parser.parse_args())
+
 # Find our device using the VID (Vendor ID) and PID (Product ID)
-dev = usb.core.find(idVendor=0x05e0, idProduct=0x1200)
+dev = usb.core.find(idVendor=args['vid'], idProduct=args['pid'])
 if dev is None:
     raise ValueError('USB device not found')
 
@@ -153,7 +125,7 @@ if dev.is_kernel_driver_active(0):
 # set the active configuration. With no arguments, the first
 # configuration will be the active one
 dev.set_configuration()
-
+ 
 # get an endpoint instance
 cfg = dev.get_active_configuration()
 intf = cfg[(0,0)]
@@ -169,23 +141,24 @@ ep = usb.util.find_descriptor(
 assert ep is not None, "Endpoint for USB device not found. Something is wrong."
 
 mqttClient = paho.Client()
-mqttClient.connect("localhost", 1883, 60)
+mqttClient.connect(args['mqtt_host'], 1883, 60)
 mqttClient.loop_start()
-print("mqtt connected")
+print("MQTT connected")
 
 # Loop through a series of 8-byte transactions and convert each to an
-# ASCII character. Print output after 0.5 seconds of no data.
+# ASCII character. Print output after 0.25 seconds of no data.
 line = ''
 while True:
     try:
-        # Wait up to 0.5 seconds for data. 500 = 0.5 second timeout.
-        data = ep.read(1000, 500)
-        # 843112072929
-        lst = [data[i:i + 8] for i in range(0, len(data), 8)]
-        print(lst)
+        # Wait up to 0.25 seconds for data. 250 = 0.25 second timeout.
+        data = ep.read(1000, 250)
 
+        # Split the input array into n sized arrays for parsing
+        arraySize = 8
+        lst = [data[i:i + arraySize] for i in range(0, len(data), arraySize)]
+
+        # Loop through 8 bit arrays and convert each to ascii for human readability
         for inchar in lst:
-            # print(inchar)
             ch = hid2ascii(inchar)
             line += ch
     except KeyboardInterrupt:
