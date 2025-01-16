@@ -1,2 +1,2 @@
-pyusb
-paho-mqtt
+pyusb==1.3.1
+paho-mqtt==2.1.0
