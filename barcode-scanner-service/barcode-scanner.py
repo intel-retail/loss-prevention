@@ -106,8 +106,8 @@ def hid2ascii(lst):
 
 
 parser = argparse.ArgumentParser(description='Sends requests via KServe gRPC API using images in format supported by OpenCV. It displays performance statistics and optionally the model accuracy')
-parser.add_argument('--vid', required=False, default=0x05e0, help='Vendor ID of the barcode scanner')
-parser.add_argument('--pid', required=False, default=0x1200, help='Product ID of the barcode scanner')
+parser.add_argument('--vid', required=False, default=0x05e0, help='Vendor ID of the barcode scanner') # Default value for Symbol LS2208 General Purpose Barcode Scanner
+parser.add_argument('--pid', required=False, default=0x1200, help='Product ID of the barcode scanner') # Default value for Symbol LS2208 General Purpose Barcode Scanner
 parser.add_argument('--mqtt_host', required=False, default="localhost", help='Product ID of the barcode scanner')
 args = vars(parser.parse_args())
 

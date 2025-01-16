@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-FROM python:3.9-slim
+FROM python:3.13-slim
 
 # Install python3 and libusb dependencies
 RUN apt-get update -y || true; DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
