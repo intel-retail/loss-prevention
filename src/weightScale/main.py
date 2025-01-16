@@ -9,7 +9,7 @@ import time
 import os
 import paho.mqtt.client as mqtt
 
-# need to update code based on device used
+# need to update code based on device used - designed with the CAS PD-II scale in mind
 port_name = '/dev/ttyUSB0' 
 baud_rate = 9600
 timeout = 1  # 1 second timeout
@@ -22,7 +22,7 @@ MQTT_PORT = int(os.getenv("MQTT_PORT", "1883"))
 MQTT_TOPIC = os.getenv("MQTT_TOPIC", "event/scale")
 
 
-# Reading class object to hold data from the scale
+# Reading class object to hold data from the CAS PD-II scale
 class Reading:
     def __init__(self, status="", value="", unit=""):
         self.status = status
@@ -42,21 +42,22 @@ def read_scale(dev:serial.Serial):
     # build buffer
     buffer_bytes = bytearray()
 
-    # Try reading a small chunk of data to verify communication - need to update code based on device used
+    # Verify communication - need to update code based on device used
+    # designed with the CAS PD-II scale in mind
     weight_request = bytes([0x57, 0x0D])
     dev.write(weight_request)
 
     time.sleep(0.128)
 
     # print output request
-    weight_bytes = dev.read(16)  # Read 16 bytes to check if the scale is responsive
+    weight_bytes = dev.read(16)  # Read 16 bytes to check if the CAS PD-II scale is responsive
     buffer_bytes.extend(weight_bytes)
     buffer_str = buffer_bytes.hex().upper()
     print(f"Received data (hex): {buffer_str}")
     return buffer_str
 
 def process_scale_hex(buf:str):
-    # Need to update code based on device used
+    # Need to update code based on device used - CAS PD-II 
     status_ending = b"0D03"  # Status ending in response
     weight_ending = b"0D0A"  # Weight reading ending in response
     weight_value_start = b"0A3"  # Start of weight data
@@ -112,7 +113,7 @@ def main():
     while True:
         try:
             with serial.Serial(port_name, baud_rate, byte_size, parity, stop_bits, timeout ) as ser:
-                print(f"Connected to {port_name}")
+                print(f"Connected to CAS PD-II scale at {port_name}")
 
                 buffer_str = read_scale(ser)
 
