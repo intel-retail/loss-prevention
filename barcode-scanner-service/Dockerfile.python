@@ -1,0 +1,21 @@
+#
+# Copyright (C) 2025 Intel Corporation.
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
+FROM python:3.13-slim
+
+# Install python3 and libusb dependencies
+RUN apt-get update -y || true; DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+    libusb-1.0-0-dev
+
+# Set the working directory in the container
+WORKDIR /app
+COPY ./requirements.txt /requirements.txt
+RUN pip3 install --upgrade pip --no-cache-dir -r /requirements.txt
+
+# Copy barcode scanner service
+COPY barcode-scanner.py barcode-scanner.py
+
+CMD ["python3", "barcode-scanner.py"]
