@@ -83,7 +83,7 @@ def process_scale_hex(buf:str):
 
     # Look for status and weight data in the response
     if status_ending.decode("utf-8") in buf:
-        reading = Reading(status="", value="", unit="")
+        reading = Reading()
 
         status_len = 4
         weight_len = 16
