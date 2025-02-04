@@ -172,7 +172,7 @@ if __name__=="__main__":
     parser.add_argument('--vid', required=False, default=0x05e0, help='Vendor ID of the barcode scanner') # Default value for Symbol LS2208 General Purpose Barcode Scanner
     parser.add_argument('--pid', required=False, default=0x1200, help='Product ID of the barcode scanner') # Default value for Symbol LS2208 General Purpose Barcode Scanner
     parser.add_argument('--mqtt_url', required=False, default="localhost", help='MQTT broker url')
-    parser.add_argument('--mqtt_port', required=False, default="localhost", help='MQTT broker port')
+    parser.add_argument('--mqtt_port', required=False, default=1883, help='MQTT broker port')
     args = vars(parser.parse_args())
 
     client = mqtt.Client(client_id="", clean_session=True, userdata=None, protocol=mqtt.MQTTv311, transport="tcp")
