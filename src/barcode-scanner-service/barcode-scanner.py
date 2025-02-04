@@ -6,7 +6,7 @@
 
 import usb.core
 import usb.util
-import paho.mqtt.client as paho
+import paho.mqtt.client as mqtt
 import argparse
 import time
 
