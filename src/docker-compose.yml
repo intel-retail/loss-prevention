@@ -108,4 +108,15 @@ services:
     network_mode: "host"           
     volumes:
       - ./go2rtc:/config
-      
+  
+  lp-scale:
+    image: lp-scale:dev
+    network_mode: "host"
+    privileged: true
+    environment:
+      - MQTT_URL=127.0.0.1
+      - MQTT_PORT=1883
+      - MQTT_TOPIC=event/scale
+    restart: unless-stopped
+    depends_on:
+      - mosquitto
