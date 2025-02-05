@@ -103,9 +103,9 @@ def hid2ascii(lst):
         return ''
     return conv_table[ch][shift]
 
-def connect_barcode():
+def connect_barcode(vid, pid):
     # Find our device using the VID (Vendor ID) and PID (Product ID)
-    dev = usb.core.find(idVendor=args['vid'], idProduct=args['pid'])
+    dev = usb.core.find(idVendor=vid, idProduct=pid)
     if dev is None:
         raise ValueError('USB device not found')
 
@@ -133,9 +133,25 @@ def connect_barcode():
             usb.util.ENDPOINT_IN)
 
     assert ep is not None, "Endpoint for USB device not found. Something is wrong."
+    return dev, ep, needs_reattach
+
+def parse_args():
+    parser = argparse.ArgumentParser(description='Sends requests via KServe gRPC API using images in format supported by OpenCV. It displays performance statistics and optionally the model accuracy')
+    parser.add_argument('--vid', required=False, default=0x05e0, help='Vendor ID of the barcode scanner') # Default value for Symbol LS2208 General Purpose Barcode Scanner
+    parser.add_argument('--pid', required=False, default=0x1200, help='Product ID of the barcode scanner') # Default value for Symbol LS2208 General Purpose Barcode Scanner
+    parser.add_argument('--mqtt_url', required=False, type=str, default="localhost", help='MQTT broker url')
+    parser.add_argument('--mqtt_port', required=False, type=int, default=1883, help='MQTT broker port')
+    return parser.parse_args()
 
 def main():
-    connect_barcode()
+    args = parse_args()
+    
+    client = mqtt.Client(client_id="", clean_session=True, userdata=None, protocol=mqtt.MQTTv311, transport="tcp")
+    client.connect(args.mqtt_url, args.mqtt_port, 60)
+    print(f"Connected to MQTT")
+    client.loop_start()
+
+    dev, ep, needs_reattach = connect_barcode(args.vid, args.pid)
     # Loop through a series of 8-byte transactions and convert each to an
     # ASCII character. Print output after 0.25 seconds of no data.
     line = ''
@@ -163,20 +179,11 @@ def main():
         except usb.core.USBError:
             # Timed out. End of the data stream. Print the scan line.
             if len(line) > 0:
-                print(line)
-                mqttClient.publish("barcode",'{"id":' + args['pid'] + ',"time":' + str(scanTime) + ',"barcode":"' + str(line) + '"}')
+                msg = '{"id": %d, "time": %s, "barcode": %s}' % (args.pid, str(scanTime), str(line))
+                print(msg)
+                client.publish("barcode", msg)
                 line = ''
 
 if __name__=="__main__":
-    parser = argparse.ArgumentParser(description='Sends requests via KServe gRPC API using images in format supported by OpenCV. It displays performance statistics and optionally the model accuracy')
-    parser.add_argument('--vid', required=False, default=0x05e0, help='Vendor ID of the barcode scanner') # Default value for Symbol LS2208 General Purpose Barcode Scanner
-    parser.add_argument('--pid', required=False, default=0x1200, help='Product ID of the barcode scanner') # Default value for Symbol LS2208 General Purpose Barcode Scanner
-    parser.add_argument('--mqtt_url', required=False, default="localhost", help='MQTT broker url')
-    parser.add_argument('--mqtt_port', required=False, default=1883, help='MQTT broker port')
-    args = vars(parser.parse_args())
 
-    client = mqtt.Client(client_id="", clean_session=True, userdata=None, protocol=mqtt.MQTTv311, transport="tcp")
-    client.connect(args['mqtt_url'], args['mqtt_port'], 60)
-    print(f"Connected to MQTT")
-    client.loop_start()
     main()
