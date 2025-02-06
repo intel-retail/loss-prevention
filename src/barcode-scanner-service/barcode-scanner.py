@@ -29,7 +29,8 @@ def hid2ascii(lst):
     if len(lst) > 8:
         lst = lst[0:8]
 
-    assert len(lst) == 8, 'Invalid data length (needs 8 bytes)'
+    if len(lst) != 8:
+        raise ValueError("Invalid data length (needs 8 bytes)")
     conv_table = {
         0:['', ''],
         4:['a', 'A'],
@@ -107,7 +108,7 @@ def connect_barcode(vid, pid):
     # Find our device using the VID (Vendor ID) and PID (Product ID)
     dev = usb.core.find(idVendor=vid, idProduct=pid)
     if dev is None:
-        raise ValueError('USB device not found')
+        raise IOError('USB device not found')
 
     # Disconnect it from kernel
     needs_reattach = False
@@ -132,7 +133,8 @@ def connect_barcode(vid, pid):
             usb.util.endpoint_direction(e.bEndpointAddress) == \
             usb.util.ENDPOINT_IN)
 
-    assert ep is not None, "Endpoint for USB device not found. Something is wrong."
+    if ep is None:
+        raise ValueError("Endpoint for USB device not found.")
     return dev, ep, needs_reattach
 
 def parse_args():
