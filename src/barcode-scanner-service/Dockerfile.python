@@ -18,4 +18,4 @@ RUN pip3 install --upgrade pip --no-cache-dir -r /requirements.txt
 # Copy barcode scanner service
 COPY barcode-scanner.py barcode-scanner.py
 
-CMD ["python3", "barcode-scanner.py"]
+CMD ["python3", "-u", "barcode-scanner.py"]
