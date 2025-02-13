@@ -5,6 +5,7 @@
 #
 
 import datetime
+import json
 import os
 import paho.mqtt.client as mqtt
 from pytz import timezone
@@ -141,7 +142,7 @@ def main():
                 buffer_str = read_scale(ser)
                 
                 scan_time = time.time()
-                utc_time = datetime.fromtimestamp(scan_time, tz=timezone("UTC")).strftime(SSCAPE_DATETIME_FORMAT)[:-3]
+                utc_time = datetime.datetime.fromtimestamp(scan_time, tz=timezone("UTC")).strftime(SSCAPE_DATETIME_FORMAT)[:-3]
 
                 result = process_scale_hex(buffer_str)
 

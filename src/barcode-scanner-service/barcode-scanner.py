@@ -185,7 +185,7 @@ def main():
             data = ep.read(1000, 250)
 
             scan_time = time.time()
-            utc_time = datetime.fromtimestamp(scan_time, tz=timezone("UTC")).strftime(SSCAPE_DATETIME_FORMAT)[:-3]
+            utc_time = datetime.datetime.fromtimestamp(scan_time, tz=timezone("UTC")).strftime(SSCAPE_DATETIME_FORMAT)[:-3]
 
             # Split the input array into n sized arrays for parsing
             array_size = 8
