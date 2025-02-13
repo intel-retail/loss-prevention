@@ -4,10 +4,12 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-import serial
-import time
+import datetime
 import os
 import paho.mqtt.client as mqtt
+from pytz import timezone
+import serial
+import time
 
 # need to update code based on device used - designed with the CAS PD-II scale in mind
 port_name = '/dev/ttyUSB0' 
@@ -17,9 +19,13 @@ parity = serial.PARITY_EVEN
 byte_size = serial.SEVENBITS
 stop_bits = serial.STOPBITS_ONE
 
+SSCAPE_DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%S.%f"
 MQTT_BROKER_URL = os.getenv("MQTT_URL", "127.0.0.1")
 MQTT_PORT = int(os.getenv("MQTT_PORT", "1883"))
+MQTT_USERNAME = os.getenv("MQTT_USERNAME", None)
+MQTT_PASSWORD = os.getenv("MQTT_PASSWORD", None)
 MQTT_TOPIC = os.getenv("MQTT_TOPIC", "event/scale")
+SSCAPE_AUTH_FILE = os.getenv("SSCAPE_AUTH_FILE", None)
 
 
 # Reading class object to hold data from the CAS PD-II scale
@@ -30,7 +36,7 @@ class Reading:
         self.unit = unit
 
     def print_weight(self):
-        return (f"Weight: {self.value} {self.unit}")
+        return (f"{self.value} {self.unit}")
 
     def to_string(self):
         if self.status == "OK" or self.status == "Motion":
@@ -110,24 +116,45 @@ def process_scale_hex(buf:str):
         return reading
 
 def main():
+
+    client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION1, transport="tcp", userdata=None)
+    if SSCAPE_AUTH_FILE is not None:
+        if os.path.exists(SSCAPE_AUTH_FILE):
+            with open(SSCAPE_AUTH_FILE) as json_file:
+                data = json.load(json_file)
+            user = data['user']
+            pw = data['password']
+            client.username_pw_set(user, pw)
+    elif MQTT_USERNAME is not None and MQTT_PASSWORD is not None:
+        client.username_pw_set(MQTT_USERNAME, MQTT_PASSWORD)
+
+    print("connecting to MQTT at %s:%d" % (MQTT_BROKER_URL, MQTT_PORT))
+    client.connect(MQTT_BROKER_URL, MQTT_PORT, 60)
+    print(f"Connected to MQTT")
+    client.loop_start()
+
     while True:
         try:
             with serial.Serial(port_name, baud_rate, byte_size, parity, stop_bits, timeout ) as ser:
                 print(f"Connected to CAS PD-II scale at {port_name}")
 
                 buffer_str = read_scale(ser)
+                
+                scan_time = time.time()
+                utc_time = datetime.fromtimestamp(scan_time, tz=timezone("UTC")).strftime(SSCAPE_DATETIME_FORMAT)[:-3]
 
                 result = process_scale_hex(buffer_str)
 
                 print(result.to_string())
-                client.publish(topic=MQTT_TOPIC, payload=result.print_weight())
+                msg = dict()
+                msg["id"] = MQTT_TOPIC.split("/")[-1]
+                msg["timestamp"] = utc_time
+                msg["value"] = result.print_weight()
+
+                client.publish(topic=MQTT_TOPIC, payload=json.dumps(msg))
 
         except serial.SerialException as e:
             print(f"Error connecting to the port: {e}")
 
-if __name__=="__main__":
-    client = mqtt.Client(client_id="", clean_session=True, userdata=None, protocol=mqtt.MQTTv311, transport="tcp")
-    client.connect(MQTT_BROKER_URL, MQTT_PORT, 60)
-    print(f"Connected to MQTT")
-    client.loop_start() 
+if __name__=="__main__": 
     main()

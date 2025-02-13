@@ -1,0 +1,38 @@
+#
+# Copyright (C) 2024 Intel Corporation.
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
+ ## Current Developer Toolbox doesn't support environment files, make sure to remove any files or environment variables starting with $
+services:
+  lp-scale:
+    image: lp-scale:dev
+    networks:
+      scenescape:
+    privileged: true
+    environment:
+      - MQTT_URL=broker.scenescape.intel.com
+      - MQTT_PORT=1883
+      - MQTT_TOPIC=scenescape/data/sensor/scale
+    restart: unless-stopped
+    depends_on:
+      - broker
+
+  barcode:
+    image: barcode:dev
+    build:
+      context: .
+      dockerfile: Dockerfile.python
+    devices:
+      - /dev/:/dev/
+    privileged: true
+    environment:
+      - MQTT_URL=broker.scenescape.intel.com
+      - MQTT_PORT=1883
+      - MQTT_TOPIC=scenescape/data/sensor/barcode
+    networks:
+      scenescape:
+    volumes:
+      - /dev/bus/usb:/dev/bus/usb
+      - /etc/udev/rules.d:/etc/udev/rules.d
