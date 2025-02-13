@@ -4,7 +4,7 @@
 .PHONY: build run down
 
 build:
-	docker build -f Dockerfile.python -t barcode:dev .
+	docker build --build-arg HTTPS_PROXY=${HTTPS_PROXY} --build-arg HTTP_PROXY=${HTTP_PROXY} -f Dockerfile.python -t barcode:dev .
 
 run:
 	docker compose up -d

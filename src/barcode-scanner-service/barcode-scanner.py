@@ -4,11 +4,23 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+import argparse
+import datetime
+import json
+import os
+import paho.mqtt.client as mqtt
+from pytz import timezone
+import time
 import usb.core
 import usb.util
-import paho.mqtt.client as mqtt
-import argparse
-import time
+
+SSCAPE_DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%S.%f"
+MQTT_BROKER_URL = os.getenv("MQTT_URL", "localhost")
+MQTT_PORT = int(os.getenv("MQTT_PORT", "1883"))
+MQTT_USERNAME = os.getenv("MQTT_USERNAME", None)
+MQTT_PASSWORD = os.getenv("MQTT_PASSWORD", None)
+MQTT_TOPIC = os.getenv("MQTT_TOPIC", "barcode")
+SSCAPE_AUTH_FILE = os.getenv("SSCAPE_AUTH_FILE", None)
 
 def hid2ascii(lst):
     """The USB HID device sends an 8-byte code for every character. This
@@ -141,15 +153,25 @@ def parse_args():
     parser = argparse.ArgumentParser(description='Sends requests via KServe gRPC API using images in format supported by OpenCV. It displays performance statistics and optionally the model accuracy')
     parser.add_argument('--vid', required=False, default=0x05e0, help='Vendor ID of the barcode scanner') # Default value for Symbol LS2208 General Purpose Barcode Scanner
     parser.add_argument('--pid', required=False, default=0x1200, help='Product ID of the barcode scanner') # Default value for Symbol LS2208 General Purpose Barcode Scanner
-    parser.add_argument('--mqtt_url', required=False, type=str, default="localhost", help='MQTT broker url')
-    parser.add_argument('--mqtt_port', required=False, type=int, default=1883, help='MQTT broker port')
     return parser.parse_args()
+
 
 def main():
     args = parse_args()
     
-    client = mqtt.Client(client_id="", clean_session=True, userdata=None, protocol=mqtt.MQTTv311, transport="tcp")
-    client.connect(args.mqtt_url, args.mqtt_port, 60)
+    client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION1, transport="tcp", userdata=None)
+    if SSCAPE_AUTH_FILE is not None:
+        if os.path.exists(SSCAPE_AUTH_FILE):
+            with open(SSCAPE_AUTH_FILE) as json_file:
+                data = json.load(json_file)
+            user = data['user']
+            pw = data['password']
+            client.username_pw_set(user, pw)
+    elif MQTT_USERNAME is not None and MQTT_PASSWORD is not None:
+        client.username_pw_set(MQTT_USERNAME, MQTT_PASSWORD)
+    
+    print("connecting to MQTT at %s:%d" % (MQTT_BROKER_URL, MQTT_PORT))
+    client.connect(MQTT_BROKER_URL, MQTT_PORT, 60)
     print(f"Connected to MQTT")
     client.loop_start()
 
@@ -162,10 +184,12 @@ def main():
             # Wait up to 0.25 seconds for data. 250 = 0.25 second timeout.
             data = ep.read(1000, 250)
 
+            scan_time = time.time()
+            utc_time = datetime.fromtimestamp(scan_time, tz=timezone("UTC")).strftime(SSCAPE_DATETIME_FORMAT)[:-3]
+
             # Split the input array into n sized arrays for parsing
-            scanTime = time.time()
-            arraySize = 8
-            lst = [data[i:i + arraySize] for i in range(0, len(data), arraySize)]
+            array_size = 8
+            lst = [data[i:i + array_size] for i in range(0, len(data), array_size)]
 
             # Loop through 8 bit arrays and convert each to ascii for human readability
             for inchar in lst:
@@ -181,9 +205,9 @@ def main():
         except usb.core.USBError:
             # Timed out. End of the data stream. Print the scan line.
             if len(line) > 0:
-                msg = '{"id": %d, "time": %s, "barcode": %s}' % (args.pid, str(scanTime), str(line))
+                msg = '{"id": %s, "product_id": %d, "timestamp": %s, "value": %s}' % (MQTT_TOPIC.split("/")[-1], args.pid, utc_time, str(line))
                 print(msg)
-                client.publish("barcode", msg)
+                client.publish(MQTT_TOPIC, json.dumps(msg))
                 line = ''
 
 if __name__=="__main__":
