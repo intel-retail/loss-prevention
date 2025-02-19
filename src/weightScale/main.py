@@ -27,6 +27,7 @@ MQTT_USERNAME = os.getenv("MQTT_USERNAME", None)
 MQTT_PASSWORD = os.getenv("MQTT_PASSWORD", None)
 MQTT_TOPIC = os.getenv("MQTT_TOPIC", "event/scale")
 SSCAPE_AUTH_FILE = os.getenv("SSCAPE_AUTH_FILE", None)
+SSCAPE_ROOTCA = os.getenv("SSCAPE_ROOTCA", None)
 
 
 # Reading class object to hold data from the CAS PD-II scale
@@ -119,6 +120,16 @@ def process_scale_hex(buf:str):
 def main():
 
     client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION1, transport="tcp", userdata=None)
+
+    certs = None
+    if SSCAPE_ROOTCA is not None and os.path.exists(SSCAPE_ROOTCA):
+        if certs is None:
+            certs = {}
+        certs['ca_certs'] = SSCAPE_ROOTCA
+    if certs is not None:
+        client.tls_set(**certs)
+        client.tls_insecure_set(False)
+
     if SSCAPE_AUTH_FILE is not None:
         if os.path.exists(SSCAPE_AUTH_FILE):
             with open(SSCAPE_AUTH_FILE) as json_file:
@@ -131,7 +142,7 @@ def main():
 
     print("connecting to MQTT at %s:%d" % (MQTT_BROKER_URL, MQTT_PORT))
     client.connect(MQTT_BROKER_URL, MQTT_PORT, 60)
-    print(f"Connected to MQTT")
+    print(f"Connected to MQTT and publishing to %s" % MQTT_TOPIC)
     client.loop_start()
 
     while True:

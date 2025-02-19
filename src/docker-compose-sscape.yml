@@ -15,9 +15,15 @@ services:
       - MQTT_URL=broker.scenescape.intel.com
       - MQTT_PORT=1883
       - MQTT_TOPIC=scenescape/data/sensor/scale
+      - MQTT_USERNAME=
+      - MQTT_PASSWORD=
+      - SSCAPE_ROOTCA=/run/secrets/certs/scenescape-ca.pem
     restart: unless-stopped
     depends_on:
       - broker
+    secrets:
+     - source: root-cert
+       target: certs/scenescape-ca.pem
 
   barcode:
     image: barcode:dev
@@ -31,8 +37,14 @@ services:
       - MQTT_URL=broker.scenescape.intel.com
       - MQTT_PORT=1883
       - MQTT_TOPIC=scenescape/data/sensor/barcode
+      - MQTT_USERNAME=
+      - MQTT_PASSWORD=
+      - SSCAPE_ROOTCA=/run/secrets/certs/scenescape-ca.pem
     networks:
       scenescape:
+    secrets:
+     - source: root-cert
+       target: certs/scenescape-ca.pem
     volumes:
       - /dev/bus/usb:/dev/bus/usb
       - /etc/udev/rules.d:/etc/udev/rules.d

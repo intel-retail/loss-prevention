@@ -21,14 +21,15 @@ MQTT_USERNAME = os.getenv("MQTT_USERNAME", None)
 MQTT_PASSWORD = os.getenv("MQTT_PASSWORD", None)
 MQTT_TOPIC = os.getenv("MQTT_TOPIC", "barcode")
 SSCAPE_AUTH_FILE = os.getenv("SSCAPE_AUTH_FILE", None)
+SSCAPE_ROOTCA = os.getenv("SSCAPE_ROOTCA", None)
 
 def hid2ascii(lst):
     """The USB HID device sends an 8-byte code for every character. This
     routine converts the HID code to an ASCII character.
-    
+
     See https://www.usb.org/sites/default/files/documents/hut1_12v2.pdf
     for a complete code table. Only relevant codes are used here."""
-    
+
     # Example input from scanner representing the string "http:":
     #   array('B', [0, 0, 11, 0, 0, 0, 0, 0])   # h
     #   array('B', [0, 0, 23, 0, 0, 0, 0, 0])   # t
@@ -36,7 +37,7 @@ def hid2ascii(lst):
     #   array('B', [0, 0, 23, 0, 0, 0, 0, 0])   # t
     #   array('B', [0, 0, 19, 0, 0, 0, 0, 0])   # p
     #   array('B', [2, 0, 51, 0, 0, 0, 0, 0])   # :
-    
+
 
     if len(lst) > 8:
         lst = lst[0:8]
@@ -108,7 +109,7 @@ def hid2ascii(lst):
         shift = 1
     else:
         shift = 0
-        
+
     # The character to convert is in the third byte
     ch = lst[2]
     if ch not in conv_table:
@@ -132,7 +133,7 @@ def connect_barcode(vid, pid):
     # set the active configuration. With no arguments, the first
     # configuration will be the active one
     dev.set_configuration()
-    
+
     # get an endpoint instance
     cfg = dev.get_active_configuration()
     intf = cfg[(0,0)]
@@ -158,8 +159,18 @@ def parse_args():
 
 def main():
     args = parse_args()
-    
+
     client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION1, transport="tcp", userdata=None)
+
+    certs = None
+    if SSCAPE_ROOTCA is not None and os.path.exists(SSCAPE_ROOTCA):
+        if certs is None:
+            certs = {}
+        certs['ca_certs'] = SSCAPE_ROOTCA
+    if certs is not None:
+        client.tls_set(**certs)
+        client.tls_insecure_set(False)
+    
     if SSCAPE_AUTH_FILE is not None:
         if os.path.exists(SSCAPE_AUTH_FILE):
             with open(SSCAPE_AUTH_FILE) as json_file:
@@ -169,10 +180,10 @@ def main():
             client.username_pw_set(user, pw)
     elif MQTT_USERNAME is not None and MQTT_PASSWORD is not None:
         client.username_pw_set(MQTT_USERNAME, MQTT_PASSWORD)
-    
+
     print("connecting to MQTT at %s:%d" % (MQTT_BROKER_URL, MQTT_PORT))
     client.connect(MQTT_BROKER_URL, MQTT_PORT, 60)
-    print(f"Connected to MQTT")
+    print(f"Connected to MQTT and publishing to %s" % MQTT_TOPIC)
     client.loop_start()
 
     dev, ep, needs_reattach = connect_barcode(args.vid, args.pid)
