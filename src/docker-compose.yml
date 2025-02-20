@@ -120,3 +120,22 @@ services:
     restart: unless-stopped
     depends_on:
       - mosquitto
+
+  barcode:
+    image: barcode:dev
+    build:
+      context: .
+      dockerfile: Dockerfile.python
+    devices:
+      - /dev/:/dev/
+    privileged: true
+    environment:
+      - MQTT_URL=localhost
+      - MQTT_PORT=1883
+      - MQTT_TOPIC=barcode
+    network_mode: "host"
+    volumes:
+      - /dev/bus/usb:/dev/bus/usb
+      - /etc/udev/rules.d:/etc/udev/rules.d
+    depends_on:
+      - mosquitto
