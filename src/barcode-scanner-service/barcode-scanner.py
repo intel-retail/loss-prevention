@@ -9,12 +9,9 @@ import datetime
 import json
 import os
 import paho.mqtt.client as mqtt
-from pytz import timezone
-import time
 import usb.core
 import usb.util
 
-SSCAPE_DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%S.%f"
 MQTT_BROKER_URL = os.getenv("MQTT_URL", "localhost")
 MQTT_PORT = int(os.getenv("MQTT_PORT", "1883"))
 MQTT_USERNAME = os.getenv("MQTT_USERNAME", None)
@@ -194,9 +191,7 @@ def main():
         try:
             # Wait up to 0.25 seconds for data. 250 = 0.25 second timeout.
             data = ep.read(1000, 250)
-
-            scan_time = time.time()
-            utc_time = datetime.datetime.fromtimestamp(scan_time, tz=timezone("UTC")).strftime(SSCAPE_DATETIME_FORMAT)[:-3]
+            utc_time = datetime.datetime.now(datetime.timezone.utc).isoformat() + 'Z'
 
             # Split the input array into n sized arrays for parsing
             array_size = 8

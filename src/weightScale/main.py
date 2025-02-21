@@ -8,7 +8,6 @@ import datetime
 import json
 import os
 import paho.mqtt.client as mqtt
-from pytz import timezone
 import serial
 import time
 
@@ -20,7 +19,6 @@ parity = serial.PARITY_EVEN
 byte_size = serial.SEVENBITS
 stop_bits = serial.STOPBITS_ONE
 
-SSCAPE_DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%S.%f"
 MQTT_BROKER_URL = os.getenv("MQTT_URL", "127.0.0.1")
 MQTT_PORT = int(os.getenv("MQTT_PORT", "1883"))
 MQTT_USERNAME = os.getenv("MQTT_USERNAME", None)
@@ -54,8 +52,6 @@ def read_scale(dev:serial.Serial):
     # designed with the CAS PD-II scale in mind
     weight_request = bytes([0x57, 0x0D])
     dev.write(weight_request)
-
-    time.sleep(0.128)
 
     # print output request
     weight_bytes = dev.read(16)  # Read 16 bytes to check if the CAS PD-II scale is responsive
@@ -145,25 +141,24 @@ def main():
     print(f"Connected to MQTT and publishing to %s" % MQTT_TOPIC)
     client.loop_start()
 
+    print(f"Connected to CAS PD-II scale at {port_name}")
+
     while True:
         try:
             with serial.Serial(port_name, baud_rate, byte_size, parity, stop_bits, timeout ) as ser:
-                print(f"Connected to CAS PD-II scale at {port_name}")
 
-                buffer_str = read_scale(ser)
-                
-                scan_time = time.time()
-                utc_time = datetime.datetime.fromtimestamp(scan_time, tz=timezone("UTC")).strftime(SSCAPE_DATETIME_FORMAT)[:-3]
-
+                buffer_str = read_scale(ser)            
+                utc_time = datetime.datetime.now(datetime.timezone.utc).isoformat() + 'Z'
                 result = process_scale_hex(buffer_str)
 
-                print(result.to_string())
                 msg = dict()
                 msg["id"] = MQTT_TOPIC.split("/")[-1]
                 msg["timestamp"] = utc_time
                 msg["value"] = result.print_weight()
-
+                print(msg)
                 client.publish(topic=MQTT_TOPIC, payload=json.dumps(msg))
+
+                time.sleep(0.128)
 
         except serial.SerialException as e:
             print(f"Error connecting to the port: {e}")
