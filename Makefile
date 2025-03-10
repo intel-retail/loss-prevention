@@ -1,4 +1,4 @@
-# Copyright © 2024 Intel Corporation. All rights reserved.
+# Copyright © 2025 Intel Corporation. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 .PHONY: build build-realsense run down
@@ -55,7 +55,7 @@ build: build-scale
 	docker build --build-arg HTTPS_PROXY=${HTTPS_PROXY} --build-arg HTTP_PROXY=${HTTP_PROXY} -t loss-prevention:dev -f src/app/Dockerfile src/app
 
 build-scale:
-	docker build --build-arg HTTPS_PROXY=${HTTPS_PROXY} --build-arg HTTP_PROXY=${HTTP_PROXY} -t lp-scale:dev -f src/weightScale/Dockerfile src/weightScale
+	docker build --build-arg HTTPS_PROXY=${HTTPS_PROXY} --build-arg HTTP_PROXY=${HTTP_PROXY} -t lp-scale:dev -f src/weight-scale/Dockerfile src/weight-scale
 
 build-realsense:
 	docker build --build-arg HTTPS_PROXY=${HTTPS_PROXY} --build-arg HTTP_PROXY=${HTTP_PROXY} --target build-realsense -t dlstreamer:realsense -f src/Dockerfile src/
