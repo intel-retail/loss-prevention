@@ -7,8 +7,13 @@
 import usb.core
 import usb.util
 import paho.mqtt.client as mqtt
-import argparse
 import time
+import os
+
+MQTT_BROKER_URL = os.getenv("MQTT_URL", "localhost")
+MQTT_PORT = int(os.getenv("MQTT_PORT", "1883"))
+VID = os.getenv("VID", 0x05e0)  # Vendor ID of the barcode scanner. Default value for Symbol LS2208 General Purpose Barcode Scanner
+PID = os.getenv("PID", 0x1200)  # Product ID of the barcode scanner. Default value for Symbol LS2208 General Purpose Barcode Scanner
 
 def hid2ascii(lst):
     """The USB HID device sends an 8-byte code for every character. This
@@ -137,23 +142,14 @@ def connect_barcode(vid, pid):
         raise ValueError("Endpoint for USB device not found.")
     return dev, ep, needs_reattach
 
-def parse_args():
-    parser = argparse.ArgumentParser(description='Sends requests via KServe gRPC API using images in format supported by OpenCV. It displays performance statistics and optionally the model accuracy')
-    parser.add_argument('--vid', required=False, default=0x05e0, help='Vendor ID of the barcode scanner') # Default value for Symbol LS2208 General Purpose Barcode Scanner
-    parser.add_argument('--pid', required=False, default=0x1200, help='Product ID of the barcode scanner') # Default value for Symbol LS2208 General Purpose Barcode Scanner
-    parser.add_argument('--mqtt_url', required=False, type=str, default="localhost", help='MQTT broker url')
-    parser.add_argument('--mqtt_port', required=False, type=int, default=1883, help='MQTT broker port')
-    return parser.parse_args()
 
-def main():
-    args = parse_args()
-    
+def main():        
     client = mqtt.Client(client_id="", clean_session=True, userdata=None, protocol=mqtt.MQTTv311, transport="tcp")
-    client.connect(args.mqtt_url, args.mqtt_port, 60)
+    client.connect(MQTT_BROKER_URL, MQTT_PORT, 60)
     print(f"Connected to MQTT")
     client.loop_start()
 
-    dev, ep, needs_reattach = connect_barcode(args.vid, args.pid)
+    dev, ep, needs_reattach = connect_barcode(VID, PID)
     # Loop through a series of 8-byte transactions and convert each to an
     # ASCII character. Print output after 0.25 seconds of no data.
     line = ''
@@ -181,7 +177,7 @@ def main():
         except usb.core.USBError:
             # Timed out. End of the data stream. Print the scan line.
             if len(line) > 0:
-                msg = '{"id": %d, "time": %s, "barcode": %s}' % (args.pid, str(scanTime), str(line))
+                msg = '{"id": %s, "time": %s, "barcode": %s}' % (PID, str(scanTime), str(line))
                 print(msg)
                 client.publish("barcode", msg)
                 line = ''

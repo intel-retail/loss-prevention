@@ -25,20 +25,15 @@ services:
     security_opt:
     - no-new-privileges:true
     user: 2002:2001
-  barcode:
-    image: barcode:dev
+
+  sensor-simulate:
     build:
       context: .
-      dockerfile: Dockerfile.python
-    devices:
-      - /dev/:/dev/
-    privileged: true
-    environment:
-      - MQTT_URL=localhost
-      - MQTT_PORT=1883
-      - VID=0x05e0
-      - PID=0x1200
+      dockerfile: Dockerfile
+    container_name: sensor-simulate
+    hostname: sensor-simulate
+    image: lp-sensor:dev
     network_mode: "host"
     volumes:
-      - /dev/bus/usb:/dev/bus/usb
-      - /etc/udev/rules.d:/etc/udev/rules.d
+      - ./sample-file.txt:/sample-file.txt
+    restart: always
