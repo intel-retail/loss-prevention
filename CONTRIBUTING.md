@@ -1,7 +1,7 @@
 ## Pull requests
 
 Please adhere to the coding conventions used throughout the project. If in doubt, consult the
-[Effective Go](https://golang.org/doc/effective_go.html) style guide.
+[Effective Go](https://golang.org/doc/effective_go.html) style guide
 
 Adhering to the following process is the best way to get your work included in the project:
 
