@@ -3,7 +3,7 @@ openvino-dev
 openvino-dev[onnx]
 ultralytics
 torch
-nncf[torch]==2.6.0
+nncf[torch]==2.17.0
 nncf==2.6.0
 rich
 timm
