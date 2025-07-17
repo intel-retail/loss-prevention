@@ -17,7 +17,7 @@ permissions:
   contents: read
 
 jobs:
-    trivy_image_scan_dlstreamer:
+    trivy_image_scan_lossprevention:
       permissions:
         contents: read # for actions/checkout to fetch code
         security-events: write # for github/codeql-action/upload-sarif to upload SARIF results
@@ -29,21 +29,46 @@ jobs:
           uses: actions/checkout@v4
           with:
             ref: main
-
-        - name: Build an image from Dockerfile
+        - name: Update Sub Module Performance-Tools
+          run: make update-submodules
+          
+        - name: Build and Run Model Downloader image from Dockerfile
           run: |
-            echo "running make build benchmark"
-            make build
-        - name: Run Trivy vulnerability scanner
+            echo "running make build-model-downloader"
+            make build-model-downloader
+            make run-model-downloader
+
+        - name: Build Pipeline Runner image from Dockerfile
+          run: |
+            echo "running make build-pipeline-runner"
+            make build-pipeline-runner
+
+        - name: Run Trivy vulnerability scanner on model-downloader
           uses: aquasecurity/trivy-action@0.28.0
           with:
-            image-ref: 'dlstreamer:dev'
+            image-ref: 'model-downloader:lp'
             format: 'template'
             template: '@/contrib/sarif.tpl'
-            output: 'trivy-results.sarif'
+            output: 'trivy-results-model-downloader.sarif'
             severity: 'CRITICAL,HIGH'
 
-        - name: Upload Trivy scan results to GitHub Security tab
+        - name: Run Trivy vulnerability scanner on pipeline-runner
+          uses: aquasecurity/trivy-action@0.28.0
+          with:
+            image-ref: 'pipeline-runner:lp'
+            format: 'template'
+            template: '@/contrib/sarif.tpl'
+            output: 'trivy-results-pipeline-runner.sarif'
+            severity: 'CRITICAL,HIGH'
+
+        - name: Upload Trivy scan results for model-downloader to GitHub Security tab
           uses: github/codeql-action/upload-sarif@v3.28.13
           with:
-            sarif_file: 'trivy-results.sarif'
+            sarif_file: 'trivy-results-model-downloader.sarif'
+            category: 'model-downloader'
+
+        - name: Upload Trivy scan results for pipeline-runner to GitHub Security tab
+          uses: github/codeql-action/upload-sarif@v3.28.13
+          with:
+            sarif_file: 'trivy-results-pipeline-runner.sarif'
+            category: 'pipeline-runner'
