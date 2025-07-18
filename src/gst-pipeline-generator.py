@@ -149,18 +149,18 @@ def build_dynamic_gstlaunch_command(camera, workloads, workload_map, branch_idx=
         first_device = steps[0]["device"]
         first_env_vars = get_env_vars_for_device(first_device)
         DECODE = first_env_vars.get("DECODE") or "decodebin"
-        pipeline = f"filesrc location={video_file} ! {DECODE} ! videoconvert"
+        pipeline = f"filesrc location={video_file} ! {DECODE} "
         rois = []
         seen_rois = set()
         for step in steps:
             roi = step.get("region_of_interest")
             if roi:
-                roi_tuple = (roi.get('x', 0), roi.get('y', 0), roi.get('width', 1), roi.get('height', 1))
+                roi_tuple = (roi.get('x', 0), roi.get('y', 0), roi.get('x2', 1), roi.get('y2', 1))
                 if roi_tuple not in seen_rois:
                     seen_rois.add(roi_tuple)
                     rois.append(roi)
         if rois:
-            roi_strs = [f"roi={r['x']},{r['y']},{r['width']},{r['height']}" for r in rois]
+            roi_strs = [f"roi={r['x']},{r['y']},{r['x2']},{r['y2']}" for r in rois]
             gvaattachroi_elem = "gvaattachroi " + " ".join(roi_strs)
             pipeline += f" ! {gvaattachroi_elem} ! queue"
         inference_types = {"gvadetect", "gvaclassify"}
@@ -233,8 +233,8 @@ def main():
     os.makedirs(results_dir, exist_ok=True)
     
     # Generate timestamp for all files
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    
+    timestamp = os.environ.get("TIMESTAMP")
+  
     camera_config = load_json(CONFIG_CAMERA_TO_WORKLOAD)
     workload_map = load_json(CONFIG_WORKLOAD_TO_PIPELINE)["workload_pipeline_map"]
     pipelines = []
@@ -245,8 +245,8 @@ def main():
         norm_workload_map = {k.lower(): v for k, v in workload_map.items()}
         cam_pipelines = build_dynamic_gstlaunch_command(cam, workloads, norm_workload_map, branch_idx=idx, model_instance_map=model_instance_map, model_instance_counter=model_instance_counter, timestamp=timestamp)
         pipelines.extend([p.strip() for p in cam_pipelines])
-    # Print gst-launch-1.0 -e and all pipelines, each filesrc on a new line, with a backslash at the end except the last
-    print("gst-launch-1.0 -e \\")
+    # Print gst-launch-1.0 --verbose and all pipelines, each filesrc on a new line, with a backslash at the end except the last
+    print("gst-launch-1.0 --verbose \\")
     for idx, p in enumerate(pipelines):
         end = " \\" if idx < len(pipelines) - 1 else ""
         print(f"  {p}{end}")

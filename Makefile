@@ -6,6 +6,10 @@
 
 # Default values for benchmark
 PIPELINE_COUNT ?= 1
+INIT_DURATION ?= 30
+TARGET_FPS ?= 14.95
+CONTAINER_NAMES ?= gst0
+DENSITY_INCREMENT ?= 1
 MKDOCS_IMAGE ?= asc-mkdocs
 RESULTS_DIR ?= $(PWD)/benchmark
 
@@ -69,13 +73,9 @@ update-submodules:
 build-benchmark:
 	cd performance-tools && $(MAKE) build-benchmark-docker
 
-benchmark: build-benchmark download-sample-videos download-models
-	@if [ -n "$(DEVICE_ENV)" ]; then \
-		echo "Loading device environment from $(DEVICE_ENV)"; \
-		cd performance-tools/benchmark-scripts && bash -c "set -a; source ../../src/$(DEVICE_ENV); set +a; python3 benchmark.py --compose_file ../../src/docker-compose.yml --pipelines $(PIPELINE_COUNT) --results_dir $(RESULTS_DIR)"; \
-	else \
-		cd performance-tools/benchmark-scripts && python3 benchmark.py --compose_file ../../src/docker-compose.yml --pipelines $(PIPELINE_COUNT) --results_dir $(RESULTS_DIR); \
-	fi
+benchmark: build-benchmark download-sample-videos download-models	
+	cd performance-tools/benchmark-scripts && python3 benchmark.py --compose_file ../../src/docker-compose.yml --pipelines $(PIPELINE_COUNT) --results_dir $(RESULTS_DIR); \
+	
 
 run-lp: | update-submodules download-sample-videos
 	@echo downloading the models
@@ -97,8 +97,18 @@ run-render-mode:
 	@echo "Using DISPLAY=$(DISPLAY)"
 	@xhost +local:docker
 	docker compose -f src/docker-compose.yml build pipeline-runner
-	@RENDER_MODE=$(RENDER_MODE) docker compose -f src/docker-compose.yml up -d
+	@RENDER_MODE=1 docker compose -f src/docker-compose.yml up -d
 	$(MAKE) clean-images
+
+benchmark-stream-density: build-benchmark download-models
+	@cd performance-tools/benchmark-scripts && \
+	python3 benchmark.py \
+	  --compose_file ../../src/docker-compose.yml \
+	  --init_duration $(INIT_DURATION) \
+	  --target_fps $(TARGET_FPS) \
+	  --container_names $(CONTAINER_NAMES) \
+	  --density_increment $(DENSITY_INCREMENT) \
+	  --results_dir $(RESULTS_DIR)
 
 clean-images:
 	@echo "Cleaning up dangling Docker images..."

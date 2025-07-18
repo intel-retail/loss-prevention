@@ -32,14 +32,11 @@ make run-render-mode
 
 
 ### 3. Run Loss Prevention appliaction with single command.
-By default, RENDER_MODE=1, which displays the output video window. To disable the output video window, set RENDER_MODE=0
+
 
 ```sh
 make run-lp
 
-Disable output window
-
-make run-lp RENDER_MODE=0
 ```
 
 ### 4. Stop all containers

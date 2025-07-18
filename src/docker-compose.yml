@@ -27,21 +27,22 @@ services:
         - HTTP_PROXY=${HTTP_PROXY}
         - HTTPS_PROXY=${HTTPS_PROXY}
     image: pipeline-runner:lp
-    container_name: pipeline-runner
+    deploy:
+      mode: replicated
+      replicas: ${PIPELINE_COUNT:-1}
     depends_on:
       model-downloader:
         condition: service_completed_successfully
     environment:
       - DISPLAY=${DISPLAY:-:0}
-      - RENDER_MODE=${RENDER_MODE:-1}      
+      - RENDER_MODE=${RENDER_MODE:-0}    
+      - CONTAINER_NAME=${CONTAINER_NAME}  
     volumes:
       - ../models:/home/pipeline-server/models
       - ../performance-tools/sample-media:/home/pipeline-server/sample-media
-      - ../results:/home/pipeline-server/results
+      - ${RESULTS_DIR:-../results}:/home/pipeline-server/results
       - ../configs:/home/pipeline-server/configs
       - ../src/pipelines:/home/pipeline-server/pipelines
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
     network_mode: host
     privileged: true
-    stdin_open: true
-    tty: true

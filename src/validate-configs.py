@@ -170,53 +170,68 @@ class ConfigValidator:
         if not isinstance(camera, dict):
             self.add_error(f"Invalid camera configuration in {context}: expected object")
             return False
-        
+
         # Validate fileSrc
         if 'fileSrc' not in camera:
             self.add_error(f"Missing 'fileSrc' field in {context}")
             return False
-        
+
         file_src = camera['fileSrc']
         if not isinstance(file_src, str) or not file_src.strip():
             self.add_error(f"'fileSrc' must be a non-empty string in {context}")
             return False
-        
+
         # Check fileSrc format: filename|url
         if '|' not in file_src:
             self.add_error(f"Invalid 'fileSrc' format in {context}: must be 'filename|url', got '{file_src}'")
             return False
-        
+
         parts = file_src.split('|', 1)  # Split into exactly 2 parts
         filename, url = parts[0].strip(), parts[1].strip()
-        
+
         if not filename:
             self.add_error(f"Invalid 'fileSrc' format in {context}: filename part is empty in '{file_src}'")
             return False
-        
+
         if not url:
             self.add_error(f"Invalid 'fileSrc' format in {context}: URL part is empty in '{file_src}'")
             return False
-        
+
+        # Validate region_of_interest if present
+        if 'region_of_interest' in camera:
+            roi = camera['region_of_interest']
+            if not isinstance(roi, dict):
+                self.add_error(f"'region_of_interest' must be an object in {context}")
+                return False
+            for field in ['x', 'y', 'x2', 'y2']:
+                if field not in roi:
+                    self.add_error(f"Missing '{field}' in region_of_interest in {context}")
+                    return False
+                value = roi[field]
+                if value in [None, '', 0]:
+                    self.add_error(f"Field '{field}' in region_of_interest must not be empty or 0 in {context}")
+                    return False
+
         # Validate workloads
         if 'workloads' not in camera:
             self.add_error(f"Missing 'workloads' field in {context}")
             return False
-        
+
         workloads = camera['workloads']
         if not isinstance(workloads, list):
             self.add_error(f"'workloads' must be an array in {context}")
             return False
-        
+
         if len(workloads) == 0:
             self.add_error(f"'workloads' array cannot be empty in {context}")
             return False
-        
+
         # Validate each workload is a non-empty string
         for j, workload in enumerate(workloads):
             if not isinstance(workload, str) or not workload.strip():
                 self.add_error(f"workloads[{j}] must be a non-empty string in {context}")
                 return False
-        
+
         return True
     
     def print_results(self) -> bool:
