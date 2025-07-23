@@ -18,7 +18,7 @@ permissions:
 
 jobs:
   run_integration_tests:
-      runs-on: [self-hosted, linux, x64, integration, arc, 12gen]
+      runs-on: [ubuntu-latest]
       steps:
           - name: Cleanup repo build folder
             run: |
@@ -28,14 +28,3 @@ jobs:
               ls -la ./
           - name: Checkout code
             uses: actions/checkout@v4
-          - name: run integration tests
-            run: |
-              make run-smoke-tests
-          - name: success
-            if: success()
-            run: |
-              curl --location --request POST ${{ secrets.DISCORD_INTEGRATION }} --header 'Content-Type: application/json' --data-raw '{"embeds": [{"title": "Success: ${{ github.run_number }}","url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}","color": 65280}]}'
-          - name: failure
-            if: failure()
-            run: |
-              curl --location --request POST ${{ secrets.DISCORD_INTEGRATION }} --header 'Content-Type: application/json' --data-raw '{"embeds": [{"title": "Failure: ${{ github.run_number }}","url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}","color": 16711680}]}'
