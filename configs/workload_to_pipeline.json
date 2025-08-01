@@ -69,6 +69,25 @@
         "device": "GPU",
         "precision": "INT8"
       }
+    ],
+    "sweet_heartening": [
+      {
+        "type": "gvadetect",
+        "model": "face-detection-retail-0004",
+        "device": "CPU",
+        "precision": "FP16-INT8"
+      },
+      {
+        "type": "gvainference",
+        "model": "face-reidentification-retail-0095",
+        "device": "CPU",
+        "precision": "FP16-INT8"
+      },
+      {
+        "type": "gvapython",
+        "module": "person_reid.py",
+        "function": "process_frame"
+      }
     ]
   }
 }

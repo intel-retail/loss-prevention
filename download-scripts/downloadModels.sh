@@ -67,27 +67,46 @@ for TYPE_KEY in "${!TYPE_MODELS[@]}"; do
             continue
         fi
         echo "[INFO] ########### Processing $MODEL_NAME ($TYPE_KEY) ..."
+        PRECISION="INT8"
+        MODEL_XML_PATH=""
         case "$TYPE_KEY" in
-            gvadetect|object_detection) 
-                # Get precision from workload_to_pipeline.json for this model
+            gvadetect|object_detection)
                 PRECISION=$(jq -r --arg model "$MODEL_NAME" '
                   .workload_pipeline_map[] | 
                   .[] | 
                   select(.model == $model and .type == "gvadetect") | 
                   .precision // "INT8"
                 ' "$CONFIG_JSON" | head -1)
-                
-                # Default to INT8 if no precision found
-                if [[ -z "$PRECISION" || "$PRECISION" == "null" ]]; then
-                    PRECISION="INT8"
-                fi                
-                echo "[INFO] ########### Using precision: $PRECISION for model: $MODEL_NAME #########"                
-                # Check if model already exists with the specified precision
                 MODEL_XML_PATH="$MODELS_PATH/object_detection/$MODEL_NAME/$PRECISION/$MODEL_NAME.xml"
-                if [ -f "$MODEL_XML_PATH" ]; then
-                    echo "[INFO] ###### Model $MODEL_NAME with precision $PRECISION already exists at $MODEL_XML_PATH, skipping download."
-                    continue
-                fi
+                ;;
+            gvaclassify|object_classification)
+                PRECISION=$(jq -r --arg model "$MODEL_NAME" '
+                  .workload_pipeline_map[] | 
+                  .[] | 
+                  select(.model == $model and .type == "gvaclassify") | 
+                  .precision // "INT8"
+                ' "$CONFIG_JSON" | head -1)
+                MODEL_XML_PATH="$MODELS_PATH/object_classification/$MODEL_NAME/$PRECISION/$MODEL_NAME.xml"
+                ;;
+            gvainference)
+                MODEL_XML_PATH="$MODELS_PATH/object_classification/$MODEL_NAME/$PRECISION/$MODEL_NAME.xml"
+                ;;
+        esac
+        # Default to INT8 if no precision found
+        if [[ -z "$PRECISION" || "$PRECISION" == "null" ]]; then
+            PRECISION="INT8"
+        fi
+        echo "[INFO] ########### Using precision: $PRECISION for model: $MODEL_NAME #########"
+        if [ -f "$MODEL_XML_PATH" ]; then
+            echo "[INFO] ###### Model $MODEL_NAME with precision $PRECISION already exists at $MODEL_XML_PATH, skipping download."
+            continue
+        fi
+        # Download logic
+        if [[ "$TYPE_KEY" == "gvadetect" || "$TYPE_KEY" == "object_detection" ]]; then
+            if [[ "$MODEL_NAME" == face-detection-retail-* ]]; then
+                echo "[INFO] ######  Downloading face model: $MODEL_NAME using face-model-download.sh"
+                "$SCRIPT_BASE_PATH/face-model-download.sh" "$MODEL_NAME" "$MODELS_PATH/object_detection"
+            else
                 echo "[INFO] ######  Downloading and converting model: $MODEL_NAME"
                 python3 "$SCRIPT_BASE_PATH/model_convert.py" export_yolo "$MODEL_NAME" "$MODELS_PATH"
                 # Quantize if needed
@@ -97,41 +116,19 @@ for TYPE_KEY in "${!TYPE_MODELS[@]}"; do
                     wget --no-check-certificate --timeout=30 --tries=2 "https://raw.githubusercontent.com/ultralytics/ultralytics/v8.1.0/ultralytics/cfg/datasets/coco128.yaml" -O "$quant_dataset"
                 fi
                 python3 "$SCRIPT_BASE_PATH/model_convert.py" quantize_yolo "$MODEL_NAME" "$quant_dataset" "$MODELS_PATH"
-                ;;
-            gvaclassify|object_classification)
-                echo "[INFO] ######  Downloading and converting object classification model: $MODEL_NAME"
-                
-                # Get precision from workload_to_pipeline.json for this model
-                PRECISION=$(jq -r --arg model "$MODEL_NAME" '
-                  .workload_pipeline_map[] | 
-                  .[] | 
-                  select(.model == $model and .type == "gvaclassify") | 
-                  .precision // "INT8"
-                ' "$CONFIG_JSON" | head -1)
-                
-                # Default to INT8 if no precision found
-                if [[ -z "$PRECISION" || "$PRECISION" == "null" ]]; then
-                    PRECISION="INT8"
-                fi
-                
-                echo "[INFO] ########### Using precision: $PRECISION for model: $MODEL_NAME #########"
-                
-                # Check if model already exists with the specified precision
-                MODEL_XML_PATH="$MODELS_PATH/object_classification/$MODEL_NAME/$PRECISION/$MODEL_NAME.xml"
-                if [ -f "$MODEL_XML_PATH" ]; then
-                    echo "[INFO] ###### Model $MODEL_NAME with precision $PRECISION already exists at $MODEL_XML_PATH, skipping download."
-                    continue
-                fi
-                
+            fi
+        elif [[ "$TYPE_KEY" == "gvaclassify" || "$TYPE_KEY" == "object_classification" ]]; then
+            if [[ "$MODEL_NAME" == face-reidentification-retail-* ]]; then
+                echo "[INFO] ######  Downloading face reidentification model: $MODEL_NAME using face-model-download.sh"
+                "$SCRIPT_BASE_PATH/face-model-download.sh" "$MODEL_NAME" "$MODELS_PATH/object_classification"
+            else
                 python3 "$SCRIPT_BASE_PATH/efnetv2b0_download_quant.py" "$MODEL_NAME" "$MODELS_PATH"
-                ;;
-            face_detection)
-                python3 "$SCRIPT_BASE_PATH/model_convert.py" face_detection "$MODEL_NAME" "$MODELS_PATH"
-                ;;
-            *)
-                echo "[WARN] Unsupported type: $TYPE_KEY, skipping..."
-                ;;
-        esac
+            fi
+        elif [[ "$TYPE_KEY" == "gvainference" ]]; then
+            echo "[INFO] ######  Downloading face reidentification model: $MODEL_NAME using face-model-download.sh"
+            "$SCRIPT_BASE_PATH/face-model-download.sh" "$MODEL_NAME" "$MODELS_PATH/object_classification"
+            echo "[WARN] Unsupported type: $TYPE_KEY, skipping..."
+        fi
     done
 done
 

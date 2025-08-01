@@ -29,6 +29,10 @@ def download_model_if_missing(model_name, model_type=None, precision=None):
     if model_type == "gvadetect":
         precision_lower = precision.lower()
         return f"{MODELSERVER_MODELS_DIR}/object_detection/{model_name}/{precision}/{model_name}.xml"
+    elif model_type == "gvainference":
+        base_path = f"{MODELSERVER_MODELS_DIR}/object_classification/{model_name}"
+        model_path = f"{base_path}/{precision}/{model_name}.xml"
+        return model_path
     elif model_type == "gvaclassify":
         base_path = f"{MODELSERVER_MODELS_DIR}/object_classification/{model_name}"
         model_path = f"{base_path}/{precision}/{model_name}.xml"
@@ -72,13 +76,13 @@ def get_env_vars_for_device(device):
     return dotenv_values(env_file)
 
 def build_gst_element(cfg):
-    model = cfg["model"]
-    device = cfg["device"]
+    model = cfg.get("model")
+    device = cfg.get("device")
     precision = cfg.get("precision", "")
     workload_name = cfg.get("workload_name")
     camera_id = cfg.get("camera_id", "")
     # Load env vars for this device
-    env_vars = get_env_vars_for_device(device)
+    env_vars = get_env_vars_for_device(device) if device else {}
     DECODE = env_vars.get("DECODE") or "decodebin"
     PRE_PROCESS = env_vars.get("PRE_PROCESS", "")
     DETECTION_OPTIONS = env_vars.get("DETECTION_OPTIONS", "")
@@ -86,20 +90,28 @@ def build_gst_element(cfg):
     BATCH_SIZE = env_vars.get("BATCH_SIZE", 1)
     CLASSIFICATION_PRE_PROCESS = env_vars.get("CLASSIFICATION_PRE_PROCESS", "")
     # Add inference-region=1 if region_of_interest is present in cfg (from camera_to_workload.json)
-    inference_region = ""
+    inference_region = ""   
     name_str = f"name={workload_name}_{camera_id}" if workload_name and camera_id and cfg["type"] == "gvadetect" else ""
     if cfg["type"] == "gvadetect" and cfg.get("region_of_interest") is not None:
         inference_region = " inference-region=1"
+
     if cfg["type"] == "gvadetect":
         # Always use the precision from the current step config
         model_path = download_model_if_missing(model, "gvadetect", cfg.get("precision", ""))
         elem = f"gvadetect {name_str} batch-size={BATCH_SIZE} {inference_region} model={model_path} device={device} {PRE_PROCESS} {DETECTION_OPTIONS} {PRE_PROCESS_CONFIG}"
     elif cfg["type"] == "gvaclassify":
         # Always use the precision from the current step config
-        model_path, label_path, proc_path = download_model_if_missing(model, "gvaclassify", cfg.get("precision", ""))
+        model_path, label_path, proc_path = download_model_if_missing(model, "gvaclassify", cfg.get("precision", ""))     
         elem = f"gvaclassify {name_str} batch-size={BATCH_SIZE} model={model_path} device={device} labels={label_path} model-proc={proc_path} {CLASSIFICATION_PRE_PROCESS}"
+    elif cfg["type"] == "gvainference":
+        model_path = download_model_if_missing(model, "gvainference", cfg.get("precision", ""))
+        elem = f"gvainference  model={model_path} device={device} "
+    elif cfg["type"] == "gvapython":
+        # Try to get module and function from cfg (populated from camera_to_workload.json)
+        module = cfg.get("module", "")
+        function = cfg.get("function", "")
+        elem = f"gvapython module={module} function={function}  "
     elif cfg["type"] in ["gvatrack", "gvaattachroi", "gvametaconvert", "gvametapublish", "gvawatermark", "gvafpscounter", "fpsdisplaysink", "queue", "videoconvert", "decodebin", "filesrc", "fakesink"]:
-        # These are valid GStreamer elements that may not need model/device
         elem = cfg["type"]
     else:
         raise ValueError(f"Unknown or unsupported GStreamer element type: {cfg['type']}")
@@ -159,9 +171,9 @@ def build_dynamic_gstlaunch_command(camera, workloads, workload_map, branch_idx=
     pipelines = []
     for idx, (sig, steps) in enumerate(signature_to_steps.items()):
         video_file = signature_to_video[sig]
-        # Get DECODE for the first step's device
-        first_device = steps[0]["device"]
-        first_env_vars = get_env_vars_for_device(first_device)
+        # Get DECODE for the first step's device, if present
+        first_device = steps[0].get("device")
+        first_env_vars = get_env_vars_for_device(first_device) if first_device else {}
         DECODE = first_env_vars.get("DECODE") or "decodebin"
         pipeline = f"filesrc location={video_file} ! {DECODE} "
         rois = []
@@ -179,14 +191,12 @@ def build_dynamic_gstlaunch_command(camera, workloads, workload_map, branch_idx=
             pipeline += f" ! {gvaattachroi_elem} ! queue"
         # Only add gvaattachroi if region_of_interest is present (i.e., rois is not empty)
         # Remove unconditional gvaattachroi for first inference step
-        inference_types = {"gvadetect", "gvaclassify"}
+        inference_types = {"gvadetect", "gvaclassify", "gvainference"}
         detect_count = 1
         classify_count = 1
         for i, step in enumerate(steps):
-            # Get env vars for each step's device
-            step_env_vars = get_env_vars_for_device(step["device"])
-            # Do not add gvaattachroi if no region_of_interest
-            # (was: if not rois and i == 0 and step["type"] in inference_types: pipeline += " ! gvaattachroi")
+            # Get env vars for each step's device, if present
+            step_env_vars = get_env_vars_for_device(step["device"]) if "device" in step else {}
             if step["type"] == "gvadetect":
                 model_instance_id = f"detect{branch_idx+1}_{idx+1}"
                 elem, _ = build_gst_element(step)
@@ -198,6 +208,14 @@ def build_dynamic_gstlaunch_command(camera, workloads, workload_map, branch_idx=
                 elem, _ = build_gst_element(step)
                 elem = elem.replace("gvaclassify", f"gvaclassify model-instance-id={model_instance_id}")
                 pipeline += f" ! {elem} "
+                last_added_queue = True
+            elif step["type"] == "gvainference":
+                elem, _ = build_gst_element(step)
+                pipeline += f" ! {elem} "    
+                last_added_queue = True
+            elif step["type"] == "gvapython":
+                elem, _ = build_gst_element(step)
+                pipeline += f" ! {elem} "
                 last_added_queue = False
             else:
                 elem, _ = build_gst_element(step)
@@ -208,10 +226,15 @@ def build_dynamic_gstlaunch_command(camera, workloads, workload_map, branch_idx=
                 if not (step["type"] == "gvadetect"):
                     pipeline += " ! queue"
         tee_name = f"t{branch_idx+1}_{idx+1}"
-        results_dir = "/home/pipeline-server/results"
-        out_file = f"{results_dir}/rs-{branch_idx+1}_{idx+1}_{timestamp}.jsonl"
-        pipeline += f" ! gvametaconvert format=json ! tee name={tee_name} "
-        pipeline += f"    {tee_name}. ! queue ! gvametapublish method=file file-path={out_file} ! gvafpscounter ! fakesink sync=false async=false "
+        has_gvapython = any(step.get("type") == "gvapython" for step in steps)
+        if not has_gvapython:
+            pipeline += f" ! gvametaconvert format=json ! tee name={tee_name} "
+            results_dir = "/home/pipeline-server/results"
+            out_file = f"{results_dir}/rs-{branch_idx+1}_{idx+1}_{timestamp}.jsonl"
+            pipeline += f"    {tee_name}. ! queue ! gvametapublish method=file file-path={out_file} ! gvafpscounter ! fakesink sync=false async=false "
+        else:
+            pipeline += f" ! tee name={tee_name} "
+            #pipeline += f"    {tee_name}. ! queue ! gvafpscounter ! fakesink sync=false async=false "
         render_mode = os.environ.get("RENDER_MODE", "0")
         if render_mode == "1":
             pipeline += f"    {tee_name}. ! queue ! gvawatermark ! videoconvert ! fpsdisplaysink video-sink=autovideosink text-overlay=true signal-fps-measurements=true"
