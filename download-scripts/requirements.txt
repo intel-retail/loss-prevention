@@ -1,7 +1,7 @@
 openvino==2024.6.0
 openvino-dev[onnx,omz]==2024.6.0
 torch==2.6.0
-timm==0.9.16
+timm==1.0.19
 ultralytics==8.3.174
 nncf[torch]==2.6.0
 tensorflow-cpu==2.15.0
