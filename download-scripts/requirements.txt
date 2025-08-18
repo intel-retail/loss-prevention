@@ -5,6 +5,6 @@ timm==0.9.16
 ultralytics==8.3.174
 nncf[torch]==2.6.0
 tensorflow-cpu==2.15.0
-tensorflow_datasets==4.9.2
+tensorflow_datasets==4.9.3
 safetensors==0.4.3
 rich==13.7.1
