@@ -27,16 +27,9 @@ jobs:
         - name: Install shellcheck
           run: |
             sudo apt install shellcheck
-        - name: Install jq
+        - name: Install bandit and pycodestyle
           run: |
-            sudo apt install jq
-        - name: Install bandit
-          run: |
-            pip install bandit && bandit --version
-        - name: Install pycodestyle
-          run: |
-            python3 -m pip install --upgrade pip
-            python3 -m pip install pycodestyle
+            pip install --require-hashes --no-deps --no-cache-dir -r .github/workflows/requirements.txt
         - name: Install hadolint
           env:
             HADOLINT_VERSION: v1.16.3
@@ -57,8 +50,3 @@ jobs:
           with:
             name: scan_results
             path: ${{ github.workspace }}/scan_results/
-            
-
-        
-        
-
