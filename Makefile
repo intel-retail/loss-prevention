@@ -196,7 +196,9 @@ benchmark-stream-density: build-benchmark download-models
 	)
 	
 	
-benchmark-quickstart: build-benchmark download-sample-videos download-models
+benchmark-quickstart: build-benchmark download-models
+	@echo "Downloading sample videos for camera_to_workload_full.json..."
+	$(MAKE) download-sample-videos CAMERA_STREAM=camera_to_workload_full.json
 	cd performance-tools/benchmark-scripts && \
 	( \
 	python3 -m venv venv && \
