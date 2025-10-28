@@ -16,20 +16,33 @@ CAMERA_STREAM ?= camera_to_workload.json
 WORKLOAD_DIST ?= workload_to_pipeline.json
 BATCH_SIZE_DETECT ?= 1
 BATCH_SIZE_CLASSIFY ?= 1
+REGISTRY ?= false
 
 download-models:
-	@echo ".....Downloading models....."
-	$(MAKE) build-model-downloader
-	$(MAKE) run-model-downloader
+	@echo ".....Checking if models exist....."
+	@chmod +x ./check_models.sh
+	@if ./check_models.sh; then \
+		echo "All models present, skipping download."; \
+	else \
+		echo "Models missing, starting download process..."; \
+		if [ "$(REGISTRY)" = "true" ]; then \
+			echo "Using registry mode - pulling model downloader..."; \
+			docker pull iotgdevcloud/model-downloader-lp:latest; \
+			docker tag iotgdevcloud/model-downloader-lp:latest model-downloader:lp; \
+		else \
+			$(MAKE) build-model-downloader; \
+		fi; \
+		$(MAKE) run-model-downloader; \
+	fi
 
 download-sample-videos: | validate-camera-config
 	@echo "Downloading and formatting videos for all cameras in $(CAMERA_STREAM)..."
 	python3 download-scripts/download-video.py --camera-config configs/$(CAMERA_STREAM) --format-script performance-tools/benchmark-scripts/format_avc_mp4.sh
 
 build-model-downloader: | validate-pipeline-config
-	@echo "Building model downloader"
+	@echo "Building model downloader locally"
 	docker build --build-arg HTTPS_PROXY=${HTTPS_PROXY} --build-arg HTTP_PROXY=${HTTP_PROXY} -t model-downloader:lp -f docker/Dockerfile.downloader .
-	@echo "assets downloader completed"
+	@echo "Model downloader build completed"
 
 run-model-downloader:
 	@echo "Running assets downloader"
@@ -81,22 +94,37 @@ update-submodules:
 	@echo "Submodules updated (if any present)."
 
 build-benchmark:
-	cd performance-tools && $(MAKE) build-benchmark-docker
+	@if [ "$(REGISTRY)" = "true" ]; then \
+		echo "Using registry mode - skipping benchmark container build..."; \
+	else \
+		echo "Building benchmark container locally..."; \
+		cd performance-tools && $(MAKE) build-benchmark-docker; \
+	fi
 
-
-benchmark: build-benchmark download-sample-videos download-models	
+benchmark: build-benchmark download-sample-videos download-models
 	cd performance-tools/benchmark-scripts && \
-    ( \
+	( \
 	python3 -m venv venv && \
 	. venv/bin/activate && \
 	pip3 install -r requirements.txt && \
-	python3 benchmark.py --compose_file ../../src/docker-compose.yml --pipelines $(PIPELINE_COUNT) --results_dir $(RESULTS_DIR) && \
+	if [ "$(REGISTRY)" = "true" ]; then \
+		python3 benchmark.py --compose_file ../../src/docker-compose-reg.yml --pipelines $(PIPELINE_COUNT) --results_dir $(RESULTS_DIR) --benchmark_type reg; \
+	else \
+		python3 benchmark.py --compose_file ../../src/docker-compose.yml --pipelines $(PIPELINE_COUNT) --results_dir $(RESULTS_DIR); \
+	fi && \
 	deactivate \
 	)
 
 run:
-	BATCH_SIZE_DETECT=$(BATCH_SIZE_DETECT) BATCH_SIZE_CLASSIFY=$(BATCH_SIZE_CLASSIFY) \
-	docker compose -f src/docker-compose.yml up -d
+	@if [ "$(REGISTRY)" = "true" ]; then \
+		echo "Using registry mode with docker-compose-reg.yml"; \
+		BATCH_SIZE_DETECT=$(BATCH_SIZE_DETECT) BATCH_SIZE_CLASSIFY=$(BATCH_SIZE_CLASSIFY) \
+		docker compose -f src/docker-compose-reg.yml up -d; \
+	else \
+		echo "Using local build mode with docker-compose.yml"; \
+		BATCH_SIZE_DETECT=$(BATCH_SIZE_DETECT) BATCH_SIZE_CLASSIFY=$(BATCH_SIZE_CLASSIFY) \
+		docker compose -f src/docker-compose.yml up -d; \
+	fi
 
 run-lp: | validate_workload_mapping update-submodules download-sample-videos
 	@echo downloading the models
@@ -109,7 +137,11 @@ run-lp: | validate_workload_mapping update-submodules download-sample-videos
 	fi
 
 down-lp:
-	docker compose -f src/docker-compose.yml down
+	@if [ "$(REGISTRY)" = "true" ]; then \
+		docker compose -f src/docker-compose-reg.yml down; \
+	else \
+		docker compose -f src/docker-compose.yml down; \
+	fi
 
 run-render-mode:
 	@if [ -z "$(DISPLAY)" ] || ! echo "$(DISPLAY)" | grep -qE "^:[0-9]+(\.[0-9]+)?$$"; then \
@@ -123,8 +155,15 @@ run-render-mode:
 	@echo "Using config file: configs/$(CAMERA_STREAM)"
 	@echo "Using workload config: configs/$(WORKLOAD_DIST)"
 	@xhost +local:docker
-	docker compose -f src/docker-compose.yml build pipeline-runner
-	@RENDER_MODE=1 CAMERA_STREAM=$(CAMERA_STREAM) WORKLOAD_DIST=$(WORKLOAD_DIST) BATCH_SIZE_DETECT=$(BATCH_SIZE_DETECT) BATCH_SIZE_CLASSIFY=$(BATCH_SIZE_CLASSIFY) docker compose -f src/docker-compose.yml up -d
+	@if [ "$(REGISTRY)" = "true" ]; then \
+		echo "Using registry mode - pulling pipeline runner..."; \
+		docker pull iotgdevcloud/pipeline-runner-lp:latest; \
+		RENDER_MODE=1 CAMERA_STREAM=$(CAMERA_STREAM) WORKLOAD_DIST=$(WORKLOAD_DIST) BATCH_SIZE_DETECT=$(BATCH_SIZE_DETECT) BATCH_SIZE_CLASSIFY=$(BATCH_SIZE_CLASSIFY) docker compose -f src/docker-compose-reg.yml up -d; \
+	else \
+		echo "Using local build mode"; \
+		docker compose -f src/docker-compose.yml build pipeline-runner; \
+		RENDER_MODE=1 CAMERA_STREAM=$(CAMERA_STREAM) WORKLOAD_DIST=$(WORKLOAD_DIST) BATCH_SIZE_DETECT=$(BATCH_SIZE_DETECT) BATCH_SIZE_CLASSIFY=$(BATCH_SIZE_CLASSIFY) docker compose -f src/docker-compose.yml up -d; \
+	fi
 	$(MAKE) clean-images
 
 benchmark-stream-density: build-benchmark download-models
@@ -156,8 +195,24 @@ benchmark-stream-density: build-benchmark download-models
 	deactivate \
 	)
 	
-benchmark-quickstart:
-	CAMERA_STREAM=camera_to_workload_full.json WORKLOAD_DIST=workload_to_pipeline_gpu.json RENDER_MODE=0 $(MAKE) benchmark
+	
+benchmark-quickstart: build-benchmark download-models
+	@echo "Downloading sample videos for camera_to_workload_full.json..."
+	$(MAKE) download-sample-videos CAMERA_STREAM=camera_to_workload_full.json
+	cd performance-tools/benchmark-scripts && \
+	( \
+	python3 -m venv venv && \
+	. venv/bin/activate && \
+	pip3 install -r requirements.txt && \
+	if [ "$(REGISTRY)" = "true" ]; then \
+		CAMERA_STREAM=$${CAMERA_STREAM:-camera_to_workload_full.json} WORKLOAD_DIST=$${WORKLOAD_DIST:-workload_to_pipeline_gpu.json} RENDER_MODE=0 \
+		python3 benchmark.py --compose_file ../../src/docker-compose-reg.yml --pipelines $(PIPELINE_COUNT) --results_dir $(RESULTS_DIR) --benchmark_type reg; \
+	else \
+		CAMERA_STREAM=$${CAMERA_STREAM:-camera_to_workload_full.json} WORKLOAD_DIST=$${WORKLOAD_DIST:-workload_to_pipeline_gpu.json} RENDER_MODE=0 \
+		python3 benchmark.py --compose_file ../../src/docker-compose.yml --pipelines $(PIPELINE_COUNT) --results_dir $(RESULTS_DIR); \
+	fi && \
+	deactivate \
+	)
 	$(MAKE) consolidate-metrics
 
 clean-images:
