@@ -2,7 +2,7 @@ openvino==2025.2.0
 # Note: openvino-dev may not exist or be deprecated for 2025; check pip availability
 #openvino-dev[onnx]==2025.2.0  
 torch==2.8.0
-timm==0.9.16
+timm==1.0.21
 ultralytics==8.3.174
 nncf[torch]==2.6.0   # or the latest NNCF version compatible with OpenVINO 2025
 tensorflow-cpu==2.15.0
