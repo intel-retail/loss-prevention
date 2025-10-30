@@ -33,7 +33,7 @@ services:
       - BATCH_SIZE_CLASSIFY=${BATCH_SIZE_CLASSIFY:-1}
     volumes:
       - ../models:/home/pipeline-server/models
-      - ../performance-tools/sample-media:/home/pipeline-server/sample-media
+      - ../performance-tools/sample-media:/home/pipeline-server/performance-tools/sample-media
       - ${RESULTS_DIR:-../results}:/home/pipeline-server/results
       - ../configs:/home/pipeline-server/configs
       - ../src/pipelines:/home/pipeline-server/pipelines
