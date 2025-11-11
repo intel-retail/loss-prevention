@@ -1,5 +1,5 @@
 openvino==2025.2.0
-ultralytics==8.3.203
+ultralytics==8.3.227
 nncf[torch]==2.14.0
 nncf==2.14.0
 numpy==1.26.4
