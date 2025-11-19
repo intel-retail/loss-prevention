@@ -6,7 +6,7 @@ services:
       args:
         - HTTP_PROXY=${HTTP_PROXY}
         - HTTPS_PROXY=${HTTPS_PROXY}
-    image: model-downloader-lp:${TAG:-rc1}
+    image: ${REGISTRY:-intel}/model-downloader-lp:${TAG:-rc1}
     container_name: model-downloader
     environment:
       - HTTP_PROXY=${HTTP_PROXY}
@@ -16,11 +16,13 @@ services:
       - MODELS_DIR=/workspace/models
       - WORKLOAD_DIST=${WORKLOAD_DIST:-workload_to_pipeline.json}
     volumes:
+      - ../download-scripts:/workspace/scripts
       - ../models:/workspace/models
       - ../configs:/workspace/configs
       - ../results:/workspace/results
-    command: ["/bin/bash", "-c", "/workspace/scripts/downloadModels.sh"]
-
+    command: ["/bin/bash", "-c", "/workspace/scripts/downloadModels.sh && exit 0"]
+    restart: "no"
+  
   pipeline-runner:
     build:
       context: ..
@@ -28,7 +30,7 @@ services:
       args:
         - HTTP_PROXY=${HTTP_PROXY}
         - HTTPS_PROXY=${HTTPS_PROXY}
-    image: pipeline-runner-lp:${TAG:-rc1}
+    image: ${REGISTRY:-intel}/pipeline-runner-lp:${TAG:-rc1}
     deploy:
       mode: replicated
       replicas: ${PIPELINE_COUNT:-1}
