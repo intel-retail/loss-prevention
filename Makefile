@@ -36,7 +36,6 @@ BUILD ?= false
 build-run-docker-compose:
 	@if [ "$(BUILD)" = "false" ]; then \
 		echo ">>> Running with public registry images"; \
-		docker compose -f src/docker-compose.yml pull; \
 		docker compose -f src/docker-compose.yml up -d; \
 	else \
 		echo ">>> Running with local build"; \

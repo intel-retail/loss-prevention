@@ -16,7 +16,6 @@ services:
       - MODELS_DIR=/workspace/models
       - WORKLOAD_DIST=${WORKLOAD_DIST:-workload_to_pipeline.json}
     volumes:
-      - ../download-scripts:/workspace/scripts
       - ../models:/workspace/models
       - ../configs:/workspace/configs
       - ../results:/workspace/results
