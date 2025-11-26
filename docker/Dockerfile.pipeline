@@ -22,7 +22,10 @@ COPY src/person_reid.py /home/pipeline-server/src/
 COPY src/gst-pipeline-generator.py scripts/
 COPY src/res/* res/
 
+# Copy VLM pipeline python scripts
+COPY ../lp-vlm/src/pipeline/* /home/pipeline-server/lp-vlm/gvapython/
 
 RUN chmod +x scripts/run-pipeline.sh
+RUN chmod +x /home/pipeline-server/lp-vlm/gvapython/vlm_od_pipeline.sh
 
 ENTRYPOINT ["scripts/run-pipeline.sh"]

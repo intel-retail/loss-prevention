@@ -157,4 +157,10 @@ done
 
 wait $GST_PID
 
-echo "############# GST COMMAND COMPLETED SUCCESSFULLY #############
+echo "############# GST COMMAND COMPLETED SUCCESSFULLY #############"
+
+# If VLM workload is enabled, run additional workload script
+if [ "${VLM_WORKLOAD_ENABLED}" = "1" ]; then
+    echo "VLM_WORKLOAD_ENABLED=1 detected. Launching vlm_od_pipeline.sh ..."
+    bash "/home/pipeline-server/lp-vlm/gvapython/vlm_od_pipeline.sh"
+fi

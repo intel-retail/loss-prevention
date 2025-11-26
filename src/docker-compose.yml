@@ -36,6 +36,16 @@ services:
       model-downloader:
         condition: service_completed_successfully
     environment:
+      - VLM_WORKLOAD_ENABLED=${VLM_WORKLOAD_ENABLED:-0}
+      - VIDEO_NAME=${VIDEO_NAME}
+      - LP_IP=${LP_IP}
+      - ROI_COORDINATES=${ROI_COORDINATES}
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+      - RABBITMQ_USER=${RABBITMQ_USER}
+      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}
+      - THRESHOLD=${THRESHOLD:-7}
+      - LP_BASE_DIR=${LP_BASE_DIR}
       - DISPLAY=${DISPLAY:-:0}
       - RENDER_MODE=${RENDER_MODE:-0}    
       - CONTAINER_NAME=${CONTAINER_NAME:-gst}  
@@ -43,12 +53,28 @@ services:
       - WORKLOAD_DIST=${WORKLOAD_DIST:-workload_to_pipeline.json}
       - BATCH_SIZE_DETECT=${BATCH_SIZE_DETECT:-1}
       - BATCH_SIZE_CLASSIFY=${BATCH_SIZE_CLASSIFY:-1}
+    
     volumes:
+      # Python / pipeline scripts
+      - ../lp-vlm/src/pipeline/publish.py:/home/pipeline-server/lp-vlm/gvapython/publish.py
+      - ../lp-vlm/src/pipeline/send_end_message.py:/home/pipeline-server/lp-vlm/gvapython/send_end_message.py
+      - ../lp-vlm/src/pipeline/config.py:/home/pipeline-server/lp-vlm/gvapython/config.py
+      - ../lp-vlm/src/utils/save_results.py:/home/pipeline-server/lp-vlm/gvapython/save_results.py
+
+      # Models + sample media
       - ../models:/home/pipeline-server/models
       - ../performance-tools/sample-media:/home/pipeline-server/sample-media
       - ${RESULTS_DIR:-../results}:/home/pipeline-server/results
+
+      # Config + pipeline definitions
       - ../configs:/home/pipeline-server/configs
       - ../src/pipelines:/home/pipeline-server/pipelines
+
+      # Hardware / display access
+      - /dev:/dev
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
+
+      # LP base directory persistent results
+      - ${LP_BASE_DIR}/results:/home/pipeline-server/results  
     network_mode: host
     privileged: true
