@@ -1,0 +1,19 @@
+services:
+  test:
+    image: busybox
+    volumes:
+      - ${LLM_BASE_DIR}:/data
+    command: >
+      sh -c "
+        echo 'Contents of /data:' &&
+        ls -la /data &&
+        echo 'Creating directories and symlinks...' &&
+        mkdir -p /root/.cache &&
+        mkdir -p /app &&
+        ln -sf /data /root/.cache/huggingface &&
+        ln -sf /data /app/ov-model &&
+        echo 'Checking symlinks:' &&
+        ls -la /root/.cache/ &&
+        ls -la /app/ &&
+        echo 'Done!'
+      "

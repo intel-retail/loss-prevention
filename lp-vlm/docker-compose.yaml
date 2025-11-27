@@ -1,0 +1,108 @@
+version: '3.8'
+services:
+  minio-service:
+    image: minio/minio:RELEASE.2025-02-07T23-21-09Z-cpuv1
+    ports:
+      - "${MINIO_API_HOST_PORT}:80"
+      - "${MINIO_CONSOLE_HOST_PORT}:81"
+    environment:
+      no_proxy: ${no_proxy},localhost
+      http_proxy: ${http_proxy}
+      https_proxy: ${https_proxy}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_API_HOST_PORT: ${MINIO_API_HOST_PORT}
+      MINIO_CONSOLE_HOST_PORT: ${MINIO_CONSOLE_HOST_PORT}
+      LP_IP: ${LP_IP}
+    command: |
+      server /data 
+      --address ":80"
+      --console-address ":81"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    volumes:
+      - "minio_data:/data"
+    networks:
+      - vs_network
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"     # AMQP port
+      - "15672:15672"   # Management UI port
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  vlm-openvino-serving:
+    image: vlm-openvino-serving:order-vlm
+    container_name: vlm-openvino-serving
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    ports:
+      - "${VLM_SERVICE_PORT}:8000"
+    ipc: host
+    environment:
+      LLM_BASE_DIR: ${LLM_BASE_DIR}
+      LP_BASE_DIR: ${LP_BASE_DIR}
+      no_proxy_env: ${no_proxy_env},${HOST_IP}
+      no_proxy: ${no_proxy_env},${HOST_IP}
+      http_proxy: ${http_proxy}
+      https_proxy: ${https_proxy}
+      VLM_MODEL_NAME: ${VLM_MODEL_NAME}
+      VLM_COMPRESSION_WEIGHT_FORMAT: ${VLM_COMPRESSION_WEIGHT_FORMAT}
+      VLM_DEVICE: ${VLM_DEVICE}
+      VLM_SEED: ${VLM_SEED}
+      WORKERS: ${WORKERS:-1}
+      VLM_MAX_COMPLETION_TOKENS: ${VLM_MAX_COMPLETION_TOKENS}
+      HUGGINGFACE_TOKEN: ${HUGGINGFACE_TOKEN}
+      OV_CONFIG: ${OV_CONFIG}
+      VLM_LOG_LEVEL: ${VLM_LOG_LEVEL:-info}
+      OPENVINO_LOG_LEVEL: ${VLM_OPENVINO_LOG_LEVEL:-1}
+      VLM_ACCESS_LOG_FILE: ${VLM_ACCESS_LOG_FILE:-/dev/null}
+    restart: unless-stopped
+    devices:
+      - /dev/dri:/dev/dri
+    group_add:
+      - ${USER_GROUP_ID:-1000}
+      - ${VIDEO_GROUP_ID:-44}    
+      - ${RENDER_GROUP_ID:-1002}
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 40
+      start_period: 10s
+    networks:
+      - my_network
+    volumes:
+      - ${LLM_BASE_DIR}:/root/.cache/huggingface
+      - ${LLM_BASE_DIR}:/app/ov-model
+      - ${LP_BASE_DIR}/sample-media:/app/sample-media
+      - ${LP_BASE_DIR}/results/frames:/app/results/frames
+
+volumes:
+  minio_data:
+    driver: local
+  rabbitmq_data:
+    driver: local  
+networks:
+  vs_network:
+    driver: bridge

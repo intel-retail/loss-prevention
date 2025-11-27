@@ -7,7 +7,7 @@
         "width": 1080,
         "height": 1920,
         "fileSrc":"items-in-basket-32658421.mp4|https://www.pexels.com/download/video/32658421", 
-        "workloads": ["items_in_basket","multi_product_identification"],
+        "workloads": ["items_in_basket","multi_product_identification", "lp-vlm"],
         "region_of_interest": {
           "x": 335,
           "y": 900,
@@ -36,6 +36,20 @@
         "fps": 15,
         "fileSrc":"fake-scan-detection-34225994.mp4|https://www.pexels.com/download/video/34225994", 
         "workloads": ["fake_scan_detection"],
+        "region_of_interest": {
+          "x": 25,
+          "y": 535,
+          "x2": 1300,
+          "y2": 1085
+        }
+      },
+      { 
+        "camera_id": "cam4", 
+        "width": 1920,
+        "height": 1080,
+        "fps": 15,
+        "fileSrc":"fake-scan-detection-34225994.mp4|https://www.pexels.com/download/video/34225994", 
+        "workloads": ["lp-vlm"],
         "region_of_interest": {
           "x": 25,
           "y": 535,
