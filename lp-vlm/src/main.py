@@ -8,22 +8,20 @@ from collections import defaultdict
 import threading
 import time
 
-from src.utils.config import (SAMPLE_MEDIA_DIR,LP_PIPELINE_DOCKER_COMPOSE_PATH,
+from utils.config import (SAMPLE_MEDIA_DIR,
                           RESULTS_DIR,
                           LP_APP_BASE_DIR,
-                          LP_PIPELINE_DOCKER_COMPOSE_DIR,
+                          
                           LP_IP,MINIO_API_HOST_PORT, 
-                          VLM_RESULTS_DIR_FULL_PATH,
-                          OD_RESULTS_DIR_FULL_PATH,
                           COMMON_RESULTS_DIR_FULL_PATH,
-                          AGENT_RESULTS_DIR_FULL_PATH)
-from src.utils.vlm import call_vlm
-from src.utils.frames_processor import get_best_frame
-from src.agent.agent import ConfigAgent
+                          )
+from utils.vlm import call_vlm
+from utils.frames_processor import get_best_frame
+from agent.agent import ConfigAgent
 import re
-from src.utils.save_results import get_presigned_url
-from src.utils.config import logger,INVENTORY_FILE
-from src.utils.rabbitmq_consumer import ODConsumer
+from utils.save_results import get_presigned_url
+from utils.config import logger,INVENTORY_FILE
+from utils.rabbitmq_consumer import ODConsumer
 import traceback
 
 # ============================================================================
@@ -56,7 +54,7 @@ def write_json_to_file(data, file_path):
         logger.info(f"Appended JSONL record → {file_path}")
 
     except Exception as e:
-        logger.error(f"Error writing JSONL to {file_path}: {e}")
+        logger.error(f"Error writing JSONL to {file_path}: {e}+\n{traceback.format_exc()}")
         
 def load_json_from_file(file_path):
     global inventory_list
@@ -71,8 +69,8 @@ def load_json_from_file(file_path):
             inventory_list = json.load(f)
             return inventory_list
     except Exception as e:
-        logger.error(f"Pipeline Script - Error loading {file_path} file: %s", str(e))
-        return f"🤖 Agent: ❌ Failed - Could not load {file_path}", vlm_results
+        logger.error(f"Pipeline Script - Error loading {file_path} file: %s", str(e)+"\n"+traceback.format_exc())
+        return f"🤖 Agent: ❌ Failed - Could not load {file_path}"
     
         
 # ============================================================================
@@ -119,7 +117,8 @@ def read_object_detection_stream():
     """Generator to read object detection messages from queue"""
     while True:
         while not od_message_queue.empty():
-            yield od_message_queue.get(timeout=15)
+            item = od_message_queue.get(timeout=15)
+            yield item
         time.sleep(0.1)
 
 
@@ -127,56 +126,14 @@ def read_vlm_results_stream():
     """Generator to read VLM results from queue"""
     while True:
         while not result_queue.empty():
-            yield result_queue.get()
+            item = result_queue.get()
+            yield item
         time.sleep(0.1)
 
 
 # ============================================================================
 # OBJECT DETECTION PIPELINE
 # ============================================================================
-
-def trigger_object_detection_pipeline(video_file_name, use_case):
-    """Trigger the object detection Docker pipeline"""
-    logger.info("Pipeline Script - Running Object Detection for video: %s", video_file_name)
-    
-    if video_file_name is None:
-        logger.error("Pipeline Script - No video file provided")
-        return "📹 Object Detection: ❌ Failed - No video to process", {}
-
-    try:
-        # Prepare environment variables
-        env_vars = os.environ.copy()
-        logger.error("Pipeline Script - Env Vars: %s",env_vars)
-        env_vars['VIDEO_NAME'] = video_file_name
-        env_vars['LP_BASE_DIR'] = os.environ.get("LP_BASE_DIR")
-        env_vars['USE_CASE_NAME'] = use_case
-        #env_vars['DETECTION_THRESHOLD'] = os.environ.get("DETECTION_THRESHOLD")
-        env_vars['VIDEO_NAME'] = video_file_name
-        
-        
-        
-        # Execute Docker Compose
-        cmd = ["bash", "-c", "docker compose up pipeline-runner --no-build"]
-        
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            cwd=LP_PIPELINE_DOCKER_COMPOSE_DIR,
-            env=env_vars,
-            check=True
-        )
-        
-        if result.returncode != 0:
-            logger.error("Pipeline Script - Docker compose failed: %s", result.stderr)
-            return f"📹 Object Detection: ❌ Failed - {result.stderr}", {}
-        
-        return "📹 Object Detection: 🚀 Triggered", {}
-        
-    except Exception as e:
-        logger.error("Pipeline Script - Error triggering object detection: %s,\n%s", str(e), traceback.format_exc())
-        return f"📹 Object Detection: ❌ Failed - {str(e)}", {}
-
 
 def process_object_detection_results(video_file, use_case):
     """Process object detection results and prepare for VLM enhancement"""
@@ -190,20 +147,9 @@ def process_object_detection_results(video_file, use_case):
         return
     
     try:
-        # Trigger object detection
-        yield "📹 Object Detection: ⚡ Running", {}
-        
-        od_status, od_results = trigger_object_detection_pipeline(os.path.basename(video_file), use_case)
-        
-        if "❌ Failed" in od_status:
-            logger.error("Pipeline Script - Object detection failed: %s", od_status)
-            yield od_status, {}
-            return
-        
         # Process streaming results
         best_frames = defaultdict(dict)
         ui_items = []
-        
         for payload in read_object_detection_stream():
             try:
                 if isinstance(payload, str):
@@ -249,7 +195,8 @@ def process_object_detection_results(video_file, use_case):
                     "best_frame": presigned_url,
                     "stability_score": score
                 }
-                ui_items.append({"item_name":item,"match":False})
+                item_rec = {"item_name":item,"match":False}
+                ui_items.append(item_rec)
                 enhancer_payload = {"presigned_url": presigned_url, "use_case": use_case}
                 payload["data"] = enhancer_payload
 
@@ -302,7 +249,6 @@ def process_vlm_enhancement():
                         else:
                             result["match"] = False
                 logger.info("Pipeline Script - VLM enhancement result: %s", final_result)
-                        
                 yield "🤖 VLM Enhancement: ⚡ Running", final_result
         time.sleep(0.5)  # Ensure all processing is done
         yield "🤖 VLM Enhancement: ✅ Completed", []
@@ -436,7 +382,6 @@ def agent_call(vlm_results, use_case="decision_agent"):
         else:
             # If VLM didn't return proper results, keep unmatched items as is
             validated_results.extend(unmatched_items)
-        
         logger.info("Pipeline Script - [agent_call] Agent validation completed. Matched: %d, Validated: %d", 
                     len(matched_items), len(validated_results))
         

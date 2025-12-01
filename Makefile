@@ -8,6 +8,19 @@ HTTPS_PROXY := $(or $(HTTPS_PROXY),$(https_proxy))
 export HTTP_PROXY
 export HTTPS_PROXY
 
+
+export PWD=$(shell pwd)
+HOST_IP := $(shell hostname -I | cut -d' ' -f1 2>/dev/null || ipconfig getifaddr en0)
+export VLM_DEVICE ?= CPU
+export VLM_SERVICE_PORT ?= 8000
+export LP_BASE_DIR=$(PWD)
+export LLM_BASE_DIR=$(PWD)/microservices/vlm/ov-models
+export MINIO_API_HOST_PORT=4000
+export MINIO_CONSOLE_HOST_PORT=4001
+export LP_IP=$(HOST_IP)
+
+
+
 # Default values for benchmark
 PIPELINE_COUNT ?= 1
 INIT_DURATION ?= 30

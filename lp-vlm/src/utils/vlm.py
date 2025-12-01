@@ -3,8 +3,8 @@ import json
 from typing import List, Dict, Any, Tuple
 
 import requests
-from src.utils.config import VLM_URL, VLM_MODEL, LP_IP, logger, LP_PORT,SAMPLE_MEDIA_DIR,FRAME_DIR_VOL_BASE, FRAME_DIR,LP_APP_BASE_DIR, RESULTS_DIR
-from src.utils.prompts import *
+from utils.config import VLM_URL, VLM_MODEL, LP_IP, logger, LP_PORT,SAMPLE_MEDIA_DIR,FRAME_DIR_VOL_BASE, FRAME_DIR,LP_APP_BASE_DIR, RESULTS_DIR
+from utils.prompts import *
 
 # get env variables using os module 
 import os 

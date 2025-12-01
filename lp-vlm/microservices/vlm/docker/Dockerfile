@@ -26,7 +26,7 @@ WORKDIR /app
 RUN pip install poetry --break-system-packages
 
 # Copy project metadata and install deps
-COPY pyproject.toml poetry.lock /app/
+COPY ./lp-vlm/microservices/vlm/pyproject.toml ./lp-vlm/microservices/vlm/poetry.lock /app/
 RUN poetry install --no-root
 
 ARG COPYLEFT_SOURCES=false
@@ -64,14 +64,14 @@ RUN if [ "$COPYLEFT_SOURCES" = "true" ]; then \
 
 
 # Copy source code and scripts
-COPY ./scripts ./scripts
-COPY ./src ./src
-COPY ./poetry.lock .
-COPY ./pyproject.toml .
+COPY ./lp-vlm/microservices/vlm/scripts ./scripts
+COPY ./lp-vlm/microservices/vlm/src ./src
+COPY ./lp-vlm/microservices/vlm/poetry.lock .
+COPY ./lp-vlm/microservices/vlm/pyproject.toml .
 RUN chmod +x /app/scripts/compress_model.sh
 
 # Install Intel GPU drivers
-COPY ./scripts/install_ubuntu_gpu_drivers.sh /tmp/install_gpu_drivers.sh
+COPY ./lp-vlm/microservices/vlm/scripts/install_ubuntu_gpu_drivers.sh /tmp/install_gpu_drivers.sh
 RUN chmod +x /tmp/install_gpu_drivers.sh && /tmp/install_gpu_drivers.sh ${INSTALL_DRIVER_VERSION}
 
 # Clean up

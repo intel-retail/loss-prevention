@@ -1,0 +1,60 @@
+services:
+  lp-consumer:
+    container_name: lp-consumer
+    build:
+      context: .
+      dockerfile: Dockerfile.consumer
+    restart: always
+    environment:
+      - RABBITMQ_USER=${RABBITMQ_USER}
+      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+      - LP_IP=${LP_IP}
+      - VIDEO_NAME=three_lp_uses_cases_combined.mp4
+      - LP_BASE_DIR=${LP_BASE_DIR}
+    volumes:
+      - ${LP_BASE_DIR}:/app
+    network_mode: host
+
+  pipeline-runner:
+    container_name: pipeline-runner
+    build:
+      context: .
+      dockerfile: ./pipeline/docker/Dockerfile.runpipeline
+      args:
+        - HTTP_PROXY=${HTTP_PROXY}
+        - HTTPS_PROXY=${HTTPS_PROXY}
+    image: pipeline-runner:lp
+    environment:
+      - VIDEO_NAME=three_lp_uses_cases_combined.mp4
+      - LP_IP=${LP_IP}
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+      - RABBITMQ_USER=${RABBITMQ_USER}
+      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}
+      - THRESHOLD=${THRESHOLD:-16}
+      - DISPLAY=${DISPLAY:-:0}
+      - RENDER_MODE=${RENDER_MODE:-0}
+      - DETECTION_THRESHOLD=${DETECTION_THRESHOLD}
+      - LP_BASE_DIR=${LP_BASE_DIR}
+    volumes:
+      - ${LP_BASE_DIR}/models:/app/pipeline-server/models
+      - ${LP_BASE_DIR}/sample-media:/app/pipeline-server/sample-media
+      - ${LP_BASE_DIR}/results:/app/results
+      - ./pipeline/scripts/publish.py:/app/pipeline-server/gvapython/publish.py
+      - ./pipeline/scripts/send_end_message.py:/app/pipeline-server/gvapython/send_end_message.py
+      - ./pipeline/scripts/config:/app/pipeline-server/gvapython/config
+      - ${LP_BASE_DIR}/utils/save_results.py:/app/pipeline-server/gvapython/save_results.py
+      - ${LP_BASE_DIR}/results:/app/pipeline-server/results
+      - /dev:/dev
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+    network_mode: host
+    privileged: true
+    depends_on:
+      - lp-consumer        # <-- correct indentation and syntax
+
+
+networks:
+  my_network:
+    driver: bridge

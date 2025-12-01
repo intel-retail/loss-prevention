@@ -5,7 +5,7 @@ from pathlib import Path
 import json
 import io
 from typing import Tuple
-from src.utils.config import MINIO_HOST, logger
+from utils.config import MINIO_HOST, logger
 from datetime import timedelta
 
 

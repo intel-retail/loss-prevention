@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 from skimage.metrics import structural_similarity as ssim
-from src.utils.save_results import get_frames_from_minio
+from utils.save_results import get_frames_from_minio
 
 class FrameProcessingError(Exception):
     pass
