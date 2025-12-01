@@ -89,8 +89,12 @@ def build_gst_element(cfg):
     DECODE = env_vars.get("DECODE") or "decodebin"
     PRE_PROCESS = env_vars.get("PRE_PROCESS", "")
     DETECTION_OPTIONS = env_vars.get("DETECTION_OPTIONS", "")
-    PRE_PROCESS_CONFIG = env_vars.get("PRE_PROCESS_CONFIG", "")
-
+    PRE_PROCESS_CONFIG = env_vars.get("PRE_PROCESS_CONFIG", "")    
+    # Use integer inference interval (default 0)
+    try:
+        inference_interval = int(os.getenv("INFERENCE_INTERVAL", "0"))
+    except ValueError:
+        inference_interval = 0
     try:
         BATCH_SIZE_DETECT = int(os.environ.get("BATCH_SIZE_DETECT", 
                                               env_vars.get("BATCH_SIZE_DETECT", 1)))
@@ -119,7 +123,7 @@ def build_gst_element(cfg):
     if cfg["type"] == "gvadetect":
         # Always use the precision from the current step config
         model_path = download_model_if_missing(model, "gvadetect", cfg.get("precision", ""))
-        elem = f"gvadetect {name_str} batch-size={BATCH_SIZE_DETECT} inference-interval=3 scale-method=fast {inference_region} model={model_path} device={device} {PRE_PROCESS} {DETECTION_OPTIONS} {PRE_PROCESS_CONFIG}"
+        elem = f"gvadetect {name_str} batch-size={BATCH_SIZE_DETECT} inference-interval={inference_interval} scale-method=fast {inference_region} model={model_path} device={device} {PRE_PROCESS} {DETECTION_OPTIONS} {PRE_PROCESS_CONFIG}"
     elif cfg["type"] == "gvaclassify":
         # Always use the precision from the current step config
         model_path, label_path, proc_path = download_model_if_missing(model, "gvaclassify", cfg.get("precision", "")) 
@@ -150,6 +154,8 @@ def build_dynamic_gstlaunch_command(camera, workloads, workload_map, branch_idx=
     camera_id = camera.get("camera_id", f"cam{branch_idx+1}")
     signature_to_steps = {}
     signature_to_video = {}
+    queue_params = get_queue_params()
+
     for w in workloads:
         if w in workload_map:
             steps = []
@@ -196,7 +202,7 @@ def build_dynamic_gstlaunch_command(camera, workloads, workload_map, branch_idx=
         first_device = steps[0].get("device")
         first_env_vars = get_env_vars_for_device(first_device) if first_device else {}
         DECODE = first_env_vars.get("DECODE") or "decodebin"
-        pipeline = f"filesrc location={video_file} ! {DECODE} "
+        pipeline = f"filesrc location={video_file}  ! {DECODE} "
         rois = []
         seen_rois = set()
         for step in steps:
@@ -209,7 +215,7 @@ def build_dynamic_gstlaunch_command(camera, workloads, workload_map, branch_idx=
         if rois:
             roi_strs = [f"roi={r['x']},{r['y']},{r['x2']},{r['y2']}" for r in rois]
             gvaattachroi_elem = "gvaattachroi " + " ".join(roi_strs)
-            pipeline += f" ! {gvaattachroi_elem} ! queue"
+            pipeline += f" ! {gvaattachroi_elem} ! queue {queue_params} "
         # Only add gvaattachroi if region_of_interest is present (i.e., rois is not empty)
         # Remove unconditional gvaattachroi for first inference step
         inference_types = {"gvadetect", "gvaclassify", "gvainference"}
@@ -222,17 +228,17 @@ def build_dynamic_gstlaunch_command(camera, workloads, workload_map, branch_idx=
                 model_instance_id = f"detect{branch_idx+1}_{idx+1}"
                 elem, _ = build_gst_element(step)
                 elem = elem.replace("gvadetect", f"gvadetect model-instance-id={model_instance_id} threshold=0.5")
-                pipeline += f" ! {elem} ! gvatrack tracking-type=zero-term-imageless ! queue"
+                pipeline += f" ! {elem} ! gvatrack tracking-type=zero-term-imageless ! queue {queue_params}"
                 last_added_queue = True
             elif step["type"] == "gvaclassify":
                 model_instance_id = f"classify{branch_idx+1}_{idx+1}"
                 elem, _ = build_gst_element(step)
                 elem = elem.replace("gvaclassify", f"gvaclassify model-instance-id={model_instance_id}")
-                pipeline += f" ! {elem} "
+                pipeline += f" ! {elem} ! queue {queue_params}"
                 last_added_queue = True
             elif step["type"] == "gvainference":
                 elem, _ = build_gst_element(step)
-                pipeline += f" ! {elem} "    
+                pipeline += f" ! {elem} ! queue {queue_params}"
                 last_added_queue = True
             elif step["type"] == "gvapython":
                 elem, _ = build_gst_element(step)
@@ -285,6 +291,27 @@ def format_pipeline_branch(pipeline):
         pipeline = pipeline[:-1].strip()
     # Wrap in parentheses for GStreamer parallel branches
     return f'({pipeline})'
+
+def get_queue_params():
+    low_latency = os.getenv("LOW_LATENCY") == "1"
+    medium_latency = os.getenv("MEDIUM_LATENCY") == "1"
+    drop_old_frames = os.getenv("DROP_OLD_FRAMES") == "1"
+
+    if low_latency:
+        base = "max-size-buffers=3 max-size-time=100000000"
+        if drop_old_frames:
+            print("LOW-LATENCY MODE + DROP OLD FRAMES: Always processing most recent frames")
+            return base + " leaky=downstream"        
+        return base
+
+    if medium_latency:
+        base = "max-size-buffers=10 max-size-time=500000000"
+        if drop_old_frames:
+            return base + " leaky=downstream"
+        return base
+
+    return ""
+
 
 def main():
     # Ensure results directory exists at project root before running pipeline

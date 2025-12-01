@@ -4,13 +4,13 @@
       {        
         "type": "gvadetect",
         "model": "yolo11n",       
-        "device": "CPU",
+        "device": "GPU",
         "precision": "INT8"
       },
       {
         "type": "gvaclassify",
         "model": "efficientnet-b0",
-        "device": "CPU",
+        "device": "GPU",
         "precision": "INT8"
       }
     ],

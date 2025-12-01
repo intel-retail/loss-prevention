@@ -118,9 +118,9 @@ gst_log="$results_dir/gst-launch_$cid.log"
 echo "################# Running Pipeline ###################"
 echo "GST_DEBUG=\"GST_TRACER:7\" GST_TRACERS='latency_tracer(flags=pipeline)' bash $pipeline_file"
 
-gst_log="$results_dir/gst-launch_$cid.log"
-
-# Run gst-launch in background and tee to log
+# Run gst-launch with tracing enabled
+GST_DEBUG="GST_TRACER:7" \
+GST_TRACERS="latency_tracer(flags=pipeline)" \
 stdbuf -oL bash "$pipeline_file" 2>&1 | tee "$gst_log" &
 GST_PID=$!
 
