@@ -1,0 +1,203 @@
+services:
+  model-downloader:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.downloader
+      args:
+        - HTTP_PROXY=${HTTP_PROXY}
+        - HTTPS_PROXY=${HTTPS_PROXY}
+    image: model-downloader-lp:${TAG:-rc1}
+    container_name: model-downloader
+    environment:
+      - HTTP_PROXY=${HTTP_PROXY}
+      - HTTPS_PROXY=${HTTPS_PROXY}
+      - http_proxy=${http_proxy}
+      - https_proxy=${https_proxy}
+      - MODELS_DIR=/workspace/models
+      - WORKLOAD_DIST=${WORKLOAD_DIST:-workload_to_pipeline.json}
+    volumes:
+      - ../models:/workspace/models
+      - ../configs:/workspace/configs
+      - ../results:/workspace/results
+    command: ["/bin/bash", "-c", "/workspace/scripts/downloadModels.sh"]
+
+  lp-consumer:
+    container_name: lp-consumer
+    build:
+      context: ..
+      dockerfile: ./lp-vlm/src/Dockerfile.consumer
+    restart: always
+    environment:
+      - RABBITMQ_USER=${RABBITMQ_USER}
+      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+      - LP_IP=${LP_IP}
+      - VIDEO_NAME=${VIDEO_NAME}
+      - LP_BASE_DIR=${LP_BASE_DIR}
+    volumes:
+      - ../lp-vlm:/app
+    network_mode: host
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"     # AMQP port
+      - "15672:15672"   # Management UI port
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - my_network  
+
+  minio-service:
+    image: minio/minio:RELEASE.2025-02-07T23-21-09Z-cpuv1
+    ports:
+      - "${MINIO_API_HOST_PORT}:80"
+      - "${MINIO_CONSOLE_HOST_PORT}:81"
+    environment:
+      no_proxy: ${no_proxy},localhost
+      http_proxy: ${http_proxy}
+      https_proxy: ${https_proxy}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_API_HOST_PORT: ${MINIO_API_HOST_PORT}
+      MINIO_CONSOLE_HOST_PORT: ${MINIO_CONSOLE_HOST_PORT}
+      LP_IP: ${LP_IP}
+    command: |
+      server /data 
+      --address ":80"
+      --console-address ":81"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    volumes:
+      - "minio_data:/data"
+    networks:
+      - my_network
+
+  vlm-service:
+    image: vlm-service:order-vlm
+    container_name: vlm-service-serving
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    build:
+      context: ..
+      dockerfile: ./lp-vlm/microservices/vlm/docker/Dockerfile
+    ports:
+      - "${VLM_SERVICE_PORT}:8000"
+    ipc: host
+    environment:
+      LLM_BASE_DIR: ${LLM_BASE_DIR}
+      LP_BASE_DIR: ${LP_BASE_DIR}
+      no_proxy_env: ${no_proxy_env},${HOST_IP}
+      no_proxy: ${no_proxy_env},${HOST_IP}
+      http_proxy: ${http_proxy}
+      https_proxy: ${https_proxy}
+      VLM_MODEL_NAME: ${VLM_MODEL_NAME}
+      VLM_COMPRESSION_WEIGHT_FORMAT: ${VLM_COMPRESSION_WEIGHT_FORMAT}
+      VLM_DEVICE: ${VLM_DEVICE}
+      VLM_SEED: ${VLM_SEED}
+      WORKERS: ${WORKERS:-1}
+      VLM_MAX_COMPLETION_TOKENS: ${VLM_MAX_COMPLETION_TOKENS}
+      HUGGINGFACE_TOKEN: ${HUGGINGFACE_TOKEN}
+      OV_CONFIG: ${OV_CONFIG}
+      VLM_LOG_LEVEL: ${VLM_LOG_LEVEL:-info}
+      OPENVINO_LOG_LEVEL: ${VLM_OPENVINO_LOG_LEVEL:-1}
+      VLM_ACCESS_LOG_FILE: ${VLM_ACCESS_LOG_FILE:-/dev/null}
+    restart: unless-stopped
+    devices:
+      - /dev/dri:/dev/dri
+    group_add:
+      - ${USER_GROUP_ID:-1000}
+      - ${VIDEO_GROUP_ID:-44}    
+      - ${RENDER_GROUP_ID:-1002}
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 40
+      start_period: 10s
+    networks:
+      - my_network
+    volumes:
+      - ../lp-vlm/microservices/vlm/ov-models:/root/.cache/huggingface     
+      - ../lp-vlm/microservices/vlm/ov-models:/app/ov-model
+      - ../performance-tools/sample-media:/app/sample-media
+      - ../lp-vlm/results/frames:/app/results/frames  
+
+  pipeline-runner:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.pipeline
+      args:
+        - HTTP_PROXY=${HTTP_PROXY}
+        - HTTPS_PROXY=${HTTPS_PROXY}
+    image: pipeline-runner-lp:${TAG:-rc1}
+    deploy:
+      mode: replicated
+      replicas: ${PIPELINE_COUNT:-1}
+    depends_on:
+      model-downloader:
+        condition: service_completed_successfully
+    environment:
+      - VLM_WORKLOAD_ENABLED=${VLM_WORKLOAD_ENABLED:-0}
+      - VIDEO_NAME=${VIDEO_NAME}
+      - LP_IP=${LP_IP}
+      - ROI_COORDINATES=${ROI_COORDINATES}
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+      - RABBITMQ_USER=${RABBITMQ_USER}
+      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}
+      - THRESHOLD=${THRESHOLD:-7}
+      - LP_BASE_DIR=${LP_BASE_DIR}
+      - DISPLAY=${DISPLAY:-:0}
+      - RENDER_MODE=${RENDER_MODE:-0}    
+      - CONTAINER_NAME=${CONTAINER_NAME:-gst}  
+      - CAMERA_STREAM=${CAMERA_STREAM:-camera_to_workload.json}
+      - WORKLOAD_DIST=${WORKLOAD_DIST:-workload_to_pipeline.json}
+      - BATCH_SIZE_DETECT=${BATCH_SIZE_DETECT:-1}
+      - BATCH_SIZE_CLASSIFY=${BATCH_SIZE_CLASSIFY:-1}
+    
+    volumes:
+      # Python / pipeline scripts
+      - ../lp-vlm/src/pipeline/publish.py:/home/pipeline-server/lp-vlm/gvapython/publish.py
+      - ../lp-vlm/src/pipeline/send_end_message.py:/home/pipeline-server/lp-vlm/gvapython/send_end_message.py
+      - ../lp-vlm/src/pipeline/config.py:/home/pipeline-server/lp-vlm/gvapython/config.py
+      - ../lp-vlm/src/utils/save_results.py:/home/pipeline-server/lp-vlm/gvapython/save_results.py
+
+      # Models + sample media
+      - ../models:/home/pipeline-server/models
+      - ../performance-tools/sample-media:/home/pipeline-server/sample-media
+      - ${RESULTS_DIR:-../results}:/home/pipeline-server/results
+
+      # Config + pipeline definitions
+      - ../configs:/home/pipeline-server/configs
+      - ../src/pipelines:/home/pipeline-server/pipelines
+
+      # Hardware / display access
+      - /dev:/dev
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+
+      # LP base directory persistent results
+      - ${LP_BASE_DIR}/results:/home/pipeline-server/results  
+    network_mode: host
+    privileged: true
+
+volumes:
+  minio_data:
+    driver: local
+networks:
+  my_network:
+    driver: bridge
