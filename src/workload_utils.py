@@ -116,7 +116,7 @@ def run(args):
 
         # 🚀 RUN BASE
         launch(BASE_COMPOSE, {"VLM_WORKLOAD_ENABLED": "1"})
-        time.sleep(10)  # give some time for base to start
+        time.sleep(5)  # give some time for base to start
     else:
         dbg = [c.get("workloads", []) for c in cameras]
         print(f"\n➡ No LP_VLM workload found. Workloads observed: {dbg}")

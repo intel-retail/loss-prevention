@@ -165,4 +165,7 @@ else
     echo "########### lp_vlm workload is detected in camera-workload config #############"
     echo "VLM_WORKLOAD_ENABLED=1 detected. Launching lp_vlm based workload ..."
     bash "/home/pipeline-server/lp-vlm/gvapython/vlm_od_pipeline.sh"
+    echo "############# lp_vlm WORKLOAD COMPLETED SUCCESSFULLY #############"
+    # Keep the container alive for inspection if needed
+    sleep 10m
 fi

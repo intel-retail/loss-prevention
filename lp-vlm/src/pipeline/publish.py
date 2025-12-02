@@ -19,8 +19,7 @@ from collections import defaultdict
 import numpy as np
 import pika
 from PIL import Image
-from .rabbitmq_client import get_rabbitmq_connection
-from config.config import METADATA_DIR_FULL_PATH, FRAMES_DIR_FULL_PATH, BUCKET_NAME, MINIO_HOST,FRAME_DIR_VOL_BASE, RESULTS_DIR
+from config import METADATA_DIR_FULL_PATH, FRAMES_DIR_FULL_PATH, BUCKET_NAME, MINIO_HOST, FRAME_DIR_VOL_BASE, RESULTS_DIR
 
 # ============================================================================
 # CONSTANTS
@@ -179,8 +178,8 @@ class Publisher:
     def _setup_rabbitmq(self):
         """Establish RabbitMQ connection and channel."""
         try:
-            # Use shared client function
-            self.connection = get_rabbitmq_connection()
+            # Use local client (works with mounted files inside container)
+            self.connection = self.get_rabbitmq_connection()
             self.channel = self.connection.channel()
             self.channel.queue_declare(queue="object_detection", durable=True)
         except Exception as e:
@@ -431,6 +430,34 @@ class Publisher:
             logger.error(f"Error sending message to RabbitMQ: {e}")
             logger.error(traceback.format_exc())
             sys.exit(1)
+    
+    def get_rabbitmq_connection(self):
+        """
+        Establish RabbitMQ connection with retry logic.
+        """
+        RABBITMQ_USERNAME = os.environ.get("RABBITMQ_USER")
+        RABBITMQ_PASSWORD = os.environ.get("RABBITMQ_PASSWORD")
+        rabbit_host = os.getenv("RABBITMQ_HOST", "rabbitmq")
+        MAX_RETRIES = 5
+        retry = 0
+        while retry < MAX_RETRIES:
+            try:
+                credentials = pika.PlainCredentials(RABBITMQ_USERNAME, RABBITMQ_PASSWORD)
+                connection = pika.BlockingConnection(
+                    pika.ConnectionParameters(
+                        host=rabbit_host,
+                        port=5672,
+                        credentials=credentials
+                    )
+                )
+                return connection
+            except Exception as e:
+                logger.error(f"Error establishing RabbitMQ connection: {e}")
+                logger.error(traceback.format_exc())
+                time.sleep(2)
+                retry += 1
+        logger.error("Max retries reached. Could not connect to RabbitMQ.")
+        sys.exit(1)
     
     # ------------------------------------------------------------------------
     # CLEANUP AND UTILITIES
