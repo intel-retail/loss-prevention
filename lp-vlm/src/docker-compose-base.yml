@@ -7,6 +7,7 @@ services:
         - HTTP_PROXY=${HTTP_PROXY}
         - HTTPS_PROXY=${HTTPS_PROXY}
     image: model-downloader-lp:${TAG:-rc1}
+    pull_policy: never
     container_name: model-downloader
     environment:
       - HTTP_PROXY=${HTTP_PROXY}
@@ -77,6 +78,7 @@ services:
     build:
       context: ..
       dockerfile: ./microservices/vlm/docker/Dockerfile
+    pull_policy: never
     ports:
       - "${VLM_SERVICE_PORT}:8000"
     ipc: host
@@ -124,3 +126,4 @@ volumes:
 networks:
   my_network:
     driver: bridge
+    name: my_network

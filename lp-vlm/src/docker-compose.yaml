@@ -13,6 +13,11 @@ services:
       - LP_IP=${LP_IP}
       - VIDEO_NAME=${VIDEO_NAME}
       - LP_BASE_DIR=${LP_BASE_DIR}
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_MANAGEMENT_PORT=15672
+      - no_proxy=rabbitmq,minio-service,vlm-service,model-downloader,localhost,127.0.0.1
+      - AMQP_NOTE=Use nc rabbitmq 5672 (curl is not valid for AMQP)
     volumes:
       - .:/app
     networks:
@@ -39,6 +44,11 @@ services:
       - RENDER_MODE=${RENDER_MODE:-0}
       - DETECTION_THRESHOLD=${DETECTION_THRESHOLD}
       - LP_BASE_DIR=${LP_BASE_DIR}
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_MANAGEMENT_PORT=15672
+      - no_proxy=rabbitmq,minio-service,vlm-service,model-downloader,localhost,127.0.0.1
+      - AMQP_NOTE=Use nc rabbitmq 5672 (curl is not valid for AMQP)
     volumes:
       - ../src/pipeline/publish.py:/home/pipeline-server/lp-vlm/gvapython/publish.py
       - ../src/pipeline/send_end_message.py:/home/pipeline-server/lp-vlm/gvapython/send_end_message.py
@@ -58,4 +68,5 @@ services:
 
 networks:
   my_network:
-    driver: bridge
+    external: true
+    name: my_network

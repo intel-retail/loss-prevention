@@ -5,7 +5,6 @@ VIDEO_NAME="${VIDEO_NAME:-""}"
 INPUT_DIR="${INPUT_DIR:-"/home/pipeline-server/lp-vlm/sample-media"}"
 MODEL_PATH="/home/pipeline-server/lp-vlm/models"
 
-echo "=== DEBUG: Environment in runpipeline.sh ==="
 echo "VIDEO_NAME from env:" $VIDEO_NAME
 
 if [ -z "$VIDEO_NAME" ] || [ ! -f "$INPUT_DIR/$VIDEO_NAME" ]; then
@@ -28,7 +27,7 @@ time gst-launch-1.0 --verbose \
     ie-config=CPU_THROUGHPUT_STREAMS=2 nireq=2 \
     pre-process-config=resize_type=standard ! \
   queue ! gvametaconvert format=json ! queue ! \
-  gvapython class=Publisher function=process module=/app/pipeline-server/gvapython/publish.py name=publish ! \
+  gvapython class=Publisher function=process module=/home/pipeline-server/lp-vlm/gvapython/publish.py name=publish ! \
   gvawatermark ! queue ! fakesink sync=false async=false
 
 # --- Capture exit code ---
@@ -37,6 +36,6 @@ echo "🔴 Pipeline finished with exit code: $EXIT_CODE"
 
 # --- Send end message using your new Python script ---
 echo "📨 Sending end message using send_end_message.py..."
-python3 /app/pipeline-server/gvapython/send_end_message.py
+python3 /home/pipeline-server/lp-vlm/gvapython/send_end_message.py
 
 echo "✅ Pipeline processing completed."

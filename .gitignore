@@ -4,3 +4,4 @@ src/pipelines/
 benchmark/
 lp-vlm/microservices/vlm/ov-models/
 performance-tools/
+lp-vlm/src/loss_prevention_app.log

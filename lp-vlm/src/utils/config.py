@@ -20,7 +20,7 @@ LOGS_DIR = os.path.join(LP_APP_BASE_DIR)
 
 MINIO_HOST = f"{LP_IP}:{MINIO_API_HOST_PORT}"
 
-CONFIG_FILES_PATH = os.path.join(LP_APP_BASE_DIR, "src","config")
+CONFIG_FILES_PATH = os.path.join(LP_APP_BASE_DIR, "config")
 INVENTORY_FILE = os.path.join(CONFIG_FILES_PATH, "inventory.json")
 
 AGENT_RESULTS_DIR_FULL_PATH = os.path.join(LP_APP_BASE_DIR, RESULTS_DIR, METADATA_DIR,"agent_results.json")

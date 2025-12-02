@@ -3,6 +3,7 @@ import os
 import subprocess
 from pathlib import Path
 import argparse
+import time
 
 # -------------------- Defaults --------------------
 CONFIG_PATH_DEFAULT = "./configs/camera_to_workload.json"
@@ -115,6 +116,7 @@ def run(args):
 
         # 🚀 RUN BASE
         launch(BASE_COMPOSE, {"VLM_WORKLOAD_ENABLED": "1"})
+        time.sleep(10)  # give some time for base to start
     else:
         dbg = [c.get("workloads", []) for c in cameras]
         print(f"\n➡ No LP_VLM workload found. Workloads observed: {dbg}")
@@ -140,6 +142,8 @@ def run(args):
             "ROI_X2": roi.get("x2", ""),
             "ROI_Y2": roi.get("y2", ""),
             "VLM_WORKLOAD_ENABLED": "1",
+            "RABBITMQ_HOST": "rabbitmq",
+            "RABBITMQ_PORT": "5672",
         }
 
         print(f"\n📌 Camera {cam_id} → Building + Starting")
