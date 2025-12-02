@@ -102,7 +102,7 @@ done
 
 # Set GStreamer tracing environment
 export GST_DEBUG="GST_TRACER:7"
-export GST_TRACERS="latency_tracer(flags=pipeline)"
+export GST_TRACERS="latency(flags=pipeline)"
 export GST_VAAPI_INIT_DRM_DEVICE=/dev/dri/renderD128
 
 echo "Running with tracing enabled:"
@@ -116,7 +116,7 @@ echo "GST_VAAPI_INIT_DRM_DEVICE=$GST_VAAPI_INIT_DRM_DEVICE"
 # -----------------------------
 gst_log="$results_dir/gst-launch_$cid.log"
 echo "################# Running Pipeline ###################"
-echo "GST_DEBUG=\"GST_TRACER:7\" GST_TRACERS='latency_tracer(flags=pipeline)' bash $pipeline_file"
+echo "GST_DEBUG=\"GST_TRACER:7\" GST_TRACERS='latency(flags=pipeline)' bash $pipeline_file"
 
 gst_log="$results_dir/gst-launch_$cid.log"
 
