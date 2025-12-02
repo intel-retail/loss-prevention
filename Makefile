@@ -48,6 +48,8 @@ REGISTRY_MODEL_DOWNLOADER ?= intel/model-downloader-lp:$(TAG)
 REGISTRY_PIPELINE_RUNNER ?= intel/pipeline-runner-lp:$(TAG)
 REGISTRY_BENCHMARK ?= intel/retail-benchmark:$(TAG)
 
+BASE_VLM_COMPOSE = "./lp-vlm/src/docker-compose-base.yml"
+
 check-models:
 	@chmod +x check_models.sh
 	@./check_models.sh models || true
@@ -189,6 +191,12 @@ run:
 		BATCH_SIZE_DETECT=$(BATCH_SIZE_DETECT) BATCH_SIZE_CLASSIFY=$(BATCH_SIZE_CLASSIFY) docker compose -f src/$(DOCKER_COMPOSE) up -d; \
 	fi
 
+run-vlm:
+	python3 src/workload_utils.py --camera-config configs/camera_to_workload.json
+
+down-vlm:
+	docker compose -f $(BASE_VLM_COMPOSE) down
+
 run-render-mode:
 	@if [ -z "$(DISPLAY)" ] || ! echo "$(DISPLAY)" | grep -qE "^:[0-9]+(\.[0-9]+)?$$"; then \
 		echo "ERROR: Invalid or missing DISPLAY environment variable."; \
@@ -206,7 +214,7 @@ run-render-mode:
 		RENDER_MODE=1 CAMERA_STREAM=$(CAMERA_STREAM) WORKLOAD_DIST=$(WORKLOAD_DIST) BATCH_SIZE_DETECT=$(BATCH_SIZE_DETECT) BATCH_SIZE_CLASSIFY=$(BATCH_SIZE_CLASSIFY) docker compose -f src/$(DOCKER_COMPOSE_REGISTRY) up -d; \
 	else \
 		docker compose -f src/$(DOCKER_COMPOSE) build pipeline-runner; \
-		RENDER_MODE=1 VLM_WORKLOAD_ENABLED=$(shell python3 src/workload_utils.py lp_vlm) CAMERA_STREAM=$(CAMERA_STREAM) WORKLOAD_DIST=$(WORKLOAD_DIST) BATCH_SIZE_DETECT=$(BATCH_SIZE_DETECT) BATCH_SIZE_CLASSIFY=$(BATCH_SIZE_CLASSIFY) docker compose -f src/$(DOCKER_COMPOSE) up -d; \
+		RENDER_MODE=1 CAMERA_STREAM=$(CAMERA_STREAM) WORKLOAD_DIST=$(WORKLOAD_DIST) BATCH_SIZE_DETECT=$(BATCH_SIZE_DETECT) BATCH_SIZE_CLASSIFY=$(BATCH_SIZE_CLASSIFY) docker compose -f src/$(DOCKER_COMPOSE) up -d; \
 	fi
 	$(MAKE) clean-images
 

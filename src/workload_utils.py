@@ -1,138 +1,132 @@
 import json
-from typing import Tuple, Optional
+import os
+import subprocess
+from pathlib import Path
+import argparse
 
-def parse_workloads_and_files(config_path: str) -> Tuple[bool, Optional[str]]:
-    """
-    Reads a pipeline config file.
-    Returns:
-        - has_lp_vlm: True/False
-        - first_file_name: string or None
-    """
-    with open(config_path, "r") as f:
-        config = json.load(f)
+# -------------------- Defaults --------------------
+CONFIG_PATH_DEFAULT = "./configs/camera_to_workload.json"
 
-    cameras = config.get("lane_config", {}).get("cameras", [])
+BASE_COMPOSE = "./lp-vlm/src/docker-compose-base.yml"
+CAMERA_COMPOSE = "./lp-vlm/src/docker-compose.yaml"
+TARGET_WORKLOAD = "lp_vlm"  # normalized compare
 
-    has_lp_vlm = False
-    first_file_name = None
 
-    for cam in cameras:
-        # check workload
-        workloads = cam.get("workloads", [])
-        if "lp_vlm" in workloads:
-            has_lp_vlm = True
+# -------------------- Load JSON --------------------
+def load_config(camera_cfg_path: str) -> dict:
+    cfg_file = Path(camera_cfg_path)
+    if not cfg_file.exists():
+        raise FileNotFoundError(f"[ERROR] Config file not found: {cfg_file}")
 
-        # parse first fileSrc only once
-        if first_file_name is None:
-            file_src = cam.get("fileSrc", "")
-            if "|" in file_src:
-                first_file_name = file_src.split("|")[0]
-            else:
-                first_file_name = file_src
-
-    return has_lp_vlm, first_file_name
-
-def has_lp_vlm_workload():
-    workload_file = os.getenv("CAMERA_STREAM", "camera_to_workload.json")
-
-    with open(workload_file, "r") as f:
-        data = json.load(f)
-
-    cameras = data.get("lane_config", {}).get("cameras", [])
-
-    for cam in cameras:
-        workloads = cam.get("workloads", [])
-        if "lp_vlm" in workloads:
-            return True
-
-    return False
-
-def load_workload(file_path=None):
-    """Load JSON workload file. Default fallback is camera_to_workload.json"""
-    path = Path(file_path) if file_path else Path("camera_to_workload.json")
-    if not path.exists():
-        raise FileNotFoundError(f"Workload file not found: {path}")
-    
-    with open(path, "r") as f:
+    with open(cfg_file, "r") as f:
         return json.load(f)
 
-
-def get_cameras_with_lp_vlm(file_path=None):
-    """
-    Return list of camera objects that have 'lp_vlm' in workloads.
-    Each object is the full camera dictionary.
-    """
-    data = load_workload(file_path)
-    cameras = data.get("lane_config", {}).get("cameras", [])
-    return [cam for cam in cameras if "lp_vlm" in cam.get("workloads", [])]
+def compose_exists(path: str):
+    p = Path(path)
+    if not p.exists():
+        raise FileNotFoundError(f"[ERROR] Compose file not found: {path}")
 
 
-def get_primary_video_name(cam):
-    """
-    Return the video file name before | separator from a camera object.
-    """
-    file_src = cam.get("fileSrc", "")
-    return file_src.split("|")[0].strip()
+# -------------------- Workload Utils --------------------
+def camera_has_vlm(camera_obj) -> bool:
+    """Check if workloads include lp_vlm ignoring case and whitespace."""
+    workloads = camera_obj.get("workloads", [])
+    # Support both list and single string
+    if isinstance(workloads, str):
+        workloads = [workloads]
+    normalized = [str(w).strip().lower() for w in workloads]
+    return TARGET_WORKLOAD in normalized
 
 
-def run_docker_per_camera(workload_file=None, compose_file="docker-compose.yaml"):
+def extract_video_name(fileSrc):
     """
-    For each camera that has lp_vlm workload:
-        - Set VLM_WORKLOAD_ENABLED=1
-        - Set VIDEO_NAME to the camera's first video file
-        - Run docker-compose build & up
+    Takes something like:
+      "video.mp4|https://something"
+    Returns:
+      "video.mp4"
     """
-    cameras_lp_vlm = get_cameras_with_lp_vlm(workload_file)
+    if not fileSrc:
+        return ""
+    return fileSrc.split("|")[0]
 
-    if not cameras_lp_vlm:
-        print("No cameras with lp_vlm workload found. Skipping docker-compose.")
+def build(compose_file, env_vars=None):
+    """docker compose build"""
+    env = os.environ.copy()
+    if env_vars:
+        env.update({k: str(v) for k, v in env_vars.items()})
+
+    compose_exists(compose_file)
+
+    print(f"\n🔨 Building docker images from: {compose_file}")
+    subprocess.run(
+        ["docker", "compose", "-f", compose_file, "build"],
+        env=env,
+        check=True
+    )
+
+def launch(compose_file, env_vars=None):
+    """docker compose up -d with override env."""
+    env = os.environ.copy()
+    if env_vars:
+        env.update({k: str(v) for k, v in env_vars.items()})  # enforce string values
+
+    # Ensure compose file exists to avoid cryptic docker errors
+    if not Path(compose_file).exists():
+        raise FileNotFoundError(f"[ERROR] Compose file not found: {compose_file}")
+
+    print(f"\n🚀 Launching compose: {compose_file}")
+    subprocess.run(
+        ["docker", "compose", "-f", compose_file, "up", "-d"],
+        env=env,
+        check=True
+    )
+
+
+# -------------------- Main Logic --------------------
+def run(args):
+    # Load cfg
+    env_stream = os.getenv("CAMERA_STREAM")
+    camera_cfg_path = args.camera_config if args.camera_config else (env_stream or CONFIG_PATH_DEFAULT)
+    print(f"📄 Loading camera config: {camera_cfg_path}")
+
+    cfg = load_config(camera_cfg_path)
+
+    lane = cfg.get("lane_config", {})
+    cameras = lane.get("cameras", [])
+
+    if not cameras:
+        print("[WARN] No cameras found in configuration — exiting.")
         return
 
-    for cam in cameras_lp_vlm:
-        camera_id = cam.get("camera_id")
-        video_name = get_primary_video_name(cam)
+    # 1) detect vlm workload
+    vlm_found_any = any(camera_has_vlm(c) for c in cameras)
 
-        print(f"\n=== Running docker-compose for camera '{camera_id}' ===")
-        print(f"VLM_WORKLOAD_ENABLED=1, VIDEO_NAME={video_name}")
+    if vlm_found_any:
+        print("\n✔ Found LP_VLM workload — building & starting base stack")
 
-        # Prepare environment variables
-        env = os.environ.copy()
-        env["VLM_WORKLOAD_ENABLED"] = "1"
-        env["VIDEO_NAME"] = video_name
-        env["CAMERA_ID"] = camera_id  # optional: pass camera ID
+        # 🔨 BUILD BASE
+        build(BASE_COMPOSE, {"VLM_WORKLOAD_ENABLED": "1"})
 
-        # Build docker-compose
-        subprocess.run(
-            ["docker-compose", "-f", compose_file, "build"],
-            check=True,
-            env=env
-        )
-
-        # Run docker-compose
-        subprocess.run(
-            ["docker-compose", "-f", compose_file, "up", "-d"],
-            check=True,
-            env=env
-        )
-
-        print(f"Docker Compose for camera '{camera_id}' started successfully.")
-
-
-if __name__ == "__main__":
-    # Example:
-    # python workload_utils.py lp_vlm
-    # python workload_utils.py video
-    #
-    cmd = sys.argv[1] if len(sys.argv) > 1 else None
-
-    if cmd == "lp_vlm":
-        print(1 if has_lp_vlm_workload() else 0)
-    elif cmd == "video":
-        print(get_primary_video_name() or "")
-    elif cmd == "workloads":
-        print(",".join(get_all_workloads()))
+        # 🚀 RUN BASE
+        launch(BASE_COMPOSE, {"VLM_WORKLOAD_ENABLED": "1"})
     else:
-        print("Usage:")
-        print("  python workload_utils.py lp_vlm")
-        print("  python workload_utils.py video")
-        print("  python workload_utils.py workloads")
+        dbg = [c.get("workloads", []) for c in cameras]
+        print(f"\n➡ No LP_VLM workload found. Workloads observed: {dbg}")
+        return
+
+    # 2) per-camera VLM workloads    
+
+
+
+# -------------------- CLI --------------------
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument(
+        "--camera-config",
+        help="Camera workload mapping JSON path",
+        default=CONFIG_PATH_DEFAULT
+    )
+
+    args = parser.parse_args()
+    run(args)

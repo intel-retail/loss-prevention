@@ -11,17 +11,17 @@ services:
       - MINIO_ROOT_USER=${MINIO_ROOT_USER}
       - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
       - LP_IP=${LP_IP}
-      - VIDEO_NAME=three_lp_uses_cases_combined.mp4
+      - VIDEO_NAME=${VIDEO_NAME}
       - LP_BASE_DIR=${LP_BASE_DIR}
     volumes:
-      - ${LP_BASE_DIR}:/app
+      - ${LP_BASE_DIR:-../..}:/app
     network_mode: host
 
-  pipeline-runner:
-    container_name: pipeline-runner
+  vlm-pipeline-runner:
+    container_name: vlm-pipeline-runner
     build:
-      context: .
-      dockerfile: ./pipeline/docker/Dockerfile.runpipeline
+      context: ../..
+      dockerfile: docker/Dockerfile.pipeline
       args:
         - HTTP_PROXY=${HTTP_PROXY}
         - HTTPS_PROXY=${HTTPS_PROXY}
@@ -39,14 +39,13 @@ services:
       - DETECTION_THRESHOLD=${DETECTION_THRESHOLD}
       - LP_BASE_DIR=${LP_BASE_DIR}
     volumes:
-      - ${LP_BASE_DIR}/models:/app/pipeline-server/models
-      - ${LP_BASE_DIR}/sample-media:/app/pipeline-server/sample-media
-      - ${LP_BASE_DIR}/results:/app/results
-      - ./pipeline/scripts/publish.py:/app/pipeline-server/gvapython/publish.py
-      - ./pipeline/scripts/send_end_message.py:/app/pipeline-server/gvapython/send_end_message.py
-      - ./pipeline/scripts/config:/app/pipeline-server/gvapython/config
-      - ${LP_BASE_DIR}/utils/save_results.py:/app/pipeline-server/gvapython/save_results.py
-      - ${LP_BASE_DIR}/results:/app/pipeline-server/results
+      - ../src/pipeline/publish.py:/home/pipeline-server/lp-vlm/gvapython/publish.py
+      - ../src/pipeline/send_end_message.py:/home/pipeline-server/lp-vlm/gvapython/send_end_message.py
+      - ../src/pipeline/config.py:/home/pipeline-server/lp-vlm/gvapython/config.py
+      - ../src/utils/save_results.py:/home/pipeline-server/lp-vlm/save_results.py
+      - ../../models:/app/pipeline-server/models
+      - ../../performance-tools/sample-media:/app/pipeline-server/sample-media
+      - ${VLM_RESULTS_DIR:-../vlm-results}:/app/results            
       - /dev:/dev
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
     network_mode: host

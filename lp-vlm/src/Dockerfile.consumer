@@ -25,16 +25,16 @@ RUN apt-get update && apt-get install -y \
 # -----------------------------------------
 # Install Python dependencies
 # -----------------------------------------
-COPY ./lp-vlm/src/requirements.txt /app/
+COPY ./requirements.txt /app/
 RUN pip install --no-cache-dir -r requirements.txt
 
 # -----------------------------------------
 # Copy project files
 # -----------------------------------------
-COPY ./lp-vlm/src/utils /app/utils
-COPY ./lp-vlm/src/config /app/config
-COPY ./lp-vlm/src/agent /app/agent
-COPY ./lp-vlm/src/main.py /app/
+COPY ./utils /app/utils
+COPY ./config /app/config
+COPY ./agent /app/agent
+COPY ./main.py /app/
 
 # -----------------------------------------
 # Run consumer
