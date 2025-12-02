@@ -162,6 +162,7 @@ if [ "${VLM_WORKLOAD_ENABLED}" = "0" ]; then
 
     echo "############# GST COMMAND COMPLETED SUCCESSFULLY #############"
 else
-    echo "VLM_WORKLOAD_ENABLED!=0 detected. Launching lp_vlm based workload ..."
+    echo "########### lp_vlm workload is detected in camera-workload config #############"
+    echo "VLM_WORKLOAD_ENABLED=1 detected. Launching lp_vlm based workload ..."
     bash "/home/pipeline-server/lp-vlm/gvapython/vlm_od_pipeline.sh"
 fi

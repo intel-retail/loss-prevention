@@ -413,8 +413,11 @@ od_consumer, vlm_enhancer_thread = init_pipeline_components()
 od_results_shown, od_pipeline_status,vlm_pipeline_status = False, False,False
 print("\n================ START OF PIPELINE RUN =================\n")
 
-def main(video_file_name="three_lp_uses_cases_combined.mp4"):
+def main(video_file_name=None):
     """Main function to execute the loss prevention pipeline"""
+    if video_file_name is None:
+        video_file_name = os.getenv("VIDEO_NAME", "three_lp_uses_cases_combined.mp4")
+    
     global od_results_shown, od_pipeline_status, vlm_pipeline_status
     
     agent_pipeline_status = False

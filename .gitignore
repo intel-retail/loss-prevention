@@ -2,3 +2,5 @@ models/
 results/
 src/pipelines/
 benchmark/
+lp-vlm/microservices/vlm/ov-models/
+performance-tools/

@@ -114,10 +114,8 @@ services:
     networks:
       - my_network
     volumes:
-      - ..//microservices/vlm/ov-models:/root/.cache/huggingface     
+      - ../microservices/vlm/ov-models:/root/.cache/huggingface     
       - ../microservices/vlm/ov-models:/app/ov-model
-      - ../performance-tools/sample-media:/app/sample-media
-      - ../results/frames:/app/results/frames  
 
   
 volumes:

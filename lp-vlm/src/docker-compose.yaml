@@ -14,8 +14,9 @@ services:
       - VIDEO_NAME=${VIDEO_NAME}
       - LP_BASE_DIR=${LP_BASE_DIR}
     volumes:
-      - ${LP_BASE_DIR:-../..}:/app
-    network_mode: host
+      - .:/app
+    networks:
+      - my_network
 
   vlm-pipeline-runner:
     container_name: vlm-pipeline-runner
@@ -27,7 +28,7 @@ services:
         - HTTPS_PROXY=${HTTPS_PROXY}
     image: pipeline-runner:lp
     environment:
-      - VIDEO_NAME=three_lp_uses_cases_combined.mp4
+      - VIDEO_NAME=${VIDEO_NAME}
       - LP_IP=${LP_IP}
       - MINIO_ROOT_USER=${MINIO_ROOT_USER}
       - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
@@ -43,12 +44,13 @@ services:
       - ../src/pipeline/send_end_message.py:/home/pipeline-server/lp-vlm/gvapython/send_end_message.py
       - ../src/pipeline/config.py:/home/pipeline-server/lp-vlm/gvapython/config.py
       - ../src/utils/save_results.py:/home/pipeline-server/lp-vlm/save_results.py
-      - ../../models:/app/pipeline-server/models
-      - ../../performance-tools/sample-media:/app/pipeline-server/sample-media
+      - ../../models:/home/pipeline-server/lp-vlm/models
+      - ../../performance-tools/sample-media:/home/pipeline-server/lp-vlm/sample-media
       - ${VLM_RESULTS_DIR:-../vlm-results}:/app/results            
       - /dev:/dev
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
-    network_mode: host
+    networks:
+      - my_network
     privileged: true
     depends_on:
       - lp-consumer        # <-- correct indentation and syntax

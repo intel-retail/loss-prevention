@@ -38,16 +38,22 @@ def camera_has_vlm(camera_obj) -> bool:
     return TARGET_WORKLOAD in normalized
 
 
-def extract_video_name(fileSrc):
+def extract_video_name(fileSrc, width=None, fps=None) -> str:
     """
-    Takes something like:
-      "video.mp4|https://something"
-    Returns:
-      "video.mp4"
+    Return "<first-fileSrc>-<width>-<fps>.mp4"
+    - first-fileSrc is the segment before '|'
+    - existing extension is removed before appending width/fps
     """
     if not fileSrc:
         return ""
-    return fileSrc.split("|")[0]
+    base = fileSrc.split("|")[0].strip()
+    # remove extension if present
+    if "." in base:
+        base = base.rsplit(".", 1)[0]
+    w = "" if width is None else str(width).strip()
+    f = "" if fps is None else str(fps).strip()
+    return f"{base}-{w}-{f}-bench.mp4"
+
 
 def build(compose_file, env_vars=None):
     """docker compose build"""
@@ -115,7 +121,35 @@ def run(args):
         return
 
     # 2) per-camera VLM workloads    
+    for cam in cameras:
+        if not camera_has_vlm(cam):
+            continue
 
+        cam_id = cam.get("camera_id")
+        fileSrc = cam.get("fileSrc")
+        width = cam.get("width")
+        fps = cam.get("fps")
+        video_name = extract_video_name(fileSrc, width, fps)
+        roi = cam.get("region_of_interest", {})
+
+        env_vars = {
+            "CAMERA_ID": cam_id,
+            "VIDEO_NAME": video_name,
+            "ROI_X": roi.get("x", ""),
+            "ROI_Y": roi.get("y", ""),
+            "ROI_X2": roi.get("x2", ""),
+            "ROI_Y2": roi.get("y2", ""),
+            "VLM_WORKLOAD_ENABLED": "1",
+        }
+
+        print(f"\n📌 Camera {cam_id} → Building + Starting")
+        print(f"  ▶ VIDEO = {video_name}")
+
+        # 🔨 BUILD CAMERA STACK
+        build(CAMERA_COMPOSE, env_vars)
+
+        # 🚀 RUN CAMERA STACK
+        launch(CAMERA_COMPOSE, env_vars)
 
 
 # -------------------- CLI --------------------

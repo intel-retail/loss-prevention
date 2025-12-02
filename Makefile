@@ -49,6 +49,7 @@ REGISTRY_PIPELINE_RUNNER ?= intel/pipeline-runner-lp:$(TAG)
 REGISTRY_BENCHMARK ?= intel/retail-benchmark:$(TAG)
 
 BASE_VLM_COMPOSE = "./lp-vlm/src/docker-compose-base.yml"
+VLM_COMPOSE = "./lp-vlm/src/docker-compose.yaml"
 
 check-models:
 	@chmod +x check_models.sh
@@ -196,6 +197,7 @@ run-vlm:
 
 down-vlm:
 	docker compose -f $(BASE_VLM_COMPOSE) down
+	docker compose -f $(VLM_COMPOSE) down
 
 run-render-mode:
 	@if [ -z "$(DISPLAY)" ] || ! echo "$(DISPLAY)" | grep -qE "^:[0-9]+(\.[0-9]+)?$$"; then \
