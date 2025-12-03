@@ -438,7 +438,7 @@ class Publisher:
         RABBITMQ_USERNAME = os.environ.get("RABBITMQ_USER")
         RABBITMQ_PASSWORD = os.environ.get("RABBITMQ_PASSWORD")
         rabbit_host = os.getenv("RABBITMQ_HOST", "rabbitmq")
-        MAX_RETRIES = 5
+        MAX_RETRIES = 30
         retry = 0
         while retry < MAX_RETRIES:
             try:

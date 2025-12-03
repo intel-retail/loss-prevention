@@ -18,10 +18,12 @@ services:
       - RABBITMQ_MANAGEMENT_PORT=15672
       - no_proxy=rabbitmq,minio-service,vlm-service,model-downloader,localhost,127.0.0.1
       - AMQP_NOTE=Use nc rabbitmq 5672 (curl is not valid for AMQP)
-      - CONTAINER_RESULTS_PATH=/app/results
+      - VLM_SERVICE_HOST=vlm-service
+      - VLM_SERVICE_PORT=8000
     volumes:
       - .:/app
       - ../../results/vlm-results:/app/results
+      - ../microservices/vlm/ov-models:/app/ov-model    
     networks:
       - my_network
 

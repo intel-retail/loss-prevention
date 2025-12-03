@@ -23,12 +23,7 @@ from utils.save_results import get_presigned_url
 from utils.config import logger,INVENTORY_FILE
 from utils.rabbitmq_consumer import ODConsumer
 import traceback
-from vlm_metrics_logger import (
-    log_start_time, 
-    log_end_time, 
-    log_custom_event,
-    log_performance_metric
-)
+
 # ============================================================================
 # GLOBAL VARIABLES AND QUEUES
 # ============================================================================
@@ -400,10 +395,62 @@ def agent_call(vlm_results, use_case="decision_agent"):
 # INITIALIZATION
 # ============================================================================
 
+def wait_for_ov_models():
+    """Wait for OV model directory to be ready before starting pipeline"""
+    model_dir = "/app/ov-model/Qwen2.5-VL-7B-Instruct/int8"
+    logger.info("Checking for OV model directory: %s", model_dir)
+    
+    while True:
+        if os.path.exists(model_dir):
+            # Check if directory has any content
+            try:
+                contents = os.listdir(model_dir)
+                if contents:
+                    logger.info("✅ OV model directory found with %d items", len(contents))
+                    return True
+                else:
+                    logger.warning("OV model directory exists but is empty, waiting...")
+            except Exception as e:
+                logger.warning("Could not list model directory: %s", str(e))
+        else:
+            logger.warning("OV model directory not found, waiting...")
+        
+        time.sleep(10)
+
+def wait_for_vlm_service(max_retries=30, retry_delay=2):
+    """Wait for VLM service to be ready before starting pipeline"""
+    import requests
+    
+    vlm_host = os.environ.get("VLM_SERVICE_HOST", "vlm-service")
+    vlm_port = os.environ.get("VLM_SERVICE_PORT", "8000")
+    health_url = f"http://{vlm_host}:{vlm_port}/health"
+    
+    logger.info("Checking VLM service health at: %s", health_url)
+    
+    for attempt in range(max_retries):
+        try:
+            response = requests.get(health_url, timeout=5)
+            if response.status_code == 200:
+                logger.info("✅ VLM service is ready")
+                return True
+            else:
+                logger.warning("VLM service returned status %d, retrying...", response.status_code)
+        except requests.exceptions.RequestException as e:
+            logger.warning("VLM service not ready (attempt %d/%d): %s", attempt + 1, max_retries, str(e))
+        
+        time.sleep(retry_delay)
+    
+    logger.error("❌ VLM service did not become ready after %d attempts", max_retries)
+    return False
+
 # Initialize all queues and consumers
 def init_pipeline_components():
     """Initialize all necessary components for the pipeline"""
     global vlm_queue, result_queue, od_message_queue
+    
+    # Wait for models and VLM service before starting
+    wait_for_ov_models()
+    
     # Object Detection Consumer
     od_consumer = ODConsumer(od_message_queue,RABBITMQ_USER,RABBITMQ_PASSWORD)
     od_consumer.start_consumer()
@@ -475,6 +522,7 @@ def main(video_file_name=None):
 
 
 if __name__ == "__main__":
+    
     result = main() 
     print(f"\n{'='*60}\nFinal Pipeline Results:\n{'='*60}")
     
