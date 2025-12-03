@@ -72,7 +72,7 @@ services:
 
   vlm-service:
     image: vlm-service:order-vlm
-    container_name: vlm-service-serving
+    container_name: vlm-service
     extra_hosts:
       - "host.docker.internal:host-gateway"
     build:
@@ -86,7 +86,7 @@ services:
       LLM_BASE_DIR: ${LLM_BASE_DIR}
       LP_BASE_DIR: ${LP_BASE_DIR}
       no_proxy_env: ${no_proxy_env},${HOST_IP}
-      no_proxy: ${no_proxy_env},${HOST_IP}
+      no_proxy: ${no_proxy_env},${HOST_IP},rabbitmq,minio-service,model-downloader,localhost,127.0.0.1
       http_proxy: ${http_proxy}
       https_proxy: ${https_proxy}
       VLM_MODEL_NAME: ${VLM_MODEL_NAME}

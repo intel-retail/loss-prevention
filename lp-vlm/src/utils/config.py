@@ -4,12 +4,12 @@ import os
 import logging
 
 # ---------------- Base Configuration -----------------
-LP_IP = "localhost"
+LP_IP = os.environ.get("LP_IP")
 LP_PORT = os.environ.get("LP_PORT", "8000")
 MINIO_API_HOST_PORT = os.environ.get("MINIO_API_HOST_PORT", "4000")
 
 VLM_MODEL = os.environ.get("VLM_MODEL_NAME", "Qwen/Qwen2.5-VL-7B-Instruct")
-VLM_URL = f"http://{LP_IP}:{LP_PORT}/v1/chat/completions"
+VLM_URL = f"http://vlm-service:{LP_PORT}/v1/chat/completions"
 SAMPLE_MEDIA_DIR = "sample-media"
 LP_APP_BASE_DIR = "/app"
 

@@ -4,7 +4,6 @@ import os
 from datetime import datetime
 from config import LP_IP
 import sys
-from utils.config import logger
 
 rabbit_user = os.environ.get("RABBITMQ_USER")
 rabbit_pass = os.environ.get("RABBITMQ_PASSWORD")
@@ -31,9 +30,9 @@ try:
         body=json.dumps(end_message)
     )
 
-    logger.info("📢 End message sent successfully!")
+    print("📢 End message sent successfully!")
     connection.close()
 
 except Exception as e:
-    logger.error(f"❌ Failed to send end message: {e}")
+    print(f"❌ Failed to send end message: {e}")
     sys.exit(1)

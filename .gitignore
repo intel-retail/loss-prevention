@@ -5,3 +5,5 @@ benchmark/
 lp-vlm/microservices/vlm/ov-models/
 performance-tools/
 lp-vlm/src/loss_prevention_app.log
+lp-vlm/vlm-results/
+lp-vlm/src/utils/__pycache__

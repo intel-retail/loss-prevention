@@ -64,6 +64,7 @@ def call_vlm(
     """Call the Vision Language Model to analyze frames. Optionally save output to MinIO with order_id and accept video_id."""
     import time
     payload = build_vlm_payload(frame_records, seed=seed, use_case=use_case)
+    logger.info(f"########## VLM - VLM_URL: {VLM_URL}, LP_IP: {LP_IP}, LP_PORT: {LP_PORT}")
     logger.info(f"VLM - Payload built for VLM call: {payload}")
     if payload is None or payload=={}:
         return False, {}, "Failed to build VLM payload"
