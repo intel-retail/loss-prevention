@@ -15,7 +15,7 @@ RUN pip install --break-system-packages --ignore-installed numpy opencv-python p
 COPY configs/ /home/pipeline-server/configs/
 # COPY configs/workload_to_pipeline.json /home/pipeline-server/configs/workload_to_pipeline.json
 # COPY configs/camera_to_workload.json /home/pipeline-server/configs/camera_to_workload.json
-COPY models /home/pipeline-server/models
+#COPY models /home/pipeline-server/models
 COPY performance-tools/sample-media /home/pipeline-server/sample-media
 COPY src/run-pipeline.sh scripts/
 COPY src/person_reid.py /home/pipeline-server/src/

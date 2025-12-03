@@ -23,7 +23,12 @@ from utils.save_results import get_presigned_url
 from utils.config import logger,INVENTORY_FILE
 from utils.rabbitmq_consumer import ODConsumer
 import traceback
-
+from vlm_metrics_logger import (
+    log_start_time, 
+    log_end_time, 
+    log_custom_event,
+    log_performance_metric
+)
 # ============================================================================
 # GLOBAL VARIABLES AND QUEUES
 # ============================================================================

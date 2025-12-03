@@ -10,7 +10,6 @@ MINIO_API_HOST_PORT = os.environ.get("MINIO_API_HOST_PORT", "4000")
 
 
 RESULTS_DIR = "results"
-MODELS_DIR = "models"
 METADATA_DIR = "metadata"
 
 MINIO_HOST = f"{LP_IP}:{MINIO_API_HOST_PORT}"

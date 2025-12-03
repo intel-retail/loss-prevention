@@ -18,8 +18,10 @@ services:
       - RABBITMQ_MANAGEMENT_PORT=15672
       - no_proxy=rabbitmq,minio-service,vlm-service,model-downloader,localhost,127.0.0.1
       - AMQP_NOTE=Use nc rabbitmq 5672 (curl is not valid for AMQP)
+      - CONTAINER_RESULTS_PATH=/app/results
     volumes:
       - .:/app
+      - ../../results/vlm-results:/app/results
     networks:
       - my_network
 
@@ -56,7 +58,7 @@ services:
       - ../src/utils/save_results.py:/home/pipeline-server/lp-vlm/save_results.py
       - ../../models:/home/pipeline-server/lp-vlm/models
       - ../../performance-tools/sample-media:/home/pipeline-server/lp-vlm/sample-media
-      - ${VLM_RESULTS_DIR:-../vlm-results}:/app/results            
+      - ../../results/vlm-results:/app/results         
       - /dev:/dev
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
     networks:

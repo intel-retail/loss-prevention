@@ -17,9 +17,8 @@ services:
       - MODELS_DIR=/workspace/models
       - WORKLOAD_DIST=${WORKLOAD_DIST:-workload_to_pipeline.json}
     volumes:
-      - ../models:/workspace/models
-      - ../configs:/workspace/configs
-      - ../results:/workspace/results
+      - ../../models:/workspace/models
+      - ../../configs:/workspace/configs
     command: ["/bin/bash", "-c", "/workspace/scripts/downloadModels.sh"]
   
   rabbitmq:
