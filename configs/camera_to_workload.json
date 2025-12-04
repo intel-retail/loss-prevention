@@ -7,7 +7,7 @@
         "width": 1080,
         "height": 1920,
         "fileSrc":"items-in-basket-32658421.mp4|https://www.pexels.com/download/video/32658421", 
-        "workloads": ["items_in_basket"],
+        "workloads": ["items_in_basket", "lp_vlm"],
         "region_of_interest": {
           "x": 335,
           "y": 900,
@@ -21,7 +21,7 @@
         "width": 1080,
         "height": 1920,
         "fileSrc":"lp-vlm.mp4|https://www.pexels.com/download/video/32658421", 
-        "workloads": ["lp_vlm"],
+        "workloads": ["abc"],
         "region_of_interest": {
           "x": 335,
           "y": 900,

@@ -23,6 +23,7 @@ services:
     volumes:
       - .:/app
       - ../../results/vlm-results:/app/results
+      - ../../configs:/app/lp/configs
       - ../microservices/vlm/ov-models:/app/ov-model    
     networks:
       - my_network

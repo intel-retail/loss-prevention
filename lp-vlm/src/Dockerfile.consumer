@@ -29,6 +29,8 @@ RUN apt-get update && apt-get install -y \
 COPY ./requirements.txt /app/
 RUN pip install --no-cache-dir -r requirements.txt
 
+COPY ../../configs/ /app/lp/configs
+
 # -----------------------------------------
 # Copy project files
 # -----------------------------------------
@@ -36,6 +38,7 @@ COPY ./utils /app/utils
 COPY ./config /app/config
 COPY ./agent /app/agent
 COPY ./main.py /app/
+COPY ./workload_utils /app/workload_utils
 
 # -----------------------------------------
 # Run consumer
