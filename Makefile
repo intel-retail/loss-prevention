@@ -198,6 +198,9 @@ run-vlm:
 		echo ""; exit 1; \
 	}; \
 	echo "Using VIDEO_NAME=$$VIDEO_NAME"; \
+	VIDEO_NAME=$$VIDEO_NAME docker compose -f $(VLM_COMPOSE) build --pull
+	VIDEO_NAME=$$VIDEO_NAME docker compose -f $(VLM_COMPOSE) up -d
+	$(MAKE) clean-images
 
 down-vlm:
 	docker compose -f $(VLM_COMPOSE) down
