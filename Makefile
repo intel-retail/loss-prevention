@@ -196,6 +196,10 @@ run-vlm:
 	@VIDEO_NAME=$$(python3 lp-vlm/src/workload_utils.py --camera-config configs/$(CAMERA_STREAM)); \
 	echo "VIDEO_NAME=$$VIDEO_NAME" > lp-vlm/lp-vlm.env; \
 	echo "Using VIDEO_NAME=$$VIDEO_NAME"; \
+	# Create log file on host if it doesn't exist
+	LOG_FILE=vlm_loss_prevention.log; \
+	mkdir -p $$(dirname $$LOG_FILE); \
+	[ -f $$LOG_FILE ] || touch $$LOG_FILE; \
 	docker compose -f $(VLM_COMPOSE) --env-file lp-vlm/lp-vlm.env build --pull; \
 	docker compose -f $(VLM_COMPOSE) --env-file lp-vlm/lp-vlm.env up -d
 	$(MAKE) clean-images

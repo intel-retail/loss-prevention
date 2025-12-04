@@ -152,7 +152,7 @@ services:
       - ../../results/vlm-results:/app/results
       - ../microservices/vlm/ov-models:/app/ov-model
       - ../../configs:/app/lp/configs
-      - ../../vlm_loss_prevention.log:/app/vlm_loss_prevention.log
+      - ../../vlm_loss_prevention.log:/app/loss_prevention_app.log
     networks:
       - my_network
     depends_on:

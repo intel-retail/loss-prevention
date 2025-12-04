@@ -9,3 +9,4 @@ lp-vlm/vlm-results/
 lp-vlm/src/utils/__pycache__/*
 lp-vlm/src/__pycache__/*
 lp-vlm/lp-vlm.env
+vlm_loss_prevention.log
