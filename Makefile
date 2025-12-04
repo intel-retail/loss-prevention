@@ -173,6 +173,7 @@ run-lp: | validate_workload_mapping update-submodules download-sample-videos dow
 	else \
 		$(MAKE) run; \
 	fi
+	$(MAKE) run-vlm
 
 down-lp:
 	@if [ "$(REGISTRY)" = "true" ]; then \
@@ -182,6 +183,7 @@ down-lp:
 	else \
 		docker compose -f src/$(DOCKER_COMPOSE) down; \
 	fi
+	$(MAKE) down-vlm
 
 run:
 	@if [ "$(REGISTRY)" = "true" ]; then \
@@ -205,7 +207,12 @@ run-vlm:
 	$(MAKE) clean-images
 
 down-vlm:
+	@echo "Stopping VLM demo containers..."
 	docker compose -f $(VLM_COMPOSE) down
+	@echo "Cleaning up VLM temporary files..."
+	@rm -f vlm_loss_prevention.log
+	@rm -f lp-vlm/lp-vlm.env
+	@echo "VLM cleanup completed"
 
 run-render-mode:
 	@if [ -z "$(DISPLAY)" ] || ! echo "$(DISPLAY)" | grep -qE "^:[0-9]+(\.[0-9]+)?$$"; then \

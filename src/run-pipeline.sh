@@ -165,24 +165,9 @@ if [ "${VLM_WORKLOAD_ENABLED}" = "0" ]; then
     wait $GST_PID
 
     echo "############# GST COMMAND COMPLETED SUCCESSFULLY #############"
-else    
-    echo "================ VIDEO_NAME=${VIDEO_NAME} ===================="
-    export VIDEO_NAME
-    MODEL="/home/pipeline-server/lp-vlm/models/object_detection/yolo11n/INT8/yolo11n.xml"
-
-    echo "🔄 Checking model availability: $MODEL"
-
-    while [ ! -f "$MODEL" ]; do
-        echo "⏳===================== Model not found. Waiting 5s................. ====================="
-        sleep 5
-    done
-
-    echo "✔️ Model found. Validating VLM workload configuration..."
-
+else
     echo "########### lp_vlm workload is detected in camera-workload config #############"
     echo "VLM_WORKLOAD_ENABLED=1 detected. Launching lp_vlm based workload ..."
     bash "/home/pipeline-server/lp-vlm/gvapython/vlm_od_pipeline.sh"
     echo "############# lp_vlm WORKLOAD COMPLETED SUCCESSFULLY #############"
-    # Keep the container alive for inspection if needed
-    sleep 10m
 fi
