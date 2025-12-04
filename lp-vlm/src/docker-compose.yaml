@@ -111,7 +111,7 @@ services:
       test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
       interval: 10s
       timeout: 10s
-      retries: 40
+      retries: 200
       start_period: 10s
     networks:
       - my_network
@@ -126,6 +126,7 @@ services:
       context: .
       dockerfile: Dockerfile.consumer
     restart: always
+    image: lp-consumer:lp
     environment:
       - RABBITMQ_USER=${RABBITMQ_USER}
       - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}
@@ -157,8 +158,8 @@ services:
       model-downloader:
         condition: service_completed_successfully
 
-  od-pipeline-runner:
-    container_name: od-pipeline-runner
+  vlm-pipeline-runner:
+    container_name: vlm-pipeline-runner
     build:
       context: ../..
       dockerfile: docker/Dockerfile.pipeline
