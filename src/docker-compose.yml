@@ -36,7 +36,7 @@ services:
       model-downloader:
         condition: service_completed_successfully
     environment:
-      - VLM_WORKLOAD_ENABLED=${VLM_WORKLOAD_ENABLED:-0}
+      - VLM_WORKLOAD_ENABLED=0
       - VIDEO_NAME=${VIDEO_NAME}
       - LP_IP=${LP_IP}
       - ROI_COORDINATES=${ROI_COORDINATES}

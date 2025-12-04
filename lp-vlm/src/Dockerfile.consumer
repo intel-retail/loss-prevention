@@ -40,7 +40,6 @@ COPY ./utils /app/utils
 COPY ./config /app/config
 COPY ./agent /app/agent
 COPY ./main.py /app/
-COPY ./workload_utils.py /app/
 
 # -----------------------------------------
 # Run consumer

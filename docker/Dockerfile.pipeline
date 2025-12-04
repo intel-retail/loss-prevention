@@ -24,7 +24,6 @@ COPY src/res/* res/
 
 # Copy VLM pipeline python scripts
 COPY ../lp-vlm/src/pipeline/* /home/pipeline-server/lp-vlm/gvapython/
-COPY ../lp-vlm/src/workload_utils.py /home/pipeline-server/lp-vlm/
 
 RUN chmod +x scripts/run-pipeline.sh
 RUN chmod +x /home/pipeline-server/lp-vlm/gvapython/vlm_od_pipeline.sh

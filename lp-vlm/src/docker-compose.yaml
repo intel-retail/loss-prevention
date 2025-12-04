@@ -145,12 +145,20 @@ services:
       - .:/app
       - ../../results/vlm-results:/app/results
       - ../microservices/vlm/ov-models:/app/ov-model
-      - ../../configs:/app/lp/configs  # Mount configs directory
     networks:
       - my_network
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      minio-service:
+        condition: service_healthy
+      vlm-service:
+        condition: service_healthy
+      model-downloader:
+        condition: service_completed_successfully
 
-  vlm-pipeline-runner:
-    container_name: vlm-pipeline-runner
+  od-pipeline-runner:
+    container_name: od-pipeline-runner
     build:
       context: ../..
       dockerfile: docker/Dockerfile.pipeline
@@ -159,6 +167,7 @@ services:
         - HTTPS_PROXY=${HTTPS_PROXY}
     image: pipeline-runner:lp
     environment:
+      - VLM_WORKLOAD_ENABLED=1
       - VIDEO_NAME=${VIDEO_NAME}
       - LP_IP=${LP_IP}
       - MINIO_ROOT_USER=${MINIO_ROOT_USER}
@@ -180,18 +189,25 @@ services:
       - ../src/pipeline/send_end_message.py:/home/pipeline-server/lp-vlm/gvapython/send_end_message.py
       - ../src/pipeline/config.py:/home/pipeline-server/lp-vlm/gvapython/config.py
       - ../src/utils/save_results.py:/home/pipeline-server/lp-vlm/save_results.py
-      - ../src/workload_utils.py:/home/pipeline-server/lp-vlm/workload_utils.py
       - ../../models:/home/pipeline-server/lp-vlm/models
       - ../../performance-tools/sample-media:/home/pipeline-server/lp-vlm/sample-media
       - ../../results/vlm-results:/app/results    
-      - ../../configs:/app/lp/configs     
       - /dev:/dev
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
     networks:
       - my_network
     privileged: true
     depends_on:
-      - lp-consumer        # <-- correct indentation and syntax
+      rabbitmq:
+        condition: service_healthy
+      minio-service:
+        condition: service_healthy
+      vlm-service:
+        condition: service_healthy
+      model-downloader:
+        condition: service_completed_successfully
+      lp-consumer:
+        condition: service_started
 
 volumes:
   minio_data:

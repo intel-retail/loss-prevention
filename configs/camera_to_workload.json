@@ -21,7 +21,7 @@
         "width": 1080,
         "height": 1920,
         "fileSrc":"lp-vlm.mp4|https://www.pexels.com/download/video/32658421", 
-        "workloads": ["lp_vsdfsfslm"],
+        "workloads": ["lp_vlm"],
         "region_of_interest": {
           "x": 335,
           "y": 900,

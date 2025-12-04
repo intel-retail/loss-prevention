@@ -3,6 +3,10 @@
 # -----------------------------
 # Conditional execution based on VLM_WORKLOAD_ENABLED
 # -----------------------------
+
+
+echo ">>>>>>>>>>>>> VLM_WORKLOAD_ENABLED=${VLM_WORKLOAD_ENABLED} <<<<<<<<<<<<<<<"
+
 if [ "${VLM_WORKLOAD_ENABLED}" = "0" ]; then
     # -----------------------------
     # Configuration & Environment
@@ -161,24 +165,7 @@ if [ "${VLM_WORKLOAD_ENABLED}" = "0" ]; then
     wait $GST_PID
 
     echo "############# GST COMMAND COMPLETED SUCCESSFULLY #############"
-else
-    # Call workload_utils.py to extract VIDEO_NAME and ROI
-    WORKLOAD_UTILS="/home/pipeline-server/lp-vlm/workload_utils.py"
-    
-    if [ ! -f "$WORKLOAD_UTILS" ]; then
-        echo "❌ ERROR: workload_utils.py not found at $WORKLOAD_UTILS"
-        exit 1
-    fi
-    
-    # Run workload_utils.py and capture output
-    echo "Running workload validation: python3 $WORKLOAD_UTILS"
-    VIDEO_NAME=$(python3 "$WORKLOAD_UTILS")
-    echo "################# VIDEO_NAME before exported===========: $VIDEO_NAME"
-    export VIDEO_NAME 
-    echo "################# VIDEO_NAME exported===========: $VIDEO_NAME"
-    sleep 1s
-
-
+else    
     MODEL="/home/pipeline-server/lp-vlm/models/object_detection/yolo11n/INT8/yolo11n.xml"
 
     echo "🔄 Checking model availability: $MODEL"

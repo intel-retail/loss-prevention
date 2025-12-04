@@ -135,7 +135,9 @@ def build_gst_element(cfg):
     elif cfg["type"] in ["gvatrack", "gvaattachroi", "gvametaconvert", "gvametapublish", "gvawatermark", "gvafpscounter", "fpsdisplaysink", "queue", "videoconvert", "decodebin", "filesrc", "fakesink"]:
         elem = cfg["type"]
     else:
-        raise ValueError(f"Unknown or unsupported GStreamer element type: {cfg['type']}")
+        # Log warning but allow unknown types to pass through
+        print(f"Warning: Unknown or unsupported GStreamer element type: {cfg['type']}", file=sys.stderr)
+        elem = cfg["type"]
     return elem, DECODE
 
 def build_dynamic_gstlaunch_command(camera, workloads, workload_map, branch_idx=0, model_instance_map=None, model_instance_counter=None, timestamp=None):
@@ -237,11 +239,7 @@ def build_dynamic_gstlaunch_command(camera, workloads, workload_map, branch_idx=
             elif step["type"] == "gvapython":
                 elem, _ = build_gst_element(step)
                 pipeline += f" ! {elem} "
-                last_added_queue = False
-            else:
-                elem, _ = build_gst_element(step)
-                pipeline += f" ! {elem}"
-                last_added_queue = False
+                last_added_queue = False            
             # Only add queue if not just added by gvadetect/gvatrack
             if i < len(steps) - 1:
                 if not (step["type"] == "gvadetect"):

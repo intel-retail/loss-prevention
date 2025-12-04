@@ -467,21 +467,7 @@ od_results_shown, od_pipeline_status,vlm_pipeline_status = False, False,False
 print("\n================ START OF PIPELINE RUN =================\n")
 
 def main(video_file_name=None):
-    """Main function to execute the loss prevention pipeline"""
-    
-    # Get video from config if not provided
-    if video_file_name is None:
-        try:
-            video_file_name = get_video_from_config()
-        except ValueError as e:
-            print(f"❌ {str(e)}")
-            return (
-                "📹 Object Detection: ❌ Failed - Invalid configuration", {},
-                "🤖 VLM Enhancement: ❌ Skipped", [],
-                "🤖 Agent: ❌ Skipped", []
-            )
-    
-    # Fallback to environment variable
+    """Main function to execute the loss prevention pipeline"""    
     if video_file_name is None:
         video_file_name = os.getenv("VIDEO_NAME", "three_lp_uses_cases_combined.mp4")
     

@@ -84,7 +84,7 @@ def validate_and_extract_vlm_config(camera_cfg_path: str = None) -> dict:
     
     if len(vlm_cameras) == 0:
         raise ValueError(
-            f"[ERROR] No LP_VLM workload found in any camera. "
+            f"[ERROR] No lp_vlm workload found in any camera. "
             f"Available workloads: {[c.get('workloads', []) for c in cameras]}"
         )
     
@@ -138,7 +138,7 @@ def get_video_from_config(camera_cfg_path: str = None):
     logger = logging.getLogger(__name__)
     
     try:
-        logger.info("Validating LP_VLM workload configuration...")
+        logger.info("Validating lp_vlm workload configuration...")
         vlm_config = validate_and_extract_vlm_config(camera_cfg_path)
         
         video_file_name = vlm_config.get("video_name")
@@ -148,13 +148,13 @@ def get_video_from_config(camera_cfg_path: str = None):
         return video_file_name
         
     except Exception as e:
-        logger.error("Failed to validate VLM configuration: %s", str(e))
+        logger.error("Failed to validate lp_vlm configuration: %s", str(e))
         raise ValueError(f"Configuration validation failed: {str(e)}")
 
 # -------------------- CLI --------------------
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Validate and extract LP_VLM camera configuration"
+        description="Validate and extract lp_vlm camera configuration"
     )
     parser.add_argument(
         "--camera-config",
@@ -166,12 +166,11 @@ if __name__ == "__main__":
 
     try:
         video_name = get_video_from_config(args.camera_config)
-        logger.info("✅ Validation successful!")
-
+        logger.info("✅ lp_vlm workload found in the camera_to_workload config.json")
         # IMPORTANT: print ONLY the value for Bash script
         print(video_name)
 
     except Exception as e:
-        logger.error("❌ Validation failed: %s", e)
+        logger.error("❌ lp_vlm workload not found in the camera_to_workload config.json: %s", e)
         # Print nothing (so Bash receives empty value)
         exit(1)
