@@ -193,13 +193,11 @@ run:
 	fi
 
 run-vlm:
-	@echo "Validating lp_vlm workload configuration..."
-	@VIDEO_NAME=$$(python3 lp-vlm/src/workload_utils.py --camera-config configs/$(CAMERA_STREAM)) || { \
-		echo ""; exit 1; \
-	}; \
+	@VIDEO_NAME=$$(python3 lp-vlm/src/workload_utils.py --camera-config configs/$(CAMERA_STREAM)); \
+	echo "VIDEO_NAME=$$VIDEO_NAME" > lp-vlm/lp-vlm.env; \
 	echo "Using VIDEO_NAME=$$VIDEO_NAME"; \
-	VIDEO_NAME=$$VIDEO_NAME docker compose -f $(VLM_COMPOSE) build --pull
-	VIDEO_NAME=$$VIDEO_NAME docker compose -f $(VLM_COMPOSE) up -d
+	docker compose -f $(VLM_COMPOSE) --env-file lp-vlm/lp-vlm.env build --pull; \
+	docker compose -f $(VLM_COMPOSE) --env-file lp-vlm/lp-vlm.env up -d
 	$(MAKE) clean-images
 
 down-vlm:

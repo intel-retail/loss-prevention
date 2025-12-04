@@ -166,6 +166,8 @@ if [ "${VLM_WORKLOAD_ENABLED}" = "0" ]; then
 
     echo "############# GST COMMAND COMPLETED SUCCESSFULLY #############"
 else    
+    echo "================ VIDEO_NAME=${VIDEO_NAME} ===================="
+    export VIDEO_NAME
     MODEL="/home/pipeline-server/lp-vlm/models/object_detection/yolo11n/INT8/yolo11n.xml"
 
     echo "🔄 Checking model availability: $MODEL"

@@ -13,8 +13,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # -------------------- Defaults --------------------
-CONFIG_PATH_DEFAULT = "/app/lp/configs/camera_to_workload.json"
-#CONFIG_PATH_DEFAULT = "../../configs/camera_to_workload.json"
+CONFIG_PATH_DEFAULT = "../../configs/camera_to_workload.json"
 TARGET_WORKLOAD = "lp_vlm"  # normalized compare
 
 # -------------------- Load JSON --------------------

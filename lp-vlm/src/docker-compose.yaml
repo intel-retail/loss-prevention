@@ -143,9 +143,16 @@ services:
       - VLM_SERVICE_HOST=vlm-service
       - VLM_SERVICE_PORT=8000
     volumes:
-      - .:/app
+      - ./utils:/app/utils
+      - ./pipeline:/app/pipeline
+      - ./config:/app/config
+      - ./agent:/app/agent
+      - ./main.py:/app/main.py
+      - ./workload_utils.py:/app/workload_utils.py
       - ../../results/vlm-results:/app/results
       - ../microservices/vlm/ov-models:/app/ov-model
+      - ../../configs:/app/lp/configs
+      - ../../vlm_loss_prevention.log:/app/vlm_loss_prevention.log
     networks:
       - my_network
     depends_on:
