@@ -193,10 +193,19 @@ run:
 	fi
 
 run-vlm:
-	python3 src/workload_utils.py --camera-config configs/camera_to_workload.json
+	@echo "Validating VLM workload configuration..."
+	@VIDEO_NAME=$$(python3 lp-vlm/src/workload_utils.py) || { \
+		echo "❌ VLM config validation failed"; exit 1; \
+	}; \
+	echo "Using VIDEO_NAME=$$VIDEO_NAME"; \
+	docker compose -f $(VLM_COMPOSE) build
+	VIDEO_NAME="$$VIDEO_NAME" docker compose -f $(VLM_COMPOSE) up -d 
+
+run-vlm:
+	docker compose -f $(VLM_COMPOSE) build 
+	docker compose -f $(VLM_COMPOSE) up -d 
 
 down-vlm:
-	docker compose -f $(BASE_VLM_COMPOSE) down
 	docker compose -f $(VLM_COMPOSE) down
 
 run-render-mode:

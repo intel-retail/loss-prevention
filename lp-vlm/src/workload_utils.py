@@ -144,12 +144,6 @@ def get_video_from_config(camera_cfg_path: str = None):
         video_file_name = vlm_config.get("video_name")
         roi_coordinates = vlm_config.get("roi", "")
         
-        # Set environment variables
-        os.environ["VIDEO_NAME"] = video_file_name
-        if roi_coordinates:
-            os.environ["ROI_COORDINATES"] = roi_coordinates
-            logger.info("ROI coordinates set: %s", roi_coordinates)
-        
         logger.info("Using video from config: %s", video_file_name)
         return video_file_name
         
@@ -169,11 +163,15 @@ if __name__ == "__main__":
     )
     
     args = parser.parse_args()
-    
+
     try:
-        config = get_video_from_config(args.camera_config)
+        video_name = get_video_from_config(args.camera_config)
         logger.info("✅ Validation successful!")
-        logger.info("Result: %s", json.dumps({"video_name": config}, indent=2))
+
+        # IMPORTANT: print ONLY the value for Bash script
+        print(video_name)
+
     except Exception as e:
         logger.error("❌ Validation failed: %s", e)
+        # Print nothing (so Bash receives empty value)
         exit(1)
