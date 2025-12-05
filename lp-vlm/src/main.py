@@ -24,7 +24,12 @@ from utils.config import logger,INVENTORY_FILE
 from utils.rabbitmq_consumer import ODConsumer
 import traceback
 from workload_utils import get_video_from_config
-
+from vlm_metrics_logger import (
+    log_start_time, 
+    log_end_time, 
+    log_custom_event,
+    log_performance_metric
+)
 # ============================================================================
 # GLOBAL VARIABLES AND QUEUES
 # ============================================================================
@@ -98,8 +103,9 @@ def vlm_enhancer_consumer():
                 start_time = time.time()
                 logger.info("⏳ [%s] Waiting for VLM call to finish ===", 
                             time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(start_time)))
-                
+                log_start_time("loss-prevention")
                 valid,result,err_msg = call_vlm(data, use_case=data.get("use_case", ""))
+                log_end_time("loss-prevention")
                 logger.info("Pipeline Script - VLM Result: %s", result)
                 payload["data"] = {"result": result, "valid": valid, "error": err_msg}
                 result_queue.put(payload)
@@ -368,7 +374,7 @@ def agent_call(vlm_results, use_case="decision_agent"):
             "items": [item.get("item_name", "") for item in unmatched_items],
             "use_case": use_case
         }
-        
+        log_start_time("loss-prevention")
         valid, vlm_validation_result, err_msg = call_vlm(vlm_data, use_case=use_case)
         
         if not valid or err_msg:
@@ -385,7 +391,7 @@ def agent_call(vlm_results, use_case="decision_agent"):
             validated_results.extend(unmatched_items)
         logger.info("Pipeline Script - [agent_call] Agent validation completed. Matched: %d, Validated: %d", 
                     len(matched_items), len(validated_results))
-        
+        log_end_time("loss-prevention")
         return "🤖 Agent: ✅ Inventory validation completed", validated_results
         
     except Exception as e:

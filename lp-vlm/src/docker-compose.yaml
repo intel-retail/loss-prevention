@@ -142,6 +142,7 @@ services:
       - AMQP_NOTE=Use nc rabbitmq 5672 (curl is not valid for AMQP)
       - VLM_SERVICE_HOST=vlm-service
       - VLM_SERVICE_PORT=8000
+      - CONTAINER_RESULTS_PATH=/app/results
     volumes:
       - ./utils:/app/utils
       - ./pipeline:/app/pipeline

@@ -3,3 +3,4 @@ minio==7.2.18
 requests==2.32.5
 opencv-python==4.12.0.88
 scikit-image==0.25.2
+git+https://github.com/sumanaga/performance-tools.git@vlmmetrics#subdirectory=benchmark-scripts
