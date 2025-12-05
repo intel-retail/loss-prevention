@@ -67,9 +67,8 @@ def validate_and_extract_vlm_config(camera_cfg_path: str = None) -> dict:
     if not camera_cfg_path:
         camera_cfg_path = os.getenv("CAMERA_STREAM")
         if not camera_cfg_path:
-            camera_cfg_path = CONFIG_PATH_DEFAULT
+            camera_cfg_path = CONFIG_PATH_DEFAULT    
     
-    logger.info("📄 Loading camera config: %s", camera_cfg_path)
     cfg = load_config(camera_cfg_path)
     
     lane = cfg.get("lane_config", {})
@@ -144,7 +143,8 @@ def get_video_from_config(camera_cfg_path: str = None):
         roi_coordinates = vlm_config.get("roi", "")
         
         logger.info("Using video from config: %s", video_file_name)
-        return video_file_name
+        logger.info("Using ROI from config: %s", roi_coordinates)
+        return video_file_name, roi_coordinates
         
     except Exception as e:
         logger.error("Failed to validate lp_vlm configuration: %s", str(e))
@@ -164,10 +164,10 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     try:
-        video_name = get_video_from_config(args.camera_config)
+        video_name, roi_coordinates = get_video_from_config(args.camera_config)
         logger.info("✅ lp_vlm workload found in the camera_to_workload config.json")
-        # IMPORTANT: print ONLY the value for Bash script
-        print(video_name)
+        # Print values space-separated FOR MAKEFILE
+        print(f"{video_name} {roi_coordinates}")
 
     except Exception as e:
         logger.error("❌ lp_vlm workload not found in the camera_to_workload config.json: %s", e)

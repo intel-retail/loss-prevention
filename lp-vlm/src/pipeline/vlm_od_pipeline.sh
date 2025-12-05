@@ -47,6 +47,7 @@ echo "✅ Extracted from config:"
 echo "   Model: $MODEL_NAME"
 echo "   Precision: $PRECISION"
 echo "   Device: $DEVICE"
+echo "   ROI Coordinates: $ROI_COORDINATES"
 
 # Construct model path
 MODEL_FULL_PATH="$MODEL_PATH/object_detection/$MODEL_NAME/$PRECISION/$MODEL_NAME.xml"
@@ -71,7 +72,7 @@ time gst-launch-1.0 --verbose \
   filesrc location="$INPUT_DIR/$VIDEO_NAME" ! \
   decodebin3 ! videoconvert ! videorate ! \
   video/x-raw,format=BGR,framerate=13/1 ! \
-  gvaattachroi roi=600,30,1300,1000 ! queue ! \
+  gvaattachroi roi=$ROI_COORDINATES ! queue ! \
   gvadetect model-instance-id=detect1_1 name=items_in_basket_cam1 batch-size=1 inference-region=1 \
     model=$MODEL_FULL_PATH \
     device=$DEVICE threshold=0.4 pre-process-backend=opencv \

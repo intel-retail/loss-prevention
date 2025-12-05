@@ -195,16 +195,26 @@ run:
 	fi
 
 run-vlm:
-	@VIDEO_NAME=$$(python3 lp-vlm/src/workload_utils.py --camera-config configs/$(CAMERA_STREAM)); \
-	echo "VIDEO_NAME=$$VIDEO_NAME" > lp-vlm/lp-vlm.env; \
-	echo "Using VIDEO_NAME=$$VIDEO_NAME"; \
-	# Create log file on host if it doesn't exist
-	LOG_FILE=vlm_loss_prevention.log; \
+	@OUTPUT=$$(python3 lp-vlm/src/workload_utils.py --camera-config configs/$(CAMERA_STREAM) 2>&1); \
+	VIDEO_NAME=$$(echo "$$OUTPUT" | grep "Using video from config" | awk -F': ' '{print $$2}'); \
+	ROI_COORDINATES=$$(echo "$$OUTPUT" | grep "Using ROI from config" | awk -F': ' '{print $$2}'); \
+	LOG_FILE="vlm_loss_prevention.log"; \
 	mkdir -p $$(dirname $$LOG_FILE); \
 	[ -f $$LOG_FILE ] || touch $$LOG_FILE; \
-	docker compose -f $(VLM_COMPOSE) --env-file lp-vlm/lp-vlm.env build --pull; \
-	docker compose -f $(VLM_COMPOSE) --env-file lp-vlm/lp-vlm.env up -d
-	$(MAKE) clean-images
+	echo "VIDEO_NAME=$$VIDEO_NAME"; \
+	echo "ROI_COORDINATES=$$ROI_COORDINATES"; \
+	ERROR_MSG=$$(echo "$$OUTPUT" | grep -i "lp_vlm workload not found"); \
+	if [ -z "$$VIDEO_NAME" ] || [ -n "$$ERROR_MSG" ]; then \
+		echo "⚠️  No VIDEO_NAME extracted - skipping VLM pipeline" | tee -a $$LOG_FILE; \
+		echo "This is expected if no camera has lp_vlm workload configured" | tee -a $$LOG_FILE; \
+		echo "$$OUTPUT" | tee -a $$LOG_FILE; \
+	else \
+		echo "VIDEO_NAME=$$VIDEO_NAME" > lp-vlm/lp-vlm.env; \
+		echo "ROI_COORDINATES=$$ROI_COORDINATES" >> lp-vlm/lp-vlm.env; \
+		#docker compose -f $(VLM_COMPOSE) --env-file lp-vlm/lp-vlm.env build --pull; \
+		#docker compose -f $(VLM_COMPOSE) --env-file lp-vlm/lp-vlm.env up -d; \
+		$(MAKE) clean-images; \
+	fi
 
 down-vlm:
 	@echo "Stopping VLM demo containers..."
@@ -214,7 +224,7 @@ down-vlm:
 	@rm -f lp-vlm/lp-vlm.env
 	@echo "VLM cleanup completed"
 
-run-render-mode:
+run-render-mode: validate_workload_mapping
 	$(MAKE) run-vlm
 	@if [ -z "$(DISPLAY)" ] || ! echo "$(DISPLAY)" | grep -qE "^:[0-9]+(\.[0-9]+)?$$"; then \
 		echo "ERROR: Invalid or missing DISPLAY environment variable."; \
