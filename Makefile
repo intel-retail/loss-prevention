@@ -211,8 +211,8 @@ run-vlm:
 	else \
 		echo "VIDEO_NAME=$$VIDEO_NAME" > lp-vlm/lp-vlm.env; \
 		echo "ROI_COORDINATES=$$ROI_COORDINATES" >> lp-vlm/lp-vlm.env; \
-		#docker compose -f $(VLM_COMPOSE) --env-file lp-vlm/lp-vlm.env build --pull; \
-		#docker compose -f $(VLM_COMPOSE) --env-file lp-vlm/lp-vlm.env up -d; \
+		docker compose -f $(VLM_COMPOSE) --env-file lp-vlm/lp-vlm.env build --pull; \
+		docker compose -f $(VLM_COMPOSE) --env-file lp-vlm/lp-vlm.env up -d; \
 		$(MAKE) clean-images; \
 	fi
 
