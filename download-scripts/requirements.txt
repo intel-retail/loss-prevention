@@ -1,4 +1,4 @@
-openvino==2025.2.0
+openvino==2025.3.0
 ultralytics==8.3.203
 nncf[torch]==2.14.0
 nncf==2.14.0
