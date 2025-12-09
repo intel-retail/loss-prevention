@@ -1,14 +1,13 @@
 # syntax=docker/dockerfile:1
 FROM python:3.12-slim
 
+# Proxy args with defaults to avoid unset variable issues
 ARG HTTP_PROXY
 ARG HTTPS_PROXY
 ENV HTTP_PROXY=${HTTP_PROXY}
 ENV HTTPS_PROXY=${HTTPS_PROXY}
 ENV http_proxy=${HTTP_PROXY}
 ENV https_proxy=${HTTPS_PROXY}
-
-# Proxy args with defaults to avoid unset variable issues
 
 # Install system dependencies and CA certificates for SSL
 RUN apt-get update && \
@@ -32,9 +31,9 @@ WORKDIR /workspace
 COPY download-scripts/requirements.txt /workspace/scripts/
 
 # Install Python dependencies with verbose output for logs
-RUN pip3 install --upgrade pip setuptools -v --no-cache-dir && \
-    pip3 install -v --no-cache-dir -r /workspace/scripts/requirements.txt
-RUN pip3 install --upgrade protobuf
+#RUN pip3 install --upgrade pip setuptools -v --no-cache-dir && \
+    #pip3 install -v --no-cache-dir -r /workspace/scripts/requirements.txt
+#RUN pip3 install --upgrade protobuf
 # Copy your scripts and requirements
 COPY download-scripts/*.sh /workspace/scripts/
 COPY download-scripts/*.py /workspace/scripts/
@@ -43,4 +42,8 @@ COPY download-scripts/*.py /workspace/scripts/
 RUN chmod +x /workspace/scripts/downloadModels.sh
 COPY configs/* /workspace/configs/
 # Default command: run both scripts in sequence
-CMD ["/bin/bash", "-c", "/workspace/scripts/downloadModels.sh"]
+
+CMD ["/bin/bash", "-c", "\
+    pip3 install --upgrade pip setuptools -v --no-cache-dir && \
+    pip3 install --no-cache-dir -r /workspace/scripts/requirements.txt && \
+    /workspace/scripts/downloadModels.sh"]
