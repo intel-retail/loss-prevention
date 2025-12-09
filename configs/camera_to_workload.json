@@ -1,7 +1,7 @@
 {
   "lane_config": {
-    "cameras": [  
-      { 
+    "cameras": [ 
+     { 
         "camera_id": "cam1",
         "fps": 15,
         "width": 1080,
@@ -20,13 +20,13 @@
         "fps": 15,
         "width": 1080,
         "height": 1920,
-        "fileSrc":"lp-vlm.mp4|https://www.pexels.com/download/video/32658421", 
+        "fileSrc":"lp-vlm.mp4|https://www.pexels.com/download/video/35127279", 
         "workloads": ["lp_vlm"],
         "region_of_interest": {
-          "x": 335,
-          "y": 900,
-          "x2": 1060,
-          "y2": 1340
+          "x": 265,
+          "y": 150,
+          "x2": 1500,
+          "y2": 900
         }
       }
     ]

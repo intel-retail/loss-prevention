@@ -68,12 +68,21 @@ echo "Starting Object Detection pipeline for video: $INPUT_DIR/$VIDEO_NAME"
 
 export GST_DEBUG=4
 
+# Build ROI element conditionally
+if [ -n "$ROI_COORDINATES" ] && [ "$ROI_COORDINATES" != ",,," ]; then
+  ROI_ELEMENT="gvaattachroi roi=$ROI_COORDINATES ! queue !"
+  echo "🎯 Using ROI: $ROI_COORDINATES"
+else
+  ROI_ELEMENT="queue !"
+  echo "⚠️  No ROI specified, processing full frame"
+fi
+
 time gst-launch-1.0 --verbose \
   filesrc location="$INPUT_DIR/$VIDEO_NAME" ! \
   decodebin3 ! videoconvert ! videorate ! \
   video/x-raw,format=BGR,framerate=13/1 ! \
-  gvaattachroi roi=$ROI_COORDINATES ! queue ! \
-  gvadetect model-instance-id=detect1_1 name=items_in_basket_cam1 batch-size=1 inference-region=1 \
+  ${ROI_ELEMENT} \
+  gvadetect model-instance-id=detect1_1 name=lp-vlm batch-size=1 inference-region=1 \
     model=$MODEL_FULL_PATH \
     device=$DEVICE threshold=0.4 pre-process-backend=opencv \
     ie-config=CPU_THROUGHPUT_STREAMS=2 nireq=2 \
