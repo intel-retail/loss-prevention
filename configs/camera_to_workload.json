@@ -20,13 +20,13 @@
         "fps": 15,
         "width": 1080,
         "height": 1920,
-        "fileSrc":"lp-vlm.mp4|https://www.pexels.com/download/video/35120482", 
+        "fileSrc":"lp-vlm.mp4|https://www.pexels.com/download/video/35120477", 
         "workloads": ["lp_vlm"],
         "region_of_interest": {
-          "x": 265,
-          "y": 150,
+          "x": 450,
+          "y": 250,
           "x2": 1500,
-          "y2": 900
+          "y2": 950
         }
       }
     ]
