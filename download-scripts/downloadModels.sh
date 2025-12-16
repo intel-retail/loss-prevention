@@ -76,18 +76,52 @@ for TYPE_KEY in "${!TYPE_MODELS[@]}"; do
             continue
         fi
 
+        # For VLM models, extract vlm_* parameters instead of regular model/device/precision
+        if [[ "$TYPE_KEY" == "vlm" ]]; then
+            vlm_model=$(jq -r --arg model "$MODEL_NAME" '
+              .workload_pipeline_map[] |
+              .[] |
+              select(.model == $model) |
+              .vlm_model // empty
+            ' "$CONFIG_JSON" | head -1)
+            
+            vlm_device=$(jq -r --arg model "$MODEL_NAME" '
+              .workload_pipeline_map[] |
+              .[] |
+              select(.model == $model) |
+              .vlm_device // "GPU"
+            ' "$CONFIG_JSON" | head -1)
+            
+            vlm_precision=$(jq -r --arg model "$MODEL_NAME" '
+              .workload_pipeline_map[] |
+              .[] |
+              select(.model == $model) |
+              .vlm_precision // "int8"
+            ' "$CONFIG_JSON" | head -1)
+            
+            # Skip if vlm_model is not found
+            if [[ -z "$vlm_model" ]]; then
+                echo "[WARN] ########## VLM model not found for $MODEL_NAME, skipping."
+                continue
+            fi
+            
+            ACTUAL_MODEL="$vlm_model"
+            PRECISION="$vlm_precision"
+        else
+            # Extract precision directly from JSON (unified logic) for non-VLM models
+            PRECISION=$(jq -r --arg model "$MODEL_NAME" '
+              .workload_pipeline_map[] |
+              .[] |
+              select(.model == $model) |
+              .precision // "FP16"
+            ' "$CONFIG_JSON" | head -1)
 
-        # Extract precision directly from JSON (unified logic)
-        PRECISION=$(jq -r --arg model "$MODEL_NAME" '
-          .workload_pipeline_map[] |
-          .[] |
-          select(.model == $model) |
-          .precision // "FP16"
-        ' "$CONFIG_JSON" | head -1)
-
-        # Fallback if not found
-        if [[ -z "$PRECISION" || "$PRECISION" == "null" ]]; then
-            PRECISION="FP16"
+            # Fallback if not found
+            if [[ -z "$PRECISION" || "$PRECISION" == "null" ]]; then
+                PRECISION="FP16"
+            fi
+            
+            ACTUAL_MODEL="$MODEL_NAME"
         fi
 
         echo "[INFO] ########### Processing $MODEL_NAME ($TYPE_KEY) with precision $PRECISION ..."
@@ -123,6 +157,15 @@ for TYPE_KEY in "${!TYPE_MODELS[@]}"; do
             gvainference)
                 echo "[INFO] ###### Downloading inference model: $MODEL_NAME ($PRECISION)"
                 "$SCRIPT_BASE_PATH/omz-model-download.sh" "$MODEL_NAME" "$MODELS_PATH/object_classification" "$PRECISION"
+                ;;
+            vlm)
+                echo "[INFO] ###### Downloading VLM model: $vlm_model ($vlm_precision)"
+                
+                # Call compress_model.sh to compress the exported model
+                if [[ -f "$SCRIPT_BASE_PATH/compress_model.sh" ]]; then
+                    echo "[INFO] ###### Compressing VLM model: $vlm_model"
+                    bash "$SCRIPT_BASE_PATH/compress_model.sh" "$vlm_model" "$vlm_precision" "${HUGGINGFACE_TOKEN:-}"
+                fi
                 ;;
             *)
                 echo "[WARN] Unsupported type: $TYPE_KEY (model: $MODEL_NAME)"

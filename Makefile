@@ -92,6 +92,8 @@ run-model-downloader:
 		-e https_proxy=${HTTPS_PROXY} \
 		-e MODELS_DIR=/workspace/models \
 		-e WORKLOAD_DIST=${WORKLOAD_DIST} \
+		-e HF_HOME=/root/.cache/huggingface \
+		-e HF_HUB_DOWNLOAD_TIMEOUT=600 \
 		-v "$(shell pwd)/models:/workspace/models" \
 		-v "$(shell pwd)/configs:/workspace/configs" \
 		$(MODELDOWNLOADER_IMAGE)

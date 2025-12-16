@@ -17,6 +17,7 @@ services:
       - https_proxy=${https_proxy}
       - MODELS_DIR=/workspace/models
       - WORKLOAD_DIST=${WORKLOAD_DIST:-workload_to_pipeline.json}
+      - HUGGINGFACE_TOKEN=${HUGGINGFACE_TOKEN}
     volumes:
       - ../../models:/workspace/models
       - ../../configs:/workspace/configs
@@ -70,63 +71,21 @@ services:
     networks:
       - my_network
 
-  vlm-service:
-    image: vlm-service:order-vlm
-    container_name: vlm-service
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    build:
-      context: ..
-      dockerfile: ./microservices/vlm/docker/Dockerfile
-    pull_policy: never
-    ports:
-      - "${VLM_SERVICE_PORT}:8000"
-    ipc: host
-    environment:
-      LLM_BASE_DIR: ${LLM_BASE_DIR}
-      LP_BASE_DIR: ${LP_BASE_DIR}
-      no_proxy_env: ${no_proxy_env},${HOST_IP}
-      no_proxy: ${no_proxy_env},${HOST_IP},rabbitmq,minio-service,model-downloader,localhost,127.0.0.1
-      http_proxy: ${http_proxy}
-      https_proxy: ${https_proxy}
-      VLM_MODEL_NAME: ${VLM_MODEL_NAME}
-      VLM_COMPRESSION_WEIGHT_FORMAT: ${VLM_COMPRESSION_WEIGHT_FORMAT}
-      VLM_DEVICE: ${VLM_DEVICE}
-      VLM_SEED: ${VLM_SEED}
-      WORKERS: ${WORKERS:-1}
-      VLM_MAX_COMPLETION_TOKENS: ${VLM_MAX_COMPLETION_TOKENS}
-      HUGGINGFACE_TOKEN: ${HUGGINGFACE_TOKEN}
-      OV_CONFIG: ${OV_CONFIG}
-      VLM_LOG_LEVEL: ${VLM_LOG_LEVEL:-info}
-      OPENVINO_LOG_LEVEL: ${VLM_OPENVINO_LOG_LEVEL:-1}
-      VLM_ACCESS_LOG_FILE: ${VLM_ACCESS_LOG_FILE:-/dev/null}
-    restart: unless-stopped
-    devices:
-      - /dev/dri:/dev/dri
-    group_add:
-      - ${USER_GROUP_ID:-1000}
-      - ${VIDEO_GROUP_ID:-44}    
-      - ${RENDER_GROUP_ID:-1002}
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
-      interval: 10s
-      timeout: 10s
-      retries: 200
-      start_period: 10s
-    networks:
-      - my_network
-    volumes:
-      - ../microservices/vlm/ov-models:/root/.cache/huggingface     
-      - ../microservices/vlm/ov-models:/app/ov-model
-  
+   
   # --- main services ---
-  lp-consumer:
-    container_name: lp-consumer
+  lp-vlm-workload-handler:
+    container_name: lp-vlm-workload-handler
     build:
       context: .
       dockerfile: Dockerfile.consumer
     restart: always
-    image: lp-consumer:lp
+    image: lp-vlm-workload-handler:lp
+    devices:
+      - /dev/dri:/dev/dri
+    group_add:
+      - ${USER_GROUP_ID:-1000} 
+      - ${VIDEO_GROUP_ID:-44}    
+      - ${RENDER_GROUP_ID:-1002}
     environment:
       - RABBITMQ_USER=${RABBITMQ_USER}
       - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}
@@ -138,7 +97,7 @@ services:
       - RABBITMQ_HOST=rabbitmq
       - RABBITMQ_PORT=5672
       - RABBITMQ_MANAGEMENT_PORT=15672
-      - no_proxy=rabbitmq,minio-service,vlm-service,model-downloader,localhost,127.0.0.1
+      - no_proxy=rabbitmq,minio-service,model-downloader,localhost,127.0.0.1
       - AMQP_NOTE=Use nc rabbitmq 5672 (curl is not valid for AMQP)
       - VLM_SERVICE_HOST=vlm-service
       - VLM_SERVICE_PORT=8000
@@ -151,8 +110,8 @@ services:
       - ./main.py:/app/main.py
       - ./workload_utils.py:/app/workload_utils.py
       - ../../results/vlm-results:/app/results
-      - ../microservices/vlm/ov-models:/app/ov-model
       - ../../configs:/app/lp/configs
+      - ../../models/ov-model:/home/pipeline-server/lp-vlm/ov-model
       - ../../vlm_loss_prevention.log:/app/loss_prevention_app.log
     networks:
       - my_network
@@ -160,13 +119,11 @@ services:
       rabbitmq:
         condition: service_healthy
       minio-service:
-        condition: service_healthy
-      vlm-service:
-        condition: service_healthy
+        condition: service_healthy      
       model-downloader:
         condition: service_completed_successfully
 
-  vlm-pipeline-runner:
+  od-pipeline-runner:
     container_name: vlm-pipeline-runner
     build:
       context: ../..
@@ -192,7 +149,7 @@ services:
       - RABBITMQ_HOST=rabbitmq
       - RABBITMQ_PORT=5672
       - RABBITMQ_MANAGEMENT_PORT=15672
-      - no_proxy=rabbitmq,minio-service,vlm-service,model-downloader,localhost,127.0.0.1
+      - no_proxy=rabbitmq,minio-service,model-downloader,localhost,127.0.0.1
       - AMQP_NOTE=Use nc rabbitmq 5672 (curl is not valid for AMQP)
       - CAMERA_STREAM=${CAMERA_STREAM:-camera_to_workload.json}
       - WORKLOAD_DIST=${WORKLOAD_DIST:-workload_to_pipeline.json}
@@ -216,12 +173,10 @@ services:
       rabbitmq:
         condition: service_healthy
       minio-service:
-        condition: service_healthy
-      vlm-service:
-        condition: service_healthy
+        condition: service_healthy      
       model-downloader:
         condition: service_completed_successfully
-      lp-consumer:
+      lp-vlm-workload-handler:
         condition: service_started
 
 volumes:

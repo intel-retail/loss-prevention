@@ -97,7 +97,7 @@
         "precision": "INT8",
         "vlm_model": "Qwen/Qwen2.5-VL-7B-Instruct",
         "vlm_device": "GPU",
-        "vlm_precision": "INT8"
+        "vlm_precision": "int8"
       }      
     ]
   }

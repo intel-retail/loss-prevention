@@ -7,16 +7,16 @@ WORKDIR /app
 # Set proxies if needed
 ARG HTTP_PROXY
 ARG HTTPS_PROXY
-ENV HTTP_PROXY=${HTTP_PROXY}
-ENV HTTPS_PROXY=${HTTPS_PROXY}
-ENV http_proxy=${HTTP_PROXY}
-ENV https_proxy=${HTTPS_PROXY}
-ENV no_proxy=l${no_proxy}
+ENV http_proxy=http://proxy-mu.intel.com:911
+ENV https_proxy=http://proxy-mu.intel.com:911
+ENV HTTP_PROXY=http://proxy-mu.intel.com:911
+ENV HTTPS_PROXY=http://proxy-mu.intel.com:911
+ENV no_proxy=localhost,127.0.0.0/8,::1,.intel.com,.intel.net,localhost
 
 # -----------------------------------------
 # Install OpenCV system dependencies
 # -----------------------------------------
-RUN apt-get update && apt-get install -y \
+RUN apt-get update --allow-releaseinfo-change || apt-get update --allow-releaseinfo-change || apt-get update && apt-get install -y \
     libgl1 \
     libglib2.0-0 \
     libsm6 \
@@ -32,9 +32,24 @@ RUN apt-get update && apt-get install -y \
 COPY ./requirements.txt /app/
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Remove invalid COPY - configs should be mounted as volume or copied from accessible path
-# The build context is src/, so ../../configs is outside context
-# Instead, mount configs as volume in docker-compose.yaml
+
+
+ARG INSTALL_DRIVER_VERSION="25.31.34666"
+ARG USER_ID=1000
+ARG USER_GROUP_ID=1000
+
+RUN groupadd -g ${USER_GROUP_ID} appuser && useradd -m -s /bin/bash -u ${USER_ID} -g ${USER_GROUP_ID} appuser
+
+RUN apt-get update -y && apt-get install -y --no-install-recommends --fix-missing \
+    curl \
+    && rm -rf /var/lib/apt/lists/* 
+
+COPY ./scripts/install_ubuntu_gpu_drivers.sh /tmp/install_gpu_drivers.sh
+RUN chmod +x /tmp/install_gpu_drivers.sh
+RUN /tmp/install_gpu_drivers.sh
+
+RUN apt-get clean && rm -rf /tmp/install_gpu_drivers.sh && rm -rf /var/lib/apt/lists/* && rm -rf /tmp/* && rm -rf /root/.cachetmp/*
+
 
 # -----------------------------------------
 # Copy project files

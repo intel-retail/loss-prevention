@@ -22,6 +22,25 @@ git clone -b <release-or-tag> --single-branch https://github.com/intel-retail/lo
 ```
 git clone -b v4.0.0 --single-branch https://github.com/intel-retail/loss-prevention
 ```
+
+
+- **For running VLM service (in case of lp_vlm workload)**, set the following environment variables:
+  ```bash
+  export MINIO_ROOT_USER=minio_minio
+  export MINIO_ROOT_PASSWORD=minio_miniol
+  export RABBITMQ_USER=RabbitMQ
+  export RABBITMQ_PASSWORD=RabbitPass
+  export ENABLED_WHISPER_MODELS=true
+  export VLM_MODEL_NAME=Qwen/Qwen2.5-VL-7B-Instruct
+  export HUGGINGFACE_TOKEN=<Huggingface_Token>
+  export VLM_COMPRESSION_WEIGHT_FORMAT=int8
+  export VLM_DEVICE=GPU
+  ```
+  Then run:
+  ```bash
+  WORKLOAD_DIST=workload_to_pipeline.json make run-lp
+  ```
+
 ### **NOTE:** 
 
 By default the application runs by pulling the pre-built images. If you want to build the images locally and then run the application, set the flag:

@@ -8,39 +8,25 @@ ENV HTTPS_PROXY=${HTTPS_PROXY}
 ENV http_proxy=${HTTP_PROXY}
 ENV https_proxy=${HTTPS_PROXY}
 
-# Proxy args with defaults to avoid unset variable issues
-
-# Install system dependencies and CA certificates for SSL
-RUN apt-get update && \
-    apt-get install -y \
-        git \
-        wget \
-        curl \
-        bash \
-        ca-certificates \
-        libgl1 \
-        libglib2.0-0 \
-        jq \
-        unzip \
-    && apt-get clean \
+RUN apt-get update && apt-get install -y \
+    git wget curl bash ca-certificates \
+    libgl1 libglib2.0-0 jq unzip \
     && rm -rf /var/lib/apt/lists/*
 
-# Set workdir
 WORKDIR /workspace
 
+# Copy requirements first (cache-friendly)
+COPY download-scripts/requirements.txt /workspace/scripts/requirements.txt
 
-COPY download-scripts/requirements.txt /workspace/scripts/
+# Install Python deps AT BUILD TIME
+RUN pip3 install --upgrade pip setuptools wheel && \
+    pip3 install --no-cache-dir -r /workspace/scripts/requirements.txt
 
-# Install Python dependencies with verbose output for logs
-RUN pip3 install --upgrade pip setuptools -v --no-cache-dir && \
-    pip3 install -v --no-cache-dir -r /workspace/scripts/requirements.txt
-RUN pip3 install --upgrade protobuf
-# Copy your scripts and requirements
+# Copy scripts after deps
 COPY download-scripts/*.sh /workspace/scripts/
 COPY download-scripts/*.py /workspace/scripts/
+COPY configs/ /workspace/configs/
 
-# Make the script executable
-RUN chmod +x /workspace/scripts/downloadModels.sh
-COPY configs/* /workspace/configs/
-# Default command: run both scripts in sequence
-CMD ["/bin/bash", "-c", "/workspace/scripts/downloadModels.sh"]
+RUN chmod +x /workspace/scripts/*.sh
+
+CMD ["/workspace/scripts/downloadModels.sh"]
