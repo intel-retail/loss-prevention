@@ -12,9 +12,6 @@ MODELS_PATH="${MODELS_DIR:-/workspace/models}"
 mkdir -p "$MODELS_PATH"
 cd "$MODELS_PATH" || { echo "Failure to cd to $MODELS_PATH"; exit 1; }
 
-# Convert MODEL_NAME to lowercase
-MODEL_NAME="${MODEL_NAME,,}"
-
 if [[ "$MODEL_NAME" == yolo* ]]; then
     echo "[INFO] ###### Downloading YOLO model: $MODEL_NAME ($PRECISION)"
     python3 "$SCRIPT_BASE_PATH/model_convert.py" export_yolo "$MODEL_NAME" "$MODELS_PATH"
@@ -27,10 +24,15 @@ if [[ "$MODEL_NAME" == yolo* ]]; then
             -O "$quant_dataset"
     fi
     python3 "$SCRIPT_BASE_PATH/model_convert.py" quantize_yolo "$MODEL_NAME" "$quant_dataset" "$MODELS_PATH"
-elif [[ "$MODEL_NAME" == qwen* ]]; then
-    echo "[INFO] ###### Downloading VLM model: $MODEL_NAME ($PRECISION)"
-    
-    if [[ -f "$SCRIPT_BASE_PATH/compress_model.sh" ]]; then
+elif [[ "$MODEL_NAME" == Qwen* ]]; then
+    echo "[INFO] ###### Downloading VLM model: $MODEL_NAME ($PRECISION)"    
+    # Extract model name after "/" if present (e.g., Qwen/Qwen2.5-VL-7B-Instruct → Qwen2.5-VL-7B-Instruct)
+    ACTUAL_MODEL_NAME="${MODEL_NAME##*/}"    
+    # Check if model already exists
+    MODEL_PATH="$MODELS_PATH/ov-model/$ACTUAL_MODEL_NAME/$PRECISION/openvino_language_model.xml"
+    if [[ -d "$MODEL_PATH" ]]; then
+        echo "[INFO] VLM model already exists at $MODEL_PATH, skipping download."
+    elif [[ -f "$SCRIPT_BASE_PATH/compress_model.sh" ]]; then
         echo "[INFO] ###### Compressing VLM model: $MODEL_NAME ($PRECISION)"
         bash "$SCRIPT_BASE_PATH/compress_model.sh" "$MODEL_NAME" "$PRECISION" "${HUGGINGFACE_TOKEN:-}"
     fi

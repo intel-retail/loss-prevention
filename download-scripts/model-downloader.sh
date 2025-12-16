@@ -20,19 +20,16 @@ if [[ -n "${WORKLOAD_DIST:-}" && -f "$CONFIG_JSON" ]]; then
             # ---- VLM handling ----
             VLM_MODEL=$(jq -r '.vlm_model' <<< "$entry")
             VLM_PRECISION=$(jq -r '.vlm_precision // "int8"' <<< "$entry")
-
-            export MODEL_TYPE="vlm"
+            
             export MODEL_NAME="$VLM_MODEL"
             export PRECISION="$VLM_PRECISION"
 
             echo "[INFO] VLM | $MODEL_NAME | $PRECISION"
-
         else
             # ---- Non-VLM handling ----
             MODEL=$(jq -r '.model' <<< "$entry")
             PRECISION=$(jq -r '.precision // "FP16"' <<< "$entry")
-
-            export MODEL_TYPE="$TYPE"
+           
             export MODEL_NAME="$MODEL"
             export PRECISION="$PRECISION"
 
@@ -51,10 +48,9 @@ if [[ -n "${WORKLOAD_DIST:-}" && -f "$CONFIG_JSON" ]]; then
 ############################################
 # MODE 2: Single model (env-driven)
 ############################################
-elif [[ -n "${MODEL_NAME:-}" ]]; then
+elif [[ -n "${MODEL_NAME:-}" ]]; then    
     echo "[INFO] Single model mode: $MODEL_NAME"
     bash "$SCRIPT_BASE_PATH/model-handler.sh"
-
 else
     echo "[ERROR] No valid input provided"
     echo "Use either:"
