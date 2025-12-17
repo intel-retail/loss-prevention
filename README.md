@@ -24,7 +24,7 @@ git clone -b v4.0.0 --single-branch https://github.com/intel-retail/loss-prevent
 ```
 
 
-**NOTE:- For running VLM service (in case of lp_vlm workload)**, set the following environment variables:
+**NOTE:- Set the following environment variables for lp_vlm workload**, :
   ```bash
   #MinIO credentials (object storage)
   export MINIO_ROOT_USER=<your-minio-username>
