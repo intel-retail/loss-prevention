@@ -82,6 +82,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.consumer
+      args:
+        - HTTP_PROXY=${HTTP_PROXY}
+        - HTTPS_PROXY=${HTTPS_PROXY}
     restart: always
     pull_policy: always
     image: intel/lp-vlm-workload-handler:4.4.0
@@ -92,6 +95,10 @@ services:
       - ${VIDEO_GROUP_ID:-44}    
       - ${RENDER_GROUP_ID:-1002}
     environment:
+      - HTTP_PROXY=${HTTP_PROXY}
+      - HTTPS_PROXY=${HTTPS_PROXY}
+      - http_proxy=${http_proxy}
+      - https_proxy=${https_proxy}
       - RABBITMQ_USER=${RABBITMQ_USER}
       - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}
       - MINIO_ROOT_USER=${MINIO_ROOT_USER}
