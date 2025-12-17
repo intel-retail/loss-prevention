@@ -6,9 +6,10 @@ services:
       args:
         - HTTP_PROXY=${HTTP_PROXY}
         - HTTPS_PROXY=${HTTPS_PROXY}
-    image: model-downloader-lp:${TAG:-rc1}
+    image: intel/model-downloader:4.4.0
     container_name: model-downloader
     environment:
+      - VLM_WORKLOAD_ENABLED=0
       - HTTP_PROXY=${HTTP_PROXY}
       - HTTPS_PROXY=${HTTPS_PROXY}
       - http_proxy=${http_proxy}
@@ -19,7 +20,7 @@ services:
       - ../models:/workspace/models
       - ../configs:/workspace/configs
       - ../results:/workspace/results
-    command: ["/bin/bash", "-c", "/workspace/scripts/downloadModels.sh"]
+    command: ["/bin/bash", "-c", "/workspace/scripts/model-downloader.sh"]
 
   pipeline-runner:
     build:
@@ -28,7 +29,7 @@ services:
       args:
         - HTTP_PROXY=${HTTP_PROXY}
         - HTTPS_PROXY=${HTTPS_PROXY}
-    image: pipeline-runner-lp:${TAG:-rc1}
+    image: intel/pipeline-runner-lp:4.4.0
     deploy:
       mode: replicated
       replicas: ${PIPELINE_COUNT:-1}

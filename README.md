@@ -24,18 +24,21 @@ git clone -b v4.0.0 --single-branch https://github.com/intel-retail/loss-prevent
 ```
 
 
-- **For running VLM service (in case of lp_vlm workload)**, set the following environment variables:
+**NOTE:- For running VLM service (in case of lp_vlm workload)**, set the following environment variables:
   ```bash
-  export MINIO_ROOT_USER=minio_minio
-  export MINIO_ROOT_PASSWORD=minio_miniol
-  export RABBITMQ_USER=RabbitMQ
-  export RABBITMQ_PASSWORD=RabbitPass
-  export HUGGINGFACE_TOKEN=<Huggingface_Token>   
+  #MinIO credentials (object storage)
+  export MINIO_ROOT_USER=<your-minio-username>
+  export MINIO_ROOT_PASSWORD=<your-minio-password> 
+
+  #RabbitMQ credentials (message broker)
+  export RABBITMQ_USER=<your-rabbitmq-username>
+  export RABBITMQ_PASSWORD=<your-rabbitmq-password>
+
+  Go to https://huggingface.co/settings/tokens to get your token.
+  export GATED_MODEL=true
+  export HUGGINGFACE_TOKEN=
   ```
-  Then run:
-  ```bash
-  WORKLOAD_DIST=workload_to_pipeline.json make run-lp
-  ```
+ 
 
 ### **NOTE:** 
 

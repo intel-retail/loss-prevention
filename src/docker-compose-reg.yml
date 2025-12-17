@@ -1,6 +1,6 @@
 services:
   model-downloader:
-    image: intel/model-downloader-lp:${TAG:-rc1}
+    image: intel/model-downloader:4.4.0
     container_name: model-downloader
     environment:
       - HTTP_PROXY=${HTTP_PROXY}
@@ -13,10 +13,10 @@ services:
       - ../models:/workspace/models
       - ../configs:/workspace/configs
       - ../results:/workspace/results
-    command: ["/bin/bash", "-c", "/workspace/scripts/downloadModels.sh"]
+    command: ["/bin/bash", "-c", "/workspace/scripts/model-downloader.sh"]
 
   pipeline-runner:
-    image: intel/pipeline-runner-lp:${TAG:-rc1}
+    image: intel/pipeline-runner-lp:4.4.0
     deploy:
       mode: replicated
       replicas: ${PIPELINE_COUNT:-1}
@@ -24,6 +24,7 @@ services:
       model-downloader:
         condition: service_completed_successfully
     environment:
+      - VLM_WORKLOAD_ENABLED=0
       - DISPLAY=${DISPLAY:-:0}
       - RENDER_MODE=${RENDER_MODE:-0}    
       - CONTAINER_NAME=${CONTAINER_NAME:-gst}  
