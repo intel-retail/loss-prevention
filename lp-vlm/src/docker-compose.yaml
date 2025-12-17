@@ -7,9 +7,9 @@ services:
       args:
         - HTTP_PROXY=${HTTP_PROXY}
         - HTTPS_PROXY=${HTTPS_PROXY}
-    image: model-downloader-lp:${TAG:-rc1}
-    pull_policy: never
-    container_name: model-downloader
+    image: intel/model-downloader-lp:4.4.0
+    container_name: model-downloader-lp
+    pull_policy: always
     environment:
       - HTTP_PROXY=${HTTP_PROXY}
       - HTTPS_PROXY=${HTTPS_PROXY}
@@ -17,11 +17,15 @@ services:
       - https_proxy=${https_proxy}
       - MODELS_DIR=/workspace/models
       - WORKLOAD_DIST=${WORKLOAD_DIST:-workload_to_pipeline.json}
+      - MODEL_NAME=${MODEL_NAME}
+      - PRECISION=${PRECISION}
       - HUGGINGFACE_TOKEN=${HUGGINGFACE_TOKEN}
+      - HF_HOME=/root/.cache/huggingface
     volumes:
       - ../../models:/workspace/models
       - ../../configs:/workspace/configs
-    command: ["/bin/bash", "-c", "/workspace/scripts/downloadModels.sh"]
+      - ../../models/ov-model:/root/.cache/huggingface
+    command: ["/bin/bash", "-c", "/workspace/scripts/model-downloader.sh"]
   
   rabbitmq:
     image: rabbitmq:3-management
@@ -79,7 +83,8 @@ services:
       context: .
       dockerfile: Dockerfile.consumer
     restart: always
-    image: lp-vlm-workload-handler:lp
+    pull_policy: always
+    image: intel/lp-vlm-workload-handler:4.4.0
     devices:
       - /dev/dri:/dev/dri
     group_add:
@@ -98,10 +103,9 @@ services:
       - RABBITMQ_PORT=5672
       - RABBITMQ_MANAGEMENT_PORT=15672
       - no_proxy=rabbitmq,minio-service,model-downloader,localhost,127.0.0.1
-      - AMQP_NOTE=Use nc rabbitmq 5672 (curl is not valid for AMQP)
-      - VLM_SERVICE_HOST=vlm-service
-      - VLM_SERVICE_PORT=8000
+      - AMQP_NOTE=Use nc rabbitmq 5672 (curl is not valid for AMQP)     
       - CONTAINER_RESULTS_PATH=/app/results
+      - WORKLOAD_DIST=${WORKLOAD_DIST:-workload_to_pipeline.json}
     volumes:
       - ./utils:/app/utils
       - ./pipeline:/app/pipeline
@@ -124,14 +128,15 @@ services:
         condition: service_completed_successfully
 
   od-pipeline-runner:
-    container_name: vlm-pipeline-runner
+    container_name: od-pipeline-runner
     build:
       context: ../..
       dockerfile: docker/Dockerfile.pipeline
       args:
         - HTTP_PROXY=${HTTP_PROXY}
         - HTTPS_PROXY=${HTTPS_PROXY}
-    image: pipeline-runner:lp
+    image: intel/pipeline-runner-lp:4.4.0
+    pull_policy: always
     environment:
       - VLM_WORKLOAD_ENABLED=1
       - VIDEO_NAME=${VIDEO_NAME}

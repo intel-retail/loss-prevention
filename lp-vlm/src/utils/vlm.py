@@ -9,11 +9,21 @@ import numpy as np
 import openvino as ov
 from PIL import Image
 import requests
-
+import sys
+from pathlib import Path
+import argparse
 from utils.config import VLM_URL, VLM_MODEL, LP_IP, logger, LP_PORT, SAMPLE_MEDIA_DIR, FRAME_DIR_VOL_BASE, FRAME_DIR, LP_APP_BASE_DIR, RESULTS_DIR
 from utils.prompts import *
 from openvino_genai import VLMPipeline, GenerationConfig
+from vlm_metrics_logger import (
+    log_start_time, 
+    log_end_time, 
+    log_custom_event,
+    log_performance_metric
+)
 
+WORKLOAD_PIPELINE_CONFIG = "/app/lp/configs/"
+TARGET_WORKLOAD = "lp_vlm"  # normalized compare
 # Get env variables
 frames_base_dir = os.path.join(LP_APP_BASE_DIR, RESULTS_DIR, FRAME_DIR)
 
@@ -22,7 +32,7 @@ class VLMComponent:
     _model = None
     _config = None
     
-    def __init__(self, model_path, device="GPU", max_new_tokens=512, temperature=0.0):
+    def __init__(self, model_path, device, max_new_tokens=512, temperature=0.0):
         self.model_path = model_path
         self.device = device
         self.temperature = temperature
@@ -52,6 +62,7 @@ class VLMComponent:
         
         ov_frames = [ov.Tensor(img) for img in images]
         output = self.vlm.generate(prompt, images=ov_frames, generation_config=self.gen_config)
+        log_performance_metric(output)
         return output
 
 
@@ -62,10 +73,18 @@ def get_vlm_component():
     """Get or initialize VLMComponent singleton."""
     global _vlm_component
     if _vlm_component is None:
-        model_path = os.environ.get("VLM_MODEL_PATH", "/home/pipeline-server/lp-vlm/ov-model/Qwen2.5-VL-7B-Instruct/int8")
-        device = os.environ.get("VLM_DEVICE", "GPU")
-        max_tokens = int(os.environ.get("VLM_MAX_TOKENS", "512"))
+        try:
+            vlm_model_name, vlm_precision, vlm_device = get_vlm_model_from_workload()
+            model_path = os.environ.get("VLM_MODEL_PATH", 
+                                       f"/home/pipeline-server/lp-vlm/ov-model/{vlm_model_name}/{vlm_precision}")
+            device = vlm_device
+        except Exception as e:
+            logger.warning(f"Failed to get VLM model from config: {e}, using defaults")
+            model_path = os.environ.get("VLM_MODEL_PATH", 
+                                       "/home/pipeline-server/lp-vlm/ov-model/Qwen2.5-VL-7B-Instruct/int8")
+            device = os.environ.get("VLM_DEVICE", "GPU")
         
+        max_tokens = int(os.environ.get("VLM_MAX_TOKENS", "512"))        
         logger.info(f"Initializing VLMComponent with model_path={model_path}, device={device}")
         _vlm_component = VLMComponent(
             model_path=model_path,
@@ -106,193 +125,115 @@ def extract_prompt_and_images(frame_records: Dict[str, Any], use_case: str = Non
     
     return prompt, images
 
-def build_vlm_payload(frame_record: Dict[str, Any], seed: int = 42, use_case=None) -> Dict[str, Any]:
-    """Build payload for VLM API call using video format."""
-    prompt = COMMON_PROMPT
-    messages_content = None
-    
-    if use_case == "decision_agent":
-        prompt = AGENT_PROMPT
-    
-    logger.info(f"VLM - use_case in build_vlm_payload: {use_case}, frame_record: {frame_record}")
-    
-    if use_case != "decision_agent":
-        if frame_record is None or frame_record == {} or frame_record.get("presigned_url") in (None, ""):
-            logger.warning("VLM - ⚠️ No valid frame record provided to build VLM payload.")
-            return {}
-        else:
-            # Build the message content with video format
-            messages_content = [
-                {
-                    "type": "text",
-                    "text": prompt
-                },
-                {
-                    "type": "image_url",
-                    "image_url": {"url": frame_record.get("presigned_url")}
-                }
-            ]
-    else:
-        messages_content = [
-            {
-                "type": "text",
-                "text": f"{prompt}\nInput {json.dumps(frame_record)}"
-            }
-        ]
-    
-    logger.info(f"VLM - messages_content: {messages_content}")
-    return {
-        "model": VLM_MODEL,
-        "messages": [{"role": "user", "content": messages_content}],
-        "max_completion_tokens": 200,
-        "temperature": 0.0,
-        "top_p": 1.0,
-        "frequency_penalty": 1,
-        "do_sample": False,
-    }
-
 
 def call_vlm(
     frame_records: Dict[str, Any],
     seed: int = 0,
     use_case: str = None,
 ) -> Tuple[bool, Dict[str, Any], str]:
-    """Call the Vision Language Model to analyze frames using VLMComponent or HTTP API."""
-    
-    use_local = os.environ.get("USE_LOCAL_VLM", "true").lower() == "true"
-    
-    max_retries = 3
-    retry_delay = 2
-    
-    for attempt in range(max_retries):
-        try:
-            start_time = time.time()
-            logger.info("VLM call attempt %d/%d (local=%s)", attempt + 1, max_retries, use_local)
-            
-            # Extract prompt and images
-            prompt, images = extract_prompt_and_images(frame_records, use_case)
-            
-            if use_local:
-                # Use local VLMComponent
-                if not images and use_case != "decision_agent":
-                    return False, {}, "No images extracted from frame_records"
-                
-                vlm = get_vlm_component()
-                output = vlm.generate(prompt, images=images)
-                
-                elapsed = time.time() - start_time
-                logger.info("VLM call completed in %.2f seconds", elapsed)
-                
-                # Parse the output
-                if hasattr(output, 'texts') and output.texts:
-                    raw_text = output.texts[0]
-                    
-                    # Try to extract JSON from response
-                    json_start = raw_text.find('[')
-                    json_end = raw_text.rfind(']')
-                    if json_start != -1 and json_end != -1 and json_end > json_start:
-                        json_str = raw_text[json_start:json_end + 1]
-                        try:
-                            parsed = json.loads(json_str)
-                            return True, parsed, ""
-                        except Exception as e:
-                            return False, {}, f"Failed to parse JSON: {e}; content: {raw_text}"
-                    
-                    # If no JSON array, try to parse as generic response
-                    try:
-                        parsed = json.loads(raw_text)
-                        return True, parsed, ""
-                    except:
-                        return True, {"raw_response": raw_text}, ""
-                else:
-                    return False, {}, "No output from VLM model"
-            
-            else:
-                # Use HTTP API (fallback)
-                payload = build_vlm_payload(frame_records, seed=seed, use_case=use_case)
-                logger.info(f"########## VLM - VLM_URL: {VLM_URL}, LP_IP: {LP_IP}, LP_PORT: {LP_PORT}")
-                if payload is None or payload == {}:
-                    return False, {}, "Failed to build VLM payload"
-                
-                resp = requests.post(
-                    VLM_URL,
-                    json=payload,
-                    timeout=600
-                )
-                
-                elapsed = time.time() - start_time
-                logger.info("VLM API call completed in %.2f seconds, status: %d", elapsed, resp.status_code)
-                
-                if resp.status_code == 200:
-                    try:
-                        data = resp.json()
-                    except Exception:
-                        return False, {}, f"Invalid VLM response: {resp.text[:200]}"
-                    
-                    content = None
-                    if isinstance(data, dict):
-                        choices = data.get('choices')
-                        if choices and isinstance(choices, list):
-                            first = choices[0]
-                            if isinstance(first, dict):
-                                message = first.get('message')
-                                if isinstance(message, dict):
-                                    content = message.get('content')
-                    
-                    if not content:
-                        return False, {}, f"No content in VLM response: {data}"
-                    
-                    json_start = content.find('[')
-                    json_end = content.rfind(']')
-                    if json_start != -1 and json_end != -1 and json_end > json_start:
-                        json_str = content[json_start:json_end + 1]
-                        try:
-                            parsed = json.loads(json_str)
-                            return True, parsed, ""
-                        except Exception as e:
-                            return False, {}, f"Failed to parse JSON: {e}; content: {content}"
-                    return False, {}, f"JSON not found in content: {content}"
-                else:
-                    error_msg = f"VLM returned status {resp.status_code}: {resp.text[:200]}"
-                    logger.error(error_msg)
-                    
-                    # Don't retry on client errors (4xx)
-                    if 400 <= resp.status_code < 500:
-                        return False, None, error_msg
-                    
-                    # Retry on server errors (5xx)
-                    if attempt < max_retries - 1:
-                        logger.warning("Retrying in %d seconds...", retry_delay)
-                        time.sleep(retry_delay)
-                        continue
-                    
-                    return False, None, error_msg
+    """Call the Vision Language Model to analyze frames using VLMComponent or HTTP API.""" 
+    try:
+        start_time = time.time()
+        logger.info("Making OVGenAI VLM call...")
         
-        except requests.exceptions.ConnectionError as e:
-            error_msg = f"Connection error: {str(e)}"
-            logger.error(error_msg)
-            
-            if attempt < max_retries - 1:
-                logger.warning("Retrying in %d seconds...", retry_delay)
-                time.sleep(retry_delay)
-                continue
-            
-            return False, None, error_msg
+        # Extract prompt and images
+        prompt, images = extract_prompt_and_images(frame_records, use_case)            
         
-        except requests.exceptions.Timeout as e:
-            error_msg = f"Request timeout: {str(e)}"
-            logger.error(error_msg)
-            
-            if attempt < max_retries - 1:
-                logger.warning("Retrying in %d seconds...", retry_delay)
-                time.sleep(retry_delay)
-                continue
-            
-            return False, None, error_msg
+        # Use local VLMComponent
+        if not images and use_case != "decision_agent":
+            return False, {}, "No images extracted from frame_records"
         
-        except Exception as e:
-            error_msg = f"Unexpected error: {str(e)}"
-            logger.error(error_msg)
-            return False, None, error_msg
+        vlm = get_vlm_component()
+        output = vlm.generate(prompt, images=images)
+        
+        elapsed = time.time() - start_time
+        logger.info("VLM call completed in %.2f seconds", elapsed)
+        
+        # Parse the output
+        if hasattr(output, 'texts') and output.texts:
+            raw_text = output.texts[0]
+            
+            # Try to extract JSON from response
+            json_start = raw_text.find('[')
+            json_end = raw_text.rfind(']')
+            if json_start != -1 and json_end != -1 and json_end > json_start:
+                json_str = raw_text[json_start:json_end + 1]
+                try:
+                    parsed = json.loads(json_str)
+                    return True, parsed, ""
+                except Exception as e:
+                    return False, {}, f"Failed to parse JSON: {e}; content: {raw_text}"
+            
+            # If no JSON array, try to parse as generic response
+            try:
+                parsed = json.loads(raw_text)
+                return True, parsed, ""
+            except:
+                return True, {"raw_response": raw_text}, ""
+        else:
+            return False, {}, "No output from VLM model"
     
-    return False, None, "Max retries exceeded"
+    except Exception as e:
+        error_msg = f"Unexpected error: {str(e)}"
+        logger.error(error_msg)
+        return False, None, error_msg
+
+
+def get_vlm_model_from_workload(workload_config_path: str = None) -> tuple:
+    """
+    Extract vlm_model, vlm_precision, and vlm_device from workload configuration.
+
+    Returns:
+        (vlm_model, vlm_precision, vlm_device)
+    """
+    # Resolve config path
+    workload_dist = os.getenv("WORKLOAD_DIST")
+    if workload_dist:
+        workload_config_path = os.path.join(WORKLOAD_PIPELINE_CONFIG, workload_dist)
+
+    if not workload_config_path:
+        raise ValueError("WORKLOAD_DIST or workload_config_path must be provided")
+
+    cfg_file = Path(workload_config_path)
+    if not cfg_file.exists():
+        raise FileNotFoundError(f"Workload config file not found: {cfg_file}")
+
+    with open(cfg_file, "r") as f:
+        config = json.load(f)
+
+    workload_map = config.get("workload_pipeline_map", {})
+
+    # 1️⃣ Select the lp_vlm workload
+    pipeline_list = workload_map.get(TARGET_WORKLOAD)
+    if not isinstance(pipeline_list, list):
+        raise ValueError(f"No pipeline list found for workload '{TARGET_WORKLOAD}'")
+
+    # 2️⃣ Find the VLM entry inside lp_vlm
+    for entry in pipeline_list:
+        if not isinstance(entry, dict):
+            continue
+
+        if entry.get("type", "").lower() == "vlm":
+            vlm_model = entry.get("vlm_model")
+            vlm_precision = entry.get("vlm_precision", "int8")
+            vlm_device = entry.get("vlm_device", "GPU")
+
+            if not vlm_model:
+                raise ValueError("vlm_model is missing in VLM configuration")
+
+            # Optional cleanup
+            if vlm_model.startswith("Qwen/"):
+                vlm_model = vlm_model.replace("Qwen/", "", 1)
+
+            logger.info(
+                "✅ Found VLM config: model=%s, precision=%s, device=%s",
+                vlm_model,
+                vlm_precision,
+                vlm_device,
+            )
+
+            return vlm_model, vlm_precision, vlm_device
+
+    raise ValueError(
+        f"No VLM entry found in workload '{TARGET_WORKLOAD}'"
+    )

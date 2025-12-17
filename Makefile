@@ -213,10 +213,18 @@ run-vlm:
 	else \
 		echo "VIDEO_NAME=$$VIDEO_NAME" > lp-vlm/lp-vlm.env; \
 		echo "ROI_COORDINATES=$$ROI_COORDINATES" >> lp-vlm/lp-vlm.env; \
-		docker compose -f $(VLM_COMPOSE) --env-file lp-vlm/lp-vlm.env build --pull; \
-		docker compose -f $(VLM_COMPOSE) --env-file lp-vlm/lp-vlm.env up -d; \
+		if [ "$(REGISTRY)" = "true" ]; then \
+			echo "############## Using registry mode - fetching VLM demo..."; \
+			docker compose -f $(VLM_COMPOSE) --env-file lp-vlm/lp-vlm.env pull; \
+			docker compose -f $(VLM_COMPOSE) --env-file lp-vlm/lp-vlm.env up -d; \
+		else \
+			echo "############## Building VLM demo locally..."; \
+			docker compose -f $(VLM_COMPOSE) --env-file lp-vlm/lp-vlm.env build --pull; \
+			docker compose -f $(VLM_COMPOSE) --env-file lp-vlm/lp-vlm.env up -d; \
+		fi; \
 		$(MAKE) clean-images; \
 	fi
+
 
 down-vlm:
 	@echo "Stopping VLM demo containers..."

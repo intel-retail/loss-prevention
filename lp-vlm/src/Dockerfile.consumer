@@ -7,11 +7,10 @@ WORKDIR /app
 # Set proxies if needed
 ARG HTTP_PROXY
 ARG HTTPS_PROXY
-ENV http_proxy=http://proxy-mu.intel.com:911
-ENV https_proxy=http://proxy-mu.intel.com:911
-ENV HTTP_PROXY=http://proxy-mu.intel.com:911
-ENV HTTPS_PROXY=http://proxy-mu.intel.com:911
-ENV no_proxy=localhost,127.0.0.0/8,::1,.intel.com,.intel.net,localhost
+ENV HTTP_PROXY=${HTTP_PROXY}
+ENV HTTPS_PROXY=${HTTPS_PROXY}
+ENV http_proxy=${HTTP_PROXY}
+ENV https_proxy=${HTTPS_PROXY}
 
 # -----------------------------------------
 # Install OpenCV system dependencies
