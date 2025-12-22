@@ -81,8 +81,7 @@ time gst-launch-1.0 --verbose \
   filesrc location="$INPUT_DIR/$VIDEO_NAME" ! \
   decodebin3 ! videoconvert ! videorate ! \
   video/x-raw,format=BGR,framerate=13/1 ! \
-  ${ROI_ELEMENT} \
-  gvadetect model-instance-id=detect1_1 name=lp-vlm batch-size=1 inference-region=1 \
+  gvadetect model-instance-id=detect1_1 name=lp-vlm batch-size=1 \
     model=$MODEL_FULL_PATH \
     device=$DEVICE threshold=0.4 pre-process-backend=opencv \
     ie-config=CPU_THROUGHPUT_STREAMS=2 nireq=2 \

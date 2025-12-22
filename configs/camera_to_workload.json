@@ -1,13 +1,13 @@
 {
   "lane_config": {
-    "cameras": [ 
-     { 
+    "cameras": [  
+      { 
         "camera_id": "cam1",
         "fps": 15,
         "width": 1080,
         "height": 1920,
         "fileSrc":"items-in-basket-32658421.mp4|https://www.pexels.com/download/video/32658421", 
-        "workloads": ["items_in_basket"],
+        "workloads": ["items_in_basket","multi_product_identification"],
         "region_of_interest": {
           "x": 335,
           "y": 900,
@@ -16,17 +16,31 @@
         }
       },
       { 
-        "camera_id": "cam2",
-        "fps": 15,
+        "camera_id": "cam2", 
+         "fps": 15,
         "width": 1080,
         "height": 1920,
-        "fileSrc":"lp-vlm.mp4|https://www.pexels.com/download/video/35120477", 
-        "workloads": ["lp_vlm"],
+        "fileSrc":"hidden-items-product-switching-32658426.mp4|https://www.pexels.com/download/video/32658421", 
+        "workloads": ["hidden_items", "product_switching"],
         "region_of_interest": {
-          "x": 450,
-          "y": 250,
-          "x2": 1500,
-          "y2": 950
+          "x": 335,
+          "y": 900,
+          "x2": 1060,
+          "y2": 1340
+        }
+      },   
+      { 
+        "camera_id": "cam3", 
+        "width": 1920,
+        "height": 1080,
+        "fps": 15,
+        "fileSrc":"fake-scan-detection-34225994.mp4|https://www.pexels.com/download/video/34225994", 
+        "workloads": ["fake_scan_detection"],
+        "region_of_interest": {
+          "x": 25,
+          "y": 535,
+          "x2": 1300,
+          "y2": 1085
         }
       }
     ]

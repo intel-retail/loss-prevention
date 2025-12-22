@@ -26,7 +26,7 @@ from config import METADATA_DIR_FULL_PATH, FRAMES_DIR_FULL_PATH, BUCKET_NAME, MI
 # ============================================================================
 
 threshold_value = os.environ.get("DETECTION_THRESHOLD")
-THRESHOLD = int(threshold_value) if threshold_value else 16  # Number of frames an item must appear in before sending notification
+THRESHOLD = int(threshold_value) if threshold_value else 12  # Number of frames an item must appear in before sending notification
 
 # ============================================================================
 # LOGGER SETUP
@@ -132,7 +132,7 @@ class Publisher:
             
             # Detection tracking
             self.item_frameid_mapper = defaultdict(list)
-            self.sent_items = set()
+            self.sent_items = []
             
             # External connections
             self.minio_client = get_minio_client()
@@ -253,10 +253,11 @@ class Publisher:
                     logger.info(f"Items extracted from label: {self.item_frameid_mapper}")
                     self.item_frameid_mapper[label].append(frame_path)
                     
-                    if len(self.item_frameid_mapper[label]) >= THRESHOLD and label not in self.sent_items:
+                    if len(self.item_frameid_mapper[label]) >= THRESHOLD and (len(self.sent_items) == 0 or label != self.sent_items[-1]):
                         logger.info(f"Sending Data: {self.item_frameid_mapper}")
                         self._send_detection_notification(label)
-                        self.sent_items.add(label)
+                        self.sent_items.append(label)
+                        del self.item_frameid_mapper[label]
         except Exception as e:
             logger.error(f"Error processing detections: {e}")
             logger.error(traceback.format_exc())

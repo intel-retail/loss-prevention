@@ -31,6 +31,7 @@ MKDOCS_IMAGE ?= asc-mkdocs
 RESULTS_DIR ?= $(PWD)/benchmark
 CAMERA_STREAM ?= camera_to_workload.json
 WORKLOAD_DIST ?= workload_to_pipeline.json
+VLM_CAMERA_STREAM ?= camera_to_workload_vlm.json
 BATCH_SIZE_DETECT ?= 1
 BATCH_SIZE_CLASSIFY ?= 1
 REGISTRY ?= true
@@ -168,7 +169,7 @@ benchmark: build-benchmark download-sample-videos download-models
 	deactivate \
 	)
 
-run-lp: | validate_workload_mapping update-submodules download-sample-videos download-models
+run-lp:
 	@echo Running loss prevention pipeline
 	@if [ "$(RENDER_MODE)" != "0" ]; then \
 		$(MAKE) run-render-mode; \
@@ -197,7 +198,7 @@ run:
 	fi
 
 run-vlm:
-	@OUTPUT=$$(python3 lp-vlm/src/workload_utils.py --camera-config configs/$(CAMERA_STREAM) 2>&1); \
+	@OUTPUT=$$(python3 lp-vlm/src/workload_utils.py --camera-config configs/$(VLM_CAMERA_STREAM) 2>&1); \
 	VIDEO_NAME=$$(echo "$$OUTPUT" | grep "Using video from config" | awk -F': ' '{print $$2}'); \
 	ROI_COORDINATES=$$(echo "$$OUTPUT" | grep "Using ROI from config" | awk -F': ' '{print $$2}'); \
 	LOG_FILE="vlm_loss_prevention.log"; \
@@ -219,7 +220,7 @@ run-vlm:
 			docker compose -f $(VLM_COMPOSE) --env-file lp-vlm/lp-vlm.env up -d; \
 		else \
 			echo "############## Building VLM demo locally..."; \
-			docker compose -f $(VLM_COMPOSE) --env-file lp-vlm/lp-vlm.env build --pull; \
+			docker compose -f $(VLM_COMPOSE) --env-file lp-vlm/lp-vlm.env build; \
 			docker compose -f $(VLM_COMPOSE) --env-file lp-vlm/lp-vlm.env up -d; \
 		fi; \
 		$(MAKE) clean-images; \

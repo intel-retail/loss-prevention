@@ -9,7 +9,7 @@ services:
         - HTTPS_PROXY=${HTTPS_PROXY}
     image: intel/model-downloader:4.4.0
     container_name: model-downloader-lp
-    pull_policy: always
+    pull_policy: missing
     environment:
       - HTTP_PROXY=${HTTP_PROXY}
       - HTTPS_PROXY=${HTTPS_PROXY}
@@ -86,7 +86,7 @@ services:
         - HTTP_PROXY=${HTTP_PROXY}
         - HTTPS_PROXY=${HTTPS_PROXY}
     restart: always
-    pull_policy: always
+    pull_policy: missing
     image: intel/lp-vlm-workload-handler:4.4.0
     devices:
       - /dev/dri:/dev/dri
@@ -143,7 +143,7 @@ services:
         - HTTP_PROXY=${HTTP_PROXY}
         - HTTPS_PROXY=${HTTPS_PROXY}
     image: intel/pipeline-runner-lp:4.4.0
-    pull_policy: always
+    pull_policy: missing
     environment:
       - VLM_WORKLOAD_ENABLED=1
       - VIDEO_NAME=${VIDEO_NAME}
