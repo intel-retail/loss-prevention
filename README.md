@@ -24,22 +24,6 @@ git clone -b v4.0.0 --single-branch https://github.com/intel-retail/loss-prevent
 ```
 
 
-**NOTE:- Set the following environment variables for lp_vlm workload**, :
-  ```bash
-  #MinIO credentials (object storage)
-  export MINIO_ROOT_USER=<your-minio-username>
-  export MINIO_ROOT_PASSWORD=<your-minio-password> 
-
-  #RabbitMQ credentials (message broker)
-  export RABBITMQ_USER=<your-rabbitmq-username>
-  export RABBITMQ_PASSWORD=<your-rabbitmq-password>
-
-  Go to https://huggingface.co/settings/tokens to get your token.
-  export GATED_MODEL=true
-  export HUGGINGFACE_TOKEN=
-  ```
- 
-
 ### **NOTE:** 
 
 By default the application runs by pulling the pre-built images. If you want to build the images locally and then run the application, set the flag:
@@ -114,6 +98,28 @@ For a comprehensive and advanced guide, refer to- [Loss Prevention Documentation
 
 ```sh
 make down-lp
+```
+
+### Note: Environment Variables for lp_vlm Workload
+```sh
+# MinIO credentials (object storage)
+export MINIO_ROOT_USER=<your-minio-username>
+export MINIO_ROOT_PASSWORD=<your-minio-password>
+
+# RabbitMQ credentials (message broker)
+export RABBITMQ_USER=<your-rabbitmq-username>
+export RABBITMQ_PASSWORD=<your-rabbitmq-password>
+
+# Hugging Face token (required for gated models)
+# Generate a token from: https://huggingface.co/settings/tokens
+export GATED_MODEL=true
+export HUGGINGFACE_TOKEN=<your-huggingface-token>
+
+```
+
+### Run the VLM based workload
+```sh
+make run-lp CAMERA_STREAM=camera_to_workload_vlm.json
 ```
 
 ### 4. Run benchmarking on CPU/NPU/GPU.

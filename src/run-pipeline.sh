@@ -4,6 +4,7 @@
 # Conditional execution based on VLM_WORKLOAD_ENABLED
 # -----------------------------
 
+set -euo pipefail
 
 echo ">>>>>>>>>>>>> VLM_WORKLOAD_ENABLED=${VLM_WORKLOAD_ENABLED} <<<<<<<<<<<<<<<"
 
@@ -22,6 +23,21 @@ if [ "${VLM_WORKLOAD_ENABLED}" = "0" ]; then
 
     export PYTHONPATH=/home/pipeline-server/src:$PYTHONPATH
 
+    gst_cmd=$(python3 "$(dirname "$0")/gst-pipeline-generator.py")    
+    
+    # Exit container if gst_cmd is empty or whitespace
+    # Trim whitespace
+    trimmed_gst_cmd="$(echo "$gst_cmd" | tr -d '\n' | sed 's/[[:space:]]*$//')"
+
+    # Exit if gst_cmd is empty or only base stub
+    if [[ -z "$trimmed_gst_cmd" || "$trimmed_gst_cmd" == "gst-launch-1.0 --verbose \\" ]]; then
+        echo "################# ERROR #################"
+        echo "Generated GStreamer command is invalid or empty"
+        echo "gst_cmd='$trimmed_gst_cmd'"
+        echo "Stopping container."
+        exit 1
+    fi
+    echo "#############  GStreamer pipeline command generated successfully ##########"
     # Use TIMESTAMP env variable if set, otherwise fallback to date
     cid=$(date +%Y%m%d%H%M%S)$(date +%6N | cut -c1-6)
     export TIMESTAMP=$cid
@@ -35,9 +51,7 @@ if [ "${VLM_WORKLOAD_ENABLED}" = "0" ]; then
     echo "############# Generating GStreamer pipeline command ##########"
     echo "################### RENDER_MODE ################# $RENDER_MODE"
 
-    gst_cmd=$(python3 "$(dirname "$0")/gst-pipeline-generator.py")
-    echo "#############  GStreamer pipeline command generated successfully ##########"
-
+   
     # -----------------------------
     # Prepare pipelines directory
     # -----------------------------

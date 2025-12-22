@@ -94,7 +94,7 @@
         "type": "vlm",
         "model": "yolo11n",
         "device": "CPU",
-        "precision": "INT8",
+        "precision": "FP16",
         "vlm_model": "Qwen/Qwen2.5-VL-7B-Instruct",
         "vlm_device": "GPU",
         "vlm_precision": "int8"
