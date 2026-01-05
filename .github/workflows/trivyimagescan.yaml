@@ -48,32 +48,36 @@ jobs:
         - name: Run Trivy vulnerability scanner on model-downloader
           uses: aquasecurity/trivy-action@915b19bbe73b92a6cf82a1bc12b087c9a19a5fe2
           with:
-            image-ref: 'model-downloader:lp'
-            format: 'template'
-            template: '@/contrib/sarif.tpl'
-            output: 'trivy-results-model-downloader.sarif'
+            image-ref: 'model-downloader-lp:4.3.2'
+            format: 'table'
+            output: 'trivy-results-modeldownloader.txt'
             severity: 'CRITICAL,HIGH'
 
         - name: Run Trivy vulnerability scanner on pipeline-runner
           uses: aquasecurity/trivy-action@915b19bbe73b92a6cf82a1bc12b087c9a19a5fe2
           with:
-            image-ref: 'pipeline-runner:lp'
-            format: 'template'
-            template: '@/contrib/sarif.tpl'
-            output: 'trivy-results-pipeline-runner.sarif'
+            image-ref: 'pipeline-runner-lp:4.3.2'
+            format: 'table'
+            output: 'trivy-results-pipelinerunner.txt'
             severity: 'CRITICAL,HIGH'
 
         - name: Upload Trivy scan results for model-downloader to GitHub Security tab
-          uses: github/codeql-action/upload-sarif@1b549b9259bda1cb5ddde3b41741a82a2d15a841
+          uses: actions/upload-artifact@v4
           with:
-            sarif_file: 'trivy-results-model-downloader.sarif'
-            category: 'model-downloader'
+            name: trivy-html-modeldownloader-report
+            path: trivy-results-modeldownloader.txt
 
         - name: Upload Trivy scan results for pipeline-runner to GitHub Security tab
-          uses: github/codeql-action/upload-sarif@1b549b9259bda1cb5ddde3b41741a82a2d15a841
+          uses: actions/upload-artifact@v4
           with:
-            sarif_file: 'trivy-results-pipeline-runner.sarif'
-            category: 'pipeline-runner'
+            name: trivy-html-pipelinerunner-report
+            path: trivy-results-pipelinerunner.txt
+
+
+
+
+
+
 
 
 

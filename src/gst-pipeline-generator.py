@@ -196,6 +196,10 @@ def build_dynamic_gstlaunch_command(camera, workloads, workload_map, branch_idx=
         video_file = signature_to_video[sig]
         # Get DECODE for the first step's device, if present
         first_device = steps[0].get("device")
+        
+        # Determine if vapostproc should be used based on device type
+        vapostproc_elem = "vapostproc !" if first_device and first_device.upper() in ["NPU", "GPU"] else ""
+        
         first_env_vars = get_env_vars_for_device(first_device) if first_device else {}
         DECODE = first_env_vars.get("DECODE") or "decodebin"
         pipeline = f"filesrc location={video_file} ! {DECODE} "
@@ -256,7 +260,7 @@ def build_dynamic_gstlaunch_command(camera, workloads, workload_map, branch_idx=
             #pipeline += f"    {tee_name}. ! queue ! gvafpscounter ! fakesink sync=false async=false "
         render_mode = os.environ.get("RENDER_MODE", "0")
         if render_mode == "1":
-            pipeline += f"    {tee_name}. ! queue ! gvawatermark ! videoconvert ! fpsdisplaysink video-sink=autovideosink text-overlay=true signal-fps-measurements=true"
+            pipeline += f"    {tee_name}. ! queue ! gvawatermark ! {vapostproc_elem} fpsdisplaysink video-sink=autovideosink text-overlay=true signal-fps-measurements=true"
         else:
             pipeline += f"    {tee_name}. ! queue ! fpsdisplaysink video-sink=fakesink signal-fps-measurements=true"
         pipelines.append(pipeline)

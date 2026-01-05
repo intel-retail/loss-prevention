@@ -6,11 +6,13 @@ The Loss Prevention Pipeline System is an open-source reference implementation f
 
 ## 📋 Prerequisites
 
-- Ubuntu 24.04 or newer (Linux recommended)
+- Ubuntu 24.04 or newer (Linux recommended), Desktop edition (or Server edition with GUI installed).
 - [Docker](https://docs.docker.com/engine/install/)
 - [Make](https://www.gnu.org/software/make/) (`sudo apt install make`)
 - Intel hardware (CPU, iGPU, dGPU, NPU)
-- Intel drivers (see [Intel GPU drivers](https://dgpu-docs.intel.com/driver/client/overview.html))
+- Intel drivers:
+    - [Intel GPU drivers](https://dgpu-docs.intel.com/driver/client/overview.html)
+    - [NPU](https://dlstreamer.github.io/dev_guide/advanced_install/advanced_install_guide_prerequisites.html#prerequisite-2-install-intel-npu-drivers)
 - Sufficient disk space for models, videos, and results
 
 ## 🚀 QuickStart
@@ -96,8 +98,13 @@ For a comprehensive and advanced guide, refer to- [Loss Prevention Documentation
 
 ### 3. Stop all containers
 
+When pre-built images are pulled-
 ```sh
 make down-lp
+```
+When images are built locally-
+```sh
+make down-lp REGISTRY=false
 ```
 
 ### Note: Environment Variables for lp_vlm Workload

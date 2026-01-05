@@ -1,6 +1,7 @@
 # ---------- Builder ----------
 FROM python:3.12-slim AS builder
 
+# Proxy args with defaults to avoid unset variable issues
 ARG HTTP_PROXY
 ARG HTTPS_PROXY
 ENV HTTP_PROXY=${HTTP_PROXY}
