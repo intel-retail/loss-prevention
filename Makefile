@@ -51,9 +51,9 @@ REGISTRY_BENCHMARK ?= intel/retail-benchmark:$(TAG)
 BASE_VLM_COMPOSE = "./lp-vlm/src/docker-compose-base.yml"
 VLM_COMPOSE = "./lp-vlm/src/docker-compose.yaml"
 
-
+VLM_LOGS_FILE ?= $(PWD)/vlm_loss_prevention.log
 LP_VLM_WORKLOAD_ENABLED := $(shell python3 lp-vlm/src/workload_utils.py --camera-config configs/$(CAMERA_STREAM) --has-lp-vlm)
-VIDEO_NAME := $(shell python3 lp-vlm/src/workload_utils.py --camera-config configs/$(CAMERA_STREAM) --get-video-name)
+
 check-models:
 	@chmod +x check_models.sh
 	@./check_models.sh models || true
@@ -81,21 +81,6 @@ update-submodules:
 	git submodule update --init --recursive
 	@echo "Submodules updated (if any present)."
 
-fetch-benchmark:
-	@echo "Fetching benchmark image from registry..."
-	docker pull $(REGISTRY_BENCHMARK)
-	docker tag $(REGISTRY_BENCHMARK) $(BENCHMARK_IMAGE)
-	@echo "Benchmark image ready"
-
-build-benchmark:
-	@if [ "$(REGISTRY)" = "true" ]; then \
-		$(MAKE) fetch-pipeline-runner; \
-		$(MAKE) fetch-benchmark; \
-	else \
-		$(MAKE) build-pipeline-runner; \
-		cd performance-tools && $(MAKE) build-benchmark-docker; \
-	fi
-
 run-lp:
 	@echo Running loss prevention pipeline	
 	LOG_FILE="vlm_loss_prevention.log"; \
@@ -114,10 +99,10 @@ down-lp:
 run:
 	@if [ "$(REGISTRY)" = "true" ]; then \
 		echo "##############Using registry mode - fetching pipeline runner..."; \
-		LP_VLM_WORKLOAD_ENABLED=$(LP_VLM_WORKLOAD_ENABLED) VIDEO_NAME=$(VIDEO_NAME)  BATCH_SIZE_DETECT=$(BATCH_SIZE_DETECT) BATCH_SIZE_CLASSIFY=$(BATCH_SIZE_CLASSIFY) docker compose -f src/$(DOCKER_COMPOSE) up -d; \
+		LP_VLM_WORKLOAD_ENABLED=$(LP_VLM_WORKLOAD_ENABLED) BATCH_SIZE_DETECT=$(BATCH_SIZE_DETECT) BATCH_SIZE_CLASSIFY=$(BATCH_SIZE_CLASSIFY) docker compose -f src/$(DOCKER_COMPOSE) up -d; \
 	else \
 		docker compose -f src/$(DOCKER_COMPOSE) build pipeline-runner; \
-		LP_VLM_WORKLOAD_ENABLED=$(LP_VLM_WORKLOAD_ENABLED) VIDEO_NAME=$(VIDEO_NAME)  BATCH_SIZE_DETECT=$(BATCH_SIZE_DETECT) BATCH_SIZE_CLASSIFY=$(BATCH_SIZE_CLASSIFY) docker compose -f src/$(DOCKER_COMPOSE) up --build -d; \
+		LP_VLM_WORKLOAD_ENABLED=$(LP_VLM_WORKLOAD_ENABLED) BATCH_SIZE_DETECT=$(BATCH_SIZE_DETECT) BATCH_SIZE_CLASSIFY=$(BATCH_SIZE_CLASSIFY) docker compose -f src/$(DOCKER_COMPOSE) up --build -d; \
 	fi
 
 down-vlm:
@@ -142,24 +127,44 @@ run-render-mode: validate_workload_mapping
 	@xhost +local:docker	
 	@if [ "$(REGISTRY)" = "true" ]; then \
 		echo "##############Using registry mode - fetching pipeline runner..."; \
-		RENDER_MODE=1  LP_VLM_WORKLOAD_ENABLED=$(LP_VLM_WORKLOAD_ENABLED) VIDEO_NAME=$(VIDEO_NAME) CAMERA_STREAM=$(CAMERA_STREAM) WORKLOAD_DIST=$(WORKLOAD_DIST) BATCH_SIZE_DETECT=$(BATCH_SIZE_DETECT) BATCH_SIZE_CLASSIFY=$(BATCH_SIZE_CLASSIFY) docker compose -f src/$(DOCKER_COMPOSE) up -d; \
+		RENDER_MODE=1  LP_VLM_WORKLOAD_ENABLED=$(LP_VLM_WORKLOAD_ENABLED) CAMERA_STREAM=$(CAMERA_STREAM) WORKLOAD_DIST=$(WORKLOAD_DIST) BATCH_SIZE_DETECT=$(BATCH_SIZE_DETECT) BATCH_SIZE_CLASSIFY=$(BATCH_SIZE_CLASSIFY) docker compose -f src/$(DOCKER_COMPOSE) up -d; \
 	else \
 		docker compose -f src/$(DOCKER_COMPOSE) build; \
-		RENDER_MODE=1 LP_VLM_WORKLOAD_ENABLED=$(LP_VLM_WORKLOAD_ENABLED) VIDEO_NAME=$(VIDEO_NAME) CAMERA_STREAM=$(CAMERA_STREAM) WORKLOAD_DIST=$(WORKLOAD_DIST) BATCH_SIZE_DETECT=$(BATCH_SIZE_DETECT) BATCH_SIZE_CLASSIFY=$(BATCH_SIZE_CLASSIFY) docker compose -f src/$(DOCKER_COMPOSE) up --build -d; \
+		RENDER_MODE=1 LP_VLM_WORKLOAD_ENABLED=$(LP_VLM_WORKLOAD_ENABLED) CAMERA_STREAM=$(CAMERA_STREAM) WORKLOAD_DIST=$(WORKLOAD_DIST) BATCH_SIZE_DETECT=$(BATCH_SIZE_DETECT) BATCH_SIZE_CLASSIFY=$(BATCH_SIZE_CLASSIFY) docker compose -f src/$(DOCKER_COMPOSE) up --build -d; \
 	fi	
 	$(MAKE) clean-images
 
+fetch-benchmark:
+	@echo "Fetching benchmark image from registry..."
+	docker pull $(REGISTRY_BENCHMARK)
+	docker tag $(REGISTRY_BENCHMARK) $(BENCHMARK_IMAGE)
+	@echo "Benchmark image ready"
 
-benchmark: build-benchmark download-sample-videos download-models	
+build-benchmark:
+	@echo "Building benchmark Docker image..."$(REGISTRY)
+	@if [ "$(REGISTRY)" = "true" ]; then \
+		$(MAKE) fetch-benchmark; \
+	else \
+		cd performance-tools && $(MAKE) build-benchmark-docker; \
+	fi
+
+benchmark: build-benchmark
+	mkdir -p $$(dirname $(VLM_LOGS_FILE)); \
+	[ -f $(VLM_LOGS_FILE) ] || touch $(VLM_LOGS_FILE); \
 	cd performance-tools/benchmark-scripts && \
 	export MULTI_STREAM_MODE=1 && \
 	( \
-	python3 -m venv venv && \
-	. venv/bin/activate && \
-	pip3 install -r requirements.txt && \	
-	python3 benchmark.py --compose_file ../../src/$(DOCKER_COMPOSE) --pipelines $(PIPELINE_COUNT) --results_dir $(RESULTS_DIR); \
-	deactivate \
+		python3 -m venv venv && \
+		. venv/bin/activate && \
+		pip3 install -r requirements.txt && \
+		python3 benchmark.py \
+			--compose_file ../../src/$(DOCKER_COMPOSE) \
+			--pipelines $(PIPELINE_COUNT) \
+			--results_dir $(RESULTS_DIR); \
+		deactivate \
 	)
+
+
 
 benchmark-stream-density: build-benchmark download-models
 	@if [ "$(OOM_PROTECTION)" = "0" ]; then \

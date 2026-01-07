@@ -1,11 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-VIDEO_NAME="${VIDEO_NAME:-""}"
 INPUT_DIR="${INPUT_DIR:-"/home/pipeline-server/lp-vlm/sample-media"}"
 MODEL_PATH="/home/pipeline-server/lp-vlm/models"
 WORKLOAD_PIPELINE_CONFIG="/home/pipeline-server/lp-vlm/configs/"$WORKLOAD_DIST
 
+
+VIDEO_NAME="$(python3 /home/pipeline-server/lp-vlm/workload_utils.py \
+  --camera-config "/home/pipeline-server/lp-vlm/configs/${CAMERA_STREAM}" \
+  --get-video-name)"
+  
+export VIDEO_NAME
 
 echo "VIDEO_NAME from env:" $VIDEO_NAME
 echo "WORKLOAD_DIST from env:" $WORKLOAD_DIST

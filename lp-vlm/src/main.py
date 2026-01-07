@@ -23,7 +23,7 @@ from utils.save_results import get_presigned_url
 from utils.config import logger,INVENTORY_FILE
 from utils.rabbitmq_consumer import ODConsumer
 import traceback
-from workload_utils import get_video_from_config
+from workload_utils import get_video_name_only
 from vlm_metrics_logger import (
     log_start_time, 
     log_end_time, 
@@ -418,7 +418,16 @@ print("\n================ START OF PIPELINE RUN =================\n")
 def main(video_file_name=None):
     """Main function to execute the loss prevention pipeline"""    
     if video_file_name is None:
-        video_file_name = os.getenv("VIDEO_NAME", "three_lp_uses_cases_combined.mp4")
+        camera_stream = os.getenv("CAMERA_STREAM")
+        logger.info("Pipeline Script - camera_stream file name===: %s", camera_stream)
+        if not camera_stream:
+            raise RuntimeError("CAMERA_STREAM environment variable is not set")
+
+        camera_config_path = f"/app/lp/configs/{camera_stream}"
+        video_file_name = get_video_name_only(camera_config_path)
+    
+    
+    logger.info("Pipeline Script - VIDEO_NAME:======== %s", video_file_name)
     
     global od_results_shown, od_pipeline_status, vlm_pipeline_status
     

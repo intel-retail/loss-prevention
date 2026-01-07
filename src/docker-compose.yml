@@ -104,7 +104,6 @@ services:
       - MINIO_ROOT_USER=${MINIO_ROOT_USER}
       - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
       - LP_IP=${LP_IP}
-      - VIDEO_NAME=${VIDEO_NAME}
       - LP_BASE_DIR=${LP_BASE_DIR}
       - RABBITMQ_HOST=rabbitmq
       - RABBITMQ_PORT=5672
@@ -113,7 +112,7 @@ services:
       - AMQP_NOTE=Use nc rabbitmq 5672 (curl is not valid for AMQP)     
       - CONTAINER_RESULTS_PATH=${CONTAINER_RESULTS_PATH:-/app/results}
       - WORKLOAD_DIST=${WORKLOAD_DIST:-workload_to_pipeline.json}
-      - USECASE=${USECASE:-vlm_verification_latency}
+      - CAMERA_STREAM=${CAMERA_STREAM:-camera_to_workload.json}
     volumes:
       - ../lp-vlm/src/utils:/app/utils
       - ../lp-vlm/src/pipeline:/app/pipeline
@@ -169,6 +168,7 @@ services:
       - ../lp-vlm/src/pipeline/send_end_message.py:/home/pipeline-server/lp-vlm/gvapython/send_end_message.py
       - ../lp-vlm/src/pipeline/config.py:/home/pipeline-server/lp-vlm/gvapython/config.py
       - ../lp-vlm/src/utils/save_results.py:/home/pipeline-server/lp-vlm/save_results.py
+      - ../lp-vlm/src/workload_utils.py:/home/pipeline-server/lp-vlm/workload_utils.py
       - ../models:/home/pipeline-server/lp-vlm/models
       - ../configs:/home/pipeline-server/lp-vlm/configs
       - ../performance-tools/sample-media:/home/pipeline-server/lp-vlm/sample-media
