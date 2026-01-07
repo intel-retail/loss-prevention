@@ -94,6 +94,8 @@ services:
       - ${USER_GROUP_ID:-1000} 
       - ${VIDEO_GROUP_ID:-44}    
       - ${RENDER_GROUP_ID:-1002}
+    env_file:
+      - ../../.env
     environment:
       - HTTP_PROXY=${HTTP_PROXY}
       - HTTPS_PROXY=${HTTPS_PROXY}
@@ -111,7 +113,7 @@ services:
       - RABBITMQ_MANAGEMENT_PORT=15672
       - no_proxy=rabbitmq,minio-service,model-downloader,localhost,127.0.0.1
       - AMQP_NOTE=Use nc rabbitmq 5672 (curl is not valid for AMQP)     
-      - CONTAINER_RESULTS_PATH=/app/results
+      - CONTAINER_RESULTS_PATH=${CONTAINER_RESULTS_PATH:-/app/results}
       - WORKLOAD_DIST=${WORKLOAD_DIST:-workload_to_pipeline.json}
     volumes:
       - ./utils:/app/utils
