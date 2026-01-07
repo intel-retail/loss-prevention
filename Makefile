@@ -94,7 +94,10 @@ run-lp:
 
 down-lp:	
 	docker compose -f src/$(DOCKER_COMPOSE) down	
-	
+	@echo "Cleaning up VLM temporary files..."
+	@rm -f vlm_loss_prevention.log
+	@rm -f lp-vlm/lp-vlm.env
+	@echo "VLM cleanup completed"
 
 run:
 	@if [ "$(REGISTRY)" = "true" ]; then \
@@ -105,13 +108,6 @@ run:
 		LP_VLM_WORKLOAD_ENABLED=$(LP_VLM_WORKLOAD_ENABLED) BATCH_SIZE_DETECT=$(BATCH_SIZE_DETECT) BATCH_SIZE_CLASSIFY=$(BATCH_SIZE_CLASSIFY) docker compose -f src/$(DOCKER_COMPOSE) up --build -d; \
 	fi
 
-down-vlm:
-	@echo "Stopping VLM demo containers..."
-	docker compose -f $(VLM_COMPOSE) down
-	@echo "Cleaning up VLM temporary files..."
-	@rm -f vlm_loss_prevention.log
-	@rm -f lp-vlm/lp-vlm.env
-	@echo "VLM cleanup completed"
 
 run-render-mode: validate_workload_mapping
 	@if [ -z "$(DISPLAY)" ] || ! echo "$(DISPLAY)" | grep -qE "^:[0-9]+(\.[0-9]+)?$$"; then \

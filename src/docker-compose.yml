@@ -120,7 +120,8 @@ services:
       - ../lp-vlm/src/agent:/app/agent
       - ../lp-vlm/src/main.py:/app/main.py
       - ../lp-vlm/src/workload_utils.py:/app/workload_utils.py
-      - ../results/vlm-results:/app/results
+      - ${RESULTS_DIR:-../results/vlm-results}:/app/results
+      - ${RESULTS_DIR:-../results/vlm-results}:/app/results/metadata
       - ../configs:/app/lp/configs
       - ../models/ov-model:/home/pipeline-server/lp-vlm/ov-model
       - ../vlm_loss_prevention.log:/app/loss_prevention_app.log
