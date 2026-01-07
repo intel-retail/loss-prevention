@@ -62,7 +62,7 @@ class VLMComponent:
         
         ov_frames = [ov.Tensor(img) for img in images]
         output = self.vlm.generate(prompt, images=ov_frames, generation_config=self.gen_config)
-        log_performance_metric("USECASE_1", output)
+        log_performance_metric("USECASE_2", output)
         return output
 
 

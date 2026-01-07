@@ -56,7 +56,6 @@ VLM_COMPOSE = "./lp-vlm/src/docker-compose.yaml"
 
 LP_VLM_WORKLOAD_ENABLED := $(shell python3 lp-vlm/src/workload_utils.py --camera-config configs/$(CAMERA_STREAM) --has-lp-vlm)
 VIDEO_NAME := $(shell python3 lp-vlm/src/workload_utils.py --camera-config configs/$(CAMERA_STREAM) --get-video-name)
-USECASE_1 ?= vlm_verification_latency
 check-models:
 	@chmod +x check_models.sh
 	@./check_models.sh models || true
@@ -175,9 +174,7 @@ benchmark: build-benchmark download-sample-videos download-models
 	)
 
 run-lp:
-	@echo Running loss prevention pipeline
-	@echo $(LP_VLM_WORKLOAD_ENABLED)
-	@echo $(VIDEO_NAME)
+	@echo Running loss prevention pipeline	
 	LOG_FILE="vlm_loss_prevention.log"; \
 	mkdir -p $$(dirname $$LOG_FILE); \
 	[ -f $$LOG_FILE ] || touch $$LOG_FILE; \
@@ -200,10 +197,10 @@ down-lp:
 run:
 	@if [ "$(REGISTRY)" = "true" ]; then \
 		echo "##############Using registry mode - fetching pipeline runner..."; \
-		LP_VLM_WORKLOAD_ENABLED=$(LP_VLM_WORKLOAD_ENABLED) VIDEO_NAME=$(VIDEO_NAME) USECASE=$(USECASE_1) BATCH_SIZE_DETECT=$(BATCH_SIZE_DETECT) BATCH_SIZE_CLASSIFY=$(BATCH_SIZE_CLASSIFY) docker compose -f src/$(DOCKER_COMPOSE_REGISTRY) up -d; \
+		LP_VLM_WORKLOAD_ENABLED=$(LP_VLM_WORKLOAD_ENABLED) VIDEO_NAME=$(VIDEO_NAME)  BATCH_SIZE_DETECT=$(BATCH_SIZE_DETECT) BATCH_SIZE_CLASSIFY=$(BATCH_SIZE_CLASSIFY) docker compose -f src/$(DOCKER_COMPOSE_REGISTRY) up -d; \
 	else \
 		docker compose -f src/$(DOCKER_COMPOSE) build pipeline-runner; \
-		LP_VLM_WORKLOAD_ENABLED=$(LP_VLM_WORKLOAD_ENABLED) VIDEO_NAME=$(VIDEO_NAME) USECASE=$(USECASE_1) BATCH_SIZE_DETECT=$(BATCH_SIZE_DETECT) BATCH_SIZE_CLASSIFY=$(BATCH_SIZE_CLASSIFY) docker compose -f src/$(DOCKER_COMPOSE) up -d; \
+		LP_VLM_WORKLOAD_ENABLED=$(LP_VLM_WORKLOAD_ENABLED) VIDEO_NAME=$(VIDEO_NAME)  BATCH_SIZE_DETECT=$(BATCH_SIZE_DETECT) BATCH_SIZE_CLASSIFY=$(BATCH_SIZE_CLASSIFY) docker compose -f src/$(DOCKER_COMPOSE) up -d; \
 	fi
 
 down-vlm:
@@ -228,10 +225,10 @@ run-render-mode: validate_workload_mapping
 	@xhost +local:docker	
 	@if [ "$(REGISTRY)" = "true" ]; then \
 		echo "##############Using registry mode - fetching pipeline runner..."; \
-		RENDER_MODE=1  LP_VLM_WORKLOAD_ENABLED=$(LP_VLM_WORKLOAD_ENABLED) VIDEO_NAME=$(VIDEO_NAME) USECASE=$(USECASE_1)  CAMERA_STREAM=$(CAMERA_STREAM) WORKLOAD_DIST=$(WORKLOAD_DIST) BATCH_SIZE_DETECT=$(BATCH_SIZE_DETECT) BATCH_SIZE_CLASSIFY=$(BATCH_SIZE_CLASSIFY) docker compose -f src/$(DOCKER_COMPOSE_REGISTRY) up -d; \
+		RENDER_MODE=1  LP_VLM_WORKLOAD_ENABLED=$(LP_VLM_WORKLOAD_ENABLED) VIDEO_NAME=$(VIDEO_NAME) CAMERA_STREAM=$(CAMERA_STREAM) WORKLOAD_DIST=$(WORKLOAD_DIST) BATCH_SIZE_DETECT=$(BATCH_SIZE_DETECT) BATCH_SIZE_CLASSIFY=$(BATCH_SIZE_CLASSIFY) docker compose -f src/$(DOCKER_COMPOSE_REGISTRY) up -d; \
 	else \
 		docker compose -f src/$(DOCKER_COMPOSE) build; \
-		RENDER_MODE=1 LP_VLM_WORKLOAD_ENABLED=$(LP_VLM_WORKLOAD_ENABLED) VIDEO_NAME=$(VIDEO_NAME) USECASE=$(USECASE_1)  CAMERA_STREAM=$(CAMERA_STREAM) WORKLOAD_DIST=$(WORKLOAD_DIST) BATCH_SIZE_DETECT=$(BATCH_SIZE_DETECT) BATCH_SIZE_CLASSIFY=$(BATCH_SIZE_CLASSIFY) docker compose -f src/$(DOCKER_COMPOSE) up -d; \
+		RENDER_MODE=1 LP_VLM_WORKLOAD_ENABLED=$(LP_VLM_WORKLOAD_ENABLED) VIDEO_NAME=$(VIDEO_NAME) CAMERA_STREAM=$(CAMERA_STREAM) WORKLOAD_DIST=$(WORKLOAD_DIST) BATCH_SIZE_DETECT=$(BATCH_SIZE_DETECT) BATCH_SIZE_CLASSIFY=$(BATCH_SIZE_CLASSIFY) docker compose -f src/$(DOCKER_COMPOSE) up -d; \
 	fi	
 	$(MAKE) clean-images
 

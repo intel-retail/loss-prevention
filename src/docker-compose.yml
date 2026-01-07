@@ -80,14 +80,13 @@ services:
   lp-vlm-workload-handler:
     container_name: lp-vlm-workload-handler
     build:
-      context: ..
-      dockerfile: lp-vlm/src/Dockerfile.consumer
+      context: ../lp-vlm/src
+      dockerfile: Dockerfile.consumer
       args:
         - HTTP_PROXY=${HTTP_PROXY}
         - HTTPS_PROXY=${HTTPS_PROXY}
     restart: always
     pull_policy: missing
-    image: intel/lp-vlm-workload-handler:4.4.0
     devices:
       - /dev/dri:/dev/dri
     group_add:
@@ -127,6 +126,8 @@ services:
       - ../vlm_loss_prevention.log:/app/loss_prevention_app.log
     networks:
       - my_network
+    env_file:
+      - ../lp-vlm/src/.env  
     depends_on:
       rabbitmq:
         condition: service_healthy
