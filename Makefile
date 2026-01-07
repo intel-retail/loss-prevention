@@ -21,7 +21,6 @@ export MINIO_CONSOLE_HOST_PORT=4001
 export LP_IP=$(HOST_IP)
 
 
-
 # Default values for benchmark
 PIPELINE_COUNT ?= 1
 INIT_DURATION ?= 30
@@ -37,7 +36,6 @@ BATCH_SIZE_DETECT ?= 1
 BATCH_SIZE_CLASSIFY ?= 1
 REGISTRY ?= true
 DOCKER_COMPOSE ?= docker-compose.yml
-DOCKER_COMPOSE_REGISTRY ?= docker-compose-reg.yml
 
 TAG ?= 4.4.0
 #local image references
@@ -77,66 +75,6 @@ download-sample-videos: | validate-camera-config
 	@echo "Downloading and formatting videos for all cameras in $(CAMERA_STREAM)..."
 	python3 download-scripts/download-video.py --camera-config configs/$(CAMERA_STREAM) --format-script performance-tools/benchmark-scripts/format_avc_mp4.sh
 
-fetch-model-downloader:
-	@echo "Fetching model downloader from registry..."
-	docker pull $(REGISTRY_MODEL_DOWNLOADER)
-	docker tag $(REGISTRY_MODEL_DOWNLOADER) $(MODELDOWNLOADER_IMAGE)
-	@echo "Model downloader ready"
-
-build-model-downloader: | validate-pipeline-config
-	@echo "Building model downloader"
-	docker build --build-arg HTTPS_PROXY=${HTTPS_PROXY} --build-arg HTTP_PROXY=${HTTP_PROXY} -t $(MODELDOWNLOADER_IMAGE) -f docker/Dockerfile.downloader .
-	@echo "assets downloader completed"
-
-run-model-downloader:
-	@echo "Running assets downloader"
-	docker run --rm \
-		-e HTTP_PROXY=${HTTP_PROXY} \
-		-e HTTPS_PROXY=${HTTPS_PROXY} \
-		-e http_proxy=${HTTP_PROXY} \
-		-e https_proxy=${HTTPS_PROXY} \
-		-e MODELS_DIR=/workspace/models \
-		-e WORKLOAD_DIST=${WORKLOAD_DIST} \
-		-e HF_HOME=/root/.cache/huggingface \
-		-e HF_HUB_DOWNLOAD_TIMEOUT=600 \
-		-v "$(shell pwd)/models:/workspace/models" \
-		-v "$(shell pwd)/configs:/workspace/configs" \
-		$(MODELDOWNLOADER_IMAGE)
-	@echo "assets downloader completed"
-
-fetch-pipeline-runner:
-	@echo "Fetching pipeline runner from registry..."
-	docker pull $(REGISTRY_PIPELINE_RUNNER)
-	docker tag $(REGISTRY_PIPELINE_RUNNER) $(PIPELINE_RUNNER_IMAGE)
-	@echo "Pipeline runner ready"
-
-build-pipeline-runner:
-	@echo "Building pipeline runner"
-	docker build \
-		--build-arg HTTPS_PROXY=${HTTPS_PROXY} \
-		--build-arg HTTP_PROXY=${HTTP_PROXY} \
-		--build-arg BATCH_SIZE_DETECT=${BATCH_SIZE_DETECT} \
-		--build-arg BATCH_SIZE_CLASSIFY=${BATCH_SIZE_CLASSIFY} \
-		-t $(PIPELINE_RUNNER_IMAGE) \
-		-f docker/Dockerfile.pipeline .
-	@echo "pipeline runner build completed"
-
-
-run-pipeline-runner:
-	@echo "Running pipeline runner"
-	docker run \
-		--env DISPLAY=$(DISPLAY) \
-		--env XDG_RUNTIME_DIR=$(XDG_RUNTIME_DIR) \
-		--volume /tmp/.X11-unix:/tmp/.X11-unix \
-		-e HTTP_PROXY=${HTTP_PROXY} \
-		-e HTTPS_PROXY=${HTTPS_PROXY} \
-		-e http_proxy=${HTTP_PROXY} \
-		-e https_proxy=${HTTPS_PROXY} \
-		--volume $(PWD)/results:/home/pipeline-server/results \
-		$(PIPELINE_RUNNER_IMAGE)
-	@echo "pipeline runner container completed successfully"
-
-
 update-submodules:
 	@echo "Cloning performance tool repositories"
 	git submodule deinit -f .
@@ -158,21 +96,6 @@ build-benchmark:
 		cd performance-tools && $(MAKE) build-benchmark-docker; \
 	fi
 
-benchmark: build-benchmark download-sample-videos download-models	
-	cd performance-tools/benchmark-scripts && \
-	export MULTI_STREAM_MODE=1 && \
-	( \
-	python3 -m venv venv && \
-	. venv/bin/activate && \
-	pip3 install -r requirements.txt && \
-	if [ "$(REGISTRY)" = "true" ]; then \
-		python3 benchmark.py --compose_file ../../src/$(DOCKER_COMPOSE_REGISTRY) --pipelines $(PIPELINE_COUNT) --results_dir $(RESULTS_DIR) --benchmark_type reg; \
-	else \
-		python3 benchmark.py --compose_file ../../src/$(DOCKER_COMPOSE) --pipelines $(PIPELINE_COUNT) --results_dir $(RESULTS_DIR); \
-	fi && \
-	deactivate \
-	)
-
 run-lp:
 	@echo Running loss prevention pipeline	
 	LOG_FILE="vlm_loss_prevention.log"; \
@@ -184,23 +107,17 @@ run-lp:
 		$(MAKE) run; \
 	fi
 
-down-lp:
-	@if [ "$(REGISTRY)" = "true" ]; then \
-		echo "Stopping registry demo containers..."; \
-		docker compose -f src/$(DOCKER_COMPOSE_REGISTRY) down; \
-		echo "Registry demo containers stopped and removed."; \
-	else \
-		docker compose -f src/$(DOCKER_COMPOSE) down; \
-	fi
-	$(MAKE) down-vlm
+down-lp:	
+	docker compose -f src/$(DOCKER_COMPOSE) down	
+	
 
 run:
 	@if [ "$(REGISTRY)" = "true" ]; then \
 		echo "##############Using registry mode - fetching pipeline runner..."; \
-		LP_VLM_WORKLOAD_ENABLED=$(LP_VLM_WORKLOAD_ENABLED) VIDEO_NAME=$(VIDEO_NAME)  BATCH_SIZE_DETECT=$(BATCH_SIZE_DETECT) BATCH_SIZE_CLASSIFY=$(BATCH_SIZE_CLASSIFY) docker compose -f src/$(DOCKER_COMPOSE_REGISTRY) up -d; \
+		LP_VLM_WORKLOAD_ENABLED=$(LP_VLM_WORKLOAD_ENABLED) VIDEO_NAME=$(VIDEO_NAME)  BATCH_SIZE_DETECT=$(BATCH_SIZE_DETECT) BATCH_SIZE_CLASSIFY=$(BATCH_SIZE_CLASSIFY) docker compose -f src/$(DOCKER_COMPOSE) up -d; \
 	else \
 		docker compose -f src/$(DOCKER_COMPOSE) build pipeline-runner; \
-		LP_VLM_WORKLOAD_ENABLED=$(LP_VLM_WORKLOAD_ENABLED) VIDEO_NAME=$(VIDEO_NAME)  BATCH_SIZE_DETECT=$(BATCH_SIZE_DETECT) BATCH_SIZE_CLASSIFY=$(BATCH_SIZE_CLASSIFY) docker compose -f src/$(DOCKER_COMPOSE) up -d; \
+		LP_VLM_WORKLOAD_ENABLED=$(LP_VLM_WORKLOAD_ENABLED) VIDEO_NAME=$(VIDEO_NAME)  BATCH_SIZE_DETECT=$(BATCH_SIZE_DETECT) BATCH_SIZE_CLASSIFY=$(BATCH_SIZE_CLASSIFY) docker compose -f src/$(DOCKER_COMPOSE) up --build -d; \
 	fi
 
 down-vlm:
@@ -225,12 +142,24 @@ run-render-mode: validate_workload_mapping
 	@xhost +local:docker	
 	@if [ "$(REGISTRY)" = "true" ]; then \
 		echo "##############Using registry mode - fetching pipeline runner..."; \
-		RENDER_MODE=1  LP_VLM_WORKLOAD_ENABLED=$(LP_VLM_WORKLOAD_ENABLED) VIDEO_NAME=$(VIDEO_NAME) CAMERA_STREAM=$(CAMERA_STREAM) WORKLOAD_DIST=$(WORKLOAD_DIST) BATCH_SIZE_DETECT=$(BATCH_SIZE_DETECT) BATCH_SIZE_CLASSIFY=$(BATCH_SIZE_CLASSIFY) docker compose -f src/$(DOCKER_COMPOSE_REGISTRY) up -d; \
+		RENDER_MODE=1  LP_VLM_WORKLOAD_ENABLED=$(LP_VLM_WORKLOAD_ENABLED) VIDEO_NAME=$(VIDEO_NAME) CAMERA_STREAM=$(CAMERA_STREAM) WORKLOAD_DIST=$(WORKLOAD_DIST) BATCH_SIZE_DETECT=$(BATCH_SIZE_DETECT) BATCH_SIZE_CLASSIFY=$(BATCH_SIZE_CLASSIFY) docker compose -f src/$(DOCKER_COMPOSE) up -d; \
 	else \
 		docker compose -f src/$(DOCKER_COMPOSE) build; \
-		RENDER_MODE=1 LP_VLM_WORKLOAD_ENABLED=$(LP_VLM_WORKLOAD_ENABLED) VIDEO_NAME=$(VIDEO_NAME) CAMERA_STREAM=$(CAMERA_STREAM) WORKLOAD_DIST=$(WORKLOAD_DIST) BATCH_SIZE_DETECT=$(BATCH_SIZE_DETECT) BATCH_SIZE_CLASSIFY=$(BATCH_SIZE_CLASSIFY) docker compose -f src/$(DOCKER_COMPOSE) up -d; \
+		RENDER_MODE=1 LP_VLM_WORKLOAD_ENABLED=$(LP_VLM_WORKLOAD_ENABLED) VIDEO_NAME=$(VIDEO_NAME) CAMERA_STREAM=$(CAMERA_STREAM) WORKLOAD_DIST=$(WORKLOAD_DIST) BATCH_SIZE_DETECT=$(BATCH_SIZE_DETECT) BATCH_SIZE_CLASSIFY=$(BATCH_SIZE_CLASSIFY) docker compose -f src/$(DOCKER_COMPOSE) up --build -d; \
 	fi	
 	$(MAKE) clean-images
+
+
+benchmark: build-benchmark download-sample-videos download-models	
+	cd performance-tools/benchmark-scripts && \
+	export MULTI_STREAM_MODE=1 && \
+	( \
+	python3 -m venv venv && \
+	. venv/bin/activate && \
+	pip3 install -r requirements.txt && \	
+	python3 benchmark.py --compose_file ../../src/$(DOCKER_COMPOSE) --pipelines $(PIPELINE_COUNT) --results_dir $(RESULTS_DIR); \
+	deactivate \
+	)
 
 benchmark-stream-density: build-benchmark download-models
 	@if [ "$(OOM_PROTECTION)" = "0" ]; then \
@@ -251,25 +180,14 @@ benchmark-stream-density: build-benchmark download-models
     ( \
 	python3 -m venv venv && \
 	. venv/bin/activate && \
-	pip3 install -r requirements.txt && \
-	if [ "$(REGISTRY)" = "true" ]; then \
-		python3 benchmark.py \
-			--compose_file ../../src/$(DOCKER_COMPOSE_REGISTRY) \
-			--init_duration $(INIT_DURATION) \
-			--target_fps $(TARGET_FPS) \
-			--container_names $(CONTAINER_NAMES) \
-			--density_increment $(DENSITY_INCREMENT) \
-			--benchmark_type reg \
-			--results_dir $(RESULTS_DIR); \
-	else \
-		python3 benchmark.py \
-			--compose_file ../../src/$(DOCKER_COMPOSE) \
-			--init_duration $(INIT_DURATION) \
-			--target_fps $(TARGET_FPS) \
-			--container_names $(CONTAINER_NAMES) \
-			--density_increment $(DENSITY_INCREMENT) \
-			--results_dir $(RESULTS_DIR); \
-	fi; \
+	pip3 install -r requirements.txt && \	
+	python3 benchmark.py \
+		--compose_file ../../src/$(DOCKER_COMPOSE) \
+		--init_duration $(INIT_DURATION) \
+		--target_fps $(TARGET_FPS) \
+		--container_names $(CONTAINER_NAMES) \
+		--density_increment $(DENSITY_INCREMENT) \
+		--results_dir $(RESULTS_DIR); \	
 	deactivate \
 	)
 	
@@ -285,12 +203,9 @@ benchmark-quickstart: download-models download-sample-videos
 	( \
 	python3 -m venv venv && \
 	. venv/bin/activate && \
-	pip3 install -r requirements.txt && \
-	if [ "$(REGISTRY)" = "true" ]; then \
-		python3 benchmark.py --compose_file ../../src/$(DOCKER_COMPOSE_REGISTRY) --pipelines $(PIPELINE_COUNT) --results_dir $(RESULTS_DIR) --benchmark_type reg; \
-	else \
-		python3 benchmark.py --compose_file ../../src/$(DOCKER_COMPOSE) --pipelines $(PIPELINE_COUNT) --results_dir $(RESULTS_DIR); \
-	fi && \
+	pip3 install -r requirements.txt && \	
+	python3 benchmark.py --compose_file ../../src/$(DOCKER_COMPOSE) --pipelines $(PIPELINE_COUNT) --results_dir $(RESULTS_DIR); \
+	&& \
 	deactivate \
 	)
 	$(MAKE) consolidate-metrics
