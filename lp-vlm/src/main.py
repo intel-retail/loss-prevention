@@ -103,9 +103,7 @@ def vlm_enhancer_consumer():
                 start_time = time.time()
                 logger.info("⏳ [%s] Waiting for VLM call to finish ===", 
                             time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(start_time)))
-                log_start_time("USECASE_1")
                 valid,result,err_msg = call_vlm(data, use_case=data.get("use_case", ""))
-                log_end_time("USECASE_1")
                 logger.info("Pipeline Script - VLM Result: %s", result)
                 payload["data"] = {"result": result, "valid": valid, "error": err_msg}
                 result_queue.put(payload)
@@ -183,14 +181,12 @@ def process_object_detection_results(video_file, use_case):
                     continue
                 import time
 
-                start_time = time.time()   
+                log_start_time("USECASE_1")
 
                 # compute time to get best frame
                 best_frame, score = get_best_frame(frame_names, bucket_name=data.get("bucket", ""))
-                end_time = time.time()
-
-                execution_time = end_time - start_time
-                print(f"🏆 Best frame for {BOLD}{CYAN}{item}{RESET}: {os.path.basename(best_frame)} | Stability score: {score:.4f}, | Execution Time: {execution_time:.4f} seconds")
+                
+                print(f"🏆 Best frame for {BOLD}{CYAN}{item}{RESET}: {os.path.basename(best_frame)} | Stability score: {score:.4f}")
 
                 presigned_url = get_presigned_url(best_frame, bucket_name=data.get("bucket", ""))
                 
@@ -316,7 +312,7 @@ def execute_loss_prevention_pipeline(video_file):
         write_json_to_file({"agent_results":agent_results}, COMMON_RESULTS_DIR_FULL_PATH)
         
         yield "📹 Object Detection: ✅ Completed", final_od_results, "🤖 VLM Enhancement: ✅ Completed", unique_results, agent_status, agent_results
-        
+        log_end_time("USECASE_1")
     except Exception as e:
         error_message = f"Pipeline Error: {str(e)}"
         logger.error("Pipeline Script - Critical error in pipeline: %s", error_message)
@@ -373,8 +369,7 @@ def agent_call(vlm_results, use_case="decision_agent"):
         vlm_data = {
             "items": [item.get("item_name", "") for item in unmatched_items],
             "use_case": use_case
-        }
-        log_start_time("USECASE_1")
+        }       
         valid, vlm_validation_result, err_msg = call_vlm(vlm_data, use_case=use_case)
         
         if not valid or err_msg:
@@ -391,7 +386,6 @@ def agent_call(vlm_results, use_case="decision_agent"):
             validated_results.extend(unmatched_items)
         logger.info("Pipeline Script - [agent_call] Agent validation completed. Matched: %d, Validated: %d", 
                     len(matched_items), len(validated_results))
-        log_end_time("USECASE_1")
         return "🤖 Agent: ✅ Inventory validation completed", validated_results
         
     except Exception as e:

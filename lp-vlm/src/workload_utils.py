@@ -113,11 +113,24 @@ def validate_and_extract_vlm_config(camera_cfg_path: str = None) -> dict:
     result = {        
         "video_name": video_name,        
         "roi": roi
-    }    
-    logger.info("✅ Found LP_VLM workload in camera: %s", camera_id)
-    logger.info("  📹 Video: %s", video_name)
-    logger.info("  🎯 ROI: %s", roi)
+    }
     return result
+
+def has_lp_vlm_workload(camera_cfg_path: str = None) -> bool:
+    if not camera_cfg_path:
+        camera_cfg_path = os.getenv("CAMERA_STREAM") or CONFIG_PATH_DEFAULT
+
+    cfg = load_config(camera_cfg_path)
+    cameras = cfg.get("lane_config", {}).get("cameras", [])
+
+    for cam in cameras:
+        if camera_has_vlm(cam):
+            return True
+    return False
+
+def get_video_name_only(camera_cfg_path: str = None) -> str:
+    video_name, _ = get_video_from_config(camera_cfg_path)
+    return video_name
 
 def get_video_from_config(camera_cfg_path: str = None):
     """
@@ -136,14 +149,11 @@ def get_video_from_config(camera_cfg_path: str = None):
     logger = logging.getLogger(__name__)
     
     try:
-        logger.info("Validating lp_vlm workload configuration...")
         vlm_config = validate_and_extract_vlm_config(camera_cfg_path)
         
         video_file_name = vlm_config.get("video_name")
         roi_coordinates = vlm_config.get("roi", "")
-        
-        logger.info("Using video from config: %s", video_file_name)
-        logger.info("Using ROI from config: %s", roi_coordinates)
+      
         return video_file_name, roi_coordinates
         
     except Exception as e:
@@ -153,23 +163,48 @@ def get_video_from_config(camera_cfg_path: str = None):
 # -------------------- CLI --------------------
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Validate and extract lp_vlm camera configuration"
+        description="lp_vlm workload utilities"
     )
     parser.add_argument(
         "--camera-config",
         help="Camera workload mapping JSON path",
         default=None
     )
-    
+    parser.add_argument(
+        "--has-lp-vlm",
+        action="store_true",
+        help="Return 1 if lp_vlm workload exists, else 0"
+    )
+    parser.add_argument(
+    "--get-video-name",
+    action="store_true",
+    help="Return only video name for lp_vlm workload"
+    )
+    parser.add_argument(
+        "--get-video",
+        action="store_true",
+        help="Return video name and ROI for lp_vlm workload"
+    )
+
     args = parser.parse_args()
 
     try:
-        video_name, roi_coordinates = get_video_from_config(args.camera_config)
-        logger.info("✅ lp_vlm workload found in the camera_to_workload config.json")
-        # Print values space-separated FOR MAKEFILE
-        print(f"{video_name} {roi_coordinates}")
+        if args.has_lp_vlm:
+            exists = has_lp_vlm_workload(args.camera_config)
+            print("1" if exists else "0")
+            exit(0)
+
+        if args.get_video:
+            video_name, roi_coordinates = get_video_from_config(args.camera_config)
+            print(f"{video_name} {roi_coordinates}")
+            exit(0)
+        if args.get_video_name:
+            video_name = get_video_name_only(args.camera_config)
+            print(video_name)
+            exit(0)
+        parser.print_help()
+        exit(1)
 
     except Exception as e:
-        logger.error("❌ lp_vlm workload not found in the camera_to_workload config.json: %s", e)
-        # Print nothing (so Bash receives empty value)
+        logger.error(str(e))
         exit(1)

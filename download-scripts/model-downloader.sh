@@ -5,6 +5,9 @@ SCRIPT_BASE_PATH=/workspace/scripts
 MODELS_PATH="${MODELS_DIR:-/workspace/models}"
 CONFIG_JSON="/workspace/configs/${WORKLOAD_DIST:-}"
 
+echo "[INFO] WORKLOAD_DIST in: $WORKLOAD_DIST"
+echo "[INFO] CONFIG_JSON in: $CONFIG_JSON"
+
 mkdir -p "$MODELS_PATH"
 
 ############################################

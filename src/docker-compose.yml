@@ -7,22 +7,193 @@ services:
         - HTTP_PROXY=${HTTP_PROXY}
         - HTTPS_PROXY=${HTTPS_PROXY}
     image: intel/model-downloader:4.4.0
-    container_name: model-downloader
+    container_name: model-downloader-lp
+    pull_policy: missing
     environment:
-      - VLM_WORKLOAD_ENABLED=0
       - HTTP_PROXY=${HTTP_PROXY}
       - HTTPS_PROXY=${HTTPS_PROXY}
       - http_proxy=${http_proxy}
       - https_proxy=${https_proxy}
       - MODELS_DIR=/workspace/models
       - WORKLOAD_DIST=${WORKLOAD_DIST:-workload_to_pipeline.json}
+      - MODEL_NAME=${MODEL_NAME}
+      - PRECISION=${PRECISION}
+      - HUGGINGFACE_TOKEN=${HUGGINGFACE_TOKEN}
+      - HF_HOME=/root/.cache/huggingface
     volumes:
       - ../models:/workspace/models
       - ../configs:/workspace/configs
       - ../results:/workspace/results
+      - ../models/ov-model:/root/.cache/huggingface
     command: ["/bin/bash", "-c", "/workspace/scripts/model-downloader.sh"]
+    
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"     # AMQP port
+      - "15672:15672"   # Management UI port
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s 
+    networks:
+      - my_network  
 
-  pipeline-runner:
+  minio-service:
+    image: minio/minio:RELEASE.2025-02-07T23-21-09Z-cpuv1
+    ports:
+      - "${MINIO_API_HOST_PORT}:80"
+      - "${MINIO_CONSOLE_HOST_PORT}:81"
+    environment:
+      no_proxy: ${no_proxy},localhost
+      http_proxy: ${http_proxy}
+      https_proxy: ${https_proxy}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_API_HOST_PORT: ${MINIO_API_HOST_PORT}
+      MINIO_CONSOLE_HOST_PORT: ${MINIO_CONSOLE_HOST_PORT}
+      LP_IP: ${LP_IP}
+    command: |
+      server /data 
+      --address ":80"
+      --console-address ":81"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    volumes:
+      - "minio_data:/data"
+    networks:
+      - my_network
+
+    
+  # --- main services ---
+  lp-vlm-workload-handler:
+    container_name: lp-vlm-workload-handler
+    build:
+      context: ..
+      dockerfile: lp-vlm/src/Dockerfile.consumer
+      args:
+        - HTTP_PROXY=${HTTP_PROXY}
+        - HTTPS_PROXY=${HTTPS_PROXY}
+    restart: always
+    pull_policy: missing
+    image: intel/lp-vlm-workload-handler:4.4.0
+    devices:
+      - /dev/dri:/dev/dri
+    group_add:
+      - ${USER_GROUP_ID:-1000} 
+      - ${VIDEO_GROUP_ID:-44}    
+      - ${RENDER_GROUP_ID:-1002}
+    environment:
+      - HTTP_PROXY=${HTTP_PROXY}
+      - HTTPS_PROXY=${HTTPS_PROXY}
+      - http_proxy=${http_proxy}
+      - https_proxy=${https_proxy}
+      - RABBITMQ_USER=${RABBITMQ_USER}
+      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+      - LP_IP=${LP_IP}
+      - VIDEO_NAME=${VIDEO_NAME}
+      - LP_BASE_DIR=${LP_BASE_DIR}
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_MANAGEMENT_PORT=15672
+      - no_proxy=rabbitmq,minio-service,model-downloader,localhost,127.0.0.1
+      - AMQP_NOTE=Use nc rabbitmq 5672 (curl is not valid for AMQP)     
+      - CONTAINER_RESULTS_PATH=${CONTAINER_RESULTS_PATH:-/app/results}
+      - WORKLOAD_DIST=${WORKLOAD_DIST:-workload_to_pipeline.json}
+      - USECASE=${USECASE:-vlm_verification_latency}
+    volumes:
+      - ../lp-vlm/src/utils:/app/utils
+      - ../lp-vlm/src/pipeline:/app/pipeline
+      - ../lp-vlm/src/config:/app/config
+      - ../lp-vlm/src/agent:/app/agent
+      - ../lp-vlm/src/main.py:/app/main.py
+      - ../lp-vlm/src/workload_utils.py:/app/workload_utils.py
+      - ../results/vlm-results:/app/results
+      - ../configs:/app/lp/configs
+      - ../models/ov-model:/home/pipeline-server/lp-vlm/ov-model
+      - ../vlm_loss_prevention.log:/app/loss_prevention_app.log
+    networks:
+      - my_network
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      minio-service:
+        condition: service_healthy      
+      model-downloader:
+        condition: service_completed_successfully
+
+  vlm-pipeline-runner:
+    container_name: vlm-pipeline-runner
+    build:
+      context: ../..
+      dockerfile: docker/Dockerfile.pipeline
+      args:
+        - HTTP_PROXY=${HTTP_PROXY}
+        - HTTPS_PROXY=${HTTPS_PROXY}
+    image: intel/pipeline-runner-lp:4.4.0
+    pull_policy: missing
+    environment:
+      - VLM_WORKLOAD_ENABLED=1
+      - VIDEO_NAME=${VIDEO_NAME}
+      - ROI_COORDINATES=${ROI_COORDINATES}
+      - LP_IP=${LP_IP}
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+      - RABBITMQ_USER=${RABBITMQ_USER}
+      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}
+      - THRESHOLD=${THRESHOLD:-16}
+      - DISPLAY=${DISPLAY:-:0}
+      - RENDER_MODE=${RENDER_MODE:-0}
+      - DETECTION_THRESHOLD=${DETECTION_THRESHOLD}
+      - LP_BASE_DIR=${LP_BASE_DIR}
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_MANAGEMENT_PORT=15672
+      - no_proxy=rabbitmq,minio-service,model-downloader,localhost,127.0.0.1
+      - AMQP_NOTE=Use nc rabbitmq 5672 (curl is not valid for AMQP)
+      - CAMERA_STREAM=${CAMERA_STREAM:-camera_to_workload.json}
+      - WORKLOAD_DIST=${WORKLOAD_DIST:-workload_to_pipeline.json}
+      - BATCH_SIZE_DETECT=${BATCH_SIZE_DETECT:-1}
+      - BATCH_SIZE_CLASSIFY=${BATCH_SIZE_CLASSIFY:-1}
+    volumes:
+      - ../lp-vlm/src/pipeline/publish.py:/home/pipeline-server/lp-vlm/gvapython/publish.py
+      - ../lp-vlm/src/pipeline/send_end_message.py:/home/pipeline-server/lp-vlm/gvapython/send_end_message.py
+      - ../lp-vlm/src/pipeline/config.py:/home/pipeline-server/lp-vlm/gvapython/config.py
+      - ../lp-vlm/src/utils/save_results.py:/home/pipeline-server/lp-vlm/save_results.py
+      - ../models:/home/pipeline-server/lp-vlm/models
+      - ../configs:/home/pipeline-server/lp-vlm/configs
+      - ../performance-tools/sample-media:/home/pipeline-server/lp-vlm/sample-media
+      - ../results/vlm-results:/app/results    
+      - /dev:/dev
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+    networks:
+      - my_network
+    privileged: true
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      minio-service:
+        condition: service_healthy      
+      model-downloader:
+        condition: service_completed_successfully
+      lp-vlm-workload-handler:
+        condition: service_started
+
+  lp-pipeline-runner:
+    container_name: lp-pipeline-runner
     build:
       context: ..
       dockerfile: docker/Dockerfile.pipeline
