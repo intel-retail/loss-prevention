@@ -149,6 +149,7 @@ benchmark: build-benchmark
 	[ -f $(VLM_LOGS_FILE) ] || touch $(VLM_LOGS_FILE); \
 	cd performance-tools/benchmark-scripts && \
 	export MULTI_STREAM_MODE=1 && \
+	export LP_VLM_WORKLOAD_ENABLED=$(LP_VLM_WORKLOAD_ENABLED) && \
 	( \
 		python3 -m venv venv && \
 		. venv/bin/activate && \

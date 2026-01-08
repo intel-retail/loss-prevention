@@ -155,7 +155,7 @@ class Publisher:
         try:
             if clean_output:
                 self.clean_output_directory(self.frames_dir)
-                self.clean_output_directory(self.metadata_dir)
+                #self.clean_output_directory(self.metadata_dir)
             
             os.makedirs(self.metadata_dir, exist_ok=True)
         except Exception as e:

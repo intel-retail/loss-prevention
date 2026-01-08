@@ -10,7 +10,6 @@ MINIO_API_HOST_PORT = os.environ.get("MINIO_API_HOST_PORT", "4000")
 
 
 RESULTS_DIR = "results"
-METADATA_DIR = "metadata"
 
 MINIO_HOST = f"{LP_IP}:{MINIO_API_HOST_PORT}"
 
@@ -21,7 +20,7 @@ FRAME_DIR_VOL_BASE = "/app"
 FRAME_DIR = "frames"
 
 
-METADATA_DIR_FULL_PATH = os.path.join(FRAME_DIR_VOL_BASE, RESULTS_DIR, METADATA_DIR)
+METADATA_DIR_FULL_PATH = os.path.join(FRAME_DIR_VOL_BASE, RESULTS_DIR)
 FRAMES_DIR_FULL_PATH = os.path.join(FRAME_DIR_VOL_BASE, RESULTS_DIR, FRAME_DIR)
 
 BUCKET_NAME = "loss-prevention-enhanced-vlm-results"
