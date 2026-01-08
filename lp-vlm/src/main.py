@@ -411,10 +411,6 @@ def init_pipeline_components():
     
     return od_consumer, vlm_enhancer_thread
 
-od_consumer, vlm_enhancer_thread = init_pipeline_components()
-od_results_shown, od_pipeline_status,vlm_pipeline_status = False, False,False
-print("\n================ START OF PIPELINE RUN =================\n")
-
 def main(video_file_name=None):
     """Main function to execute the loss prevention pipeline"""    
     if video_file_name is None:
@@ -481,6 +477,20 @@ def main(video_file_name=None):
 
 
 if __name__ == "__main__":
+    # Check if VLM workload is enabled
+    vlm_workload_enabled = os.environ.get("VLM_WORKLOAD_ENABLED", "0")
+    
+    if vlm_workload_enabled != "1":
+        logger.info("VLM_WORKLOAD_ENABLED is not set to 1. Stopping container.")
+        print("VLM workload is disabled. Exiting...")
+        sys.exit(0)
+    
+    logger.info("VLM_WORKLOAD_ENABLED is set to 1. Starting pipeline...")
+    
+    # Initialize pipeline components
+    od_consumer, vlm_enhancer_thread = init_pipeline_components()
+    od_results_shown, od_pipeline_status, vlm_pipeline_status = False, False, False
+    print("\n================ START OF PIPELINE RUN =================\n")
     
     result = main() 
     print(f"\n{'='*60}\nFinal Pipeline Results:\n{'='*60}")
@@ -508,9 +518,9 @@ if __name__ == "__main__":
         print(f"VLM Status: {vlm_status}")
         print(f"Agent Status: {agent_status}")
 
-vlm_enhancer_thread.join() 
-logger.info("=== VLM Enhancer finished ===")
-logger.info("=== END OF PIPELINE RUN ===\n\n\n")
+    vlm_enhancer_thread.join() 
+    logger.info("=== VLM Enhancer finished ===")
+    logger.info("=== END OF PIPELINE RUN ===\n\n\n")
 
 
 

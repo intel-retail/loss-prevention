@@ -85,8 +85,7 @@ services:
       args:
         - HTTP_PROXY=${HTTP_PROXY}
         - HTTPS_PROXY=${HTTPS_PROXY}
-    image: intel/lp-vlm-workload-handler:4.4.0    
-    restart: always
+    image: intel/lp-vlm-workload-handler:4.4.0
     pull_policy: never
     devices:
       - /dev/dri:/dev/dri
@@ -95,6 +94,7 @@ services:
       - ${VIDEO_GROUP_ID:-44}    
       - ${RENDER_GROUP_ID:-1002}
     environment:
+      - VLM_WORKLOAD_ENABLED=${LP_VLM_WORKLOAD_ENABLED}
       - HTTP_PROXY=${HTTP_PROXY}
       - HTTPS_PROXY=${HTTPS_PROXY}
       - http_proxy=${http_proxy}
@@ -142,8 +142,7 @@ services:
     image: intel/pipeline-runner-lp:4.4.0
     pull_policy: never
     environment:
-      - VLM_WORKLOAD_ENABLED=1
-      - VIDEO_NAME=${VIDEO_NAME}
+      - VLM_WORKLOAD_ENABLED=${LP_VLM_WORKLOAD_ENABLED}
       - ROI_COORDINATES=${ROI_COORDINATES}
       - LP_IP=${LP_IP}
       - MINIO_ROOT_USER=${MINIO_ROOT_USER}

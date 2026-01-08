@@ -22,6 +22,10 @@ if [ "${VLM_WORKLOAD_ENABLED}" = "0" ]; then
     echo "################# Using workload config: $WORKLOAD_DIST ###################"
 
     export PYTHONPATH=/home/pipeline-server/src:$PYTHONPATH
+    # Use TIMESTAMP env variable if set, otherwise fallback to date
+    cid=$(date +%Y%m%d%H%M%S)$(date +%6N | cut -c1-6)
+    export TIMESTAMP=$cid
+    echo "===============TIMESTAMP===================: $TIMESTAMP"
 
     gst_cmd=$(python3 "$(dirname "$0")/gst-pipeline-generator.py")    
     
@@ -37,11 +41,7 @@ if [ "${VLM_WORKLOAD_ENABLED}" = "0" ]; then
         echo "Stopping container."
         exit 1
     fi
-    echo "#############  GStreamer pipeline command generated successfully ##########"
-    # Use TIMESTAMP env variable if set, otherwise fallback to date
-    cid=$(date +%Y%m%d%H%M%S)$(date +%6N | cut -c1-6)
-    export TIMESTAMP=$cid
-    echo "===============TIMESTAMP===================: $TIMESTAMP"
+    echo "#############  GStreamer pipeline command generated successfully ##########"   
 
     CONTAINER_NAME="${CONTAINER_NAME//\"/}" # Remove double quotes
     cid="${cid}_${CONTAINER_NAME}"
