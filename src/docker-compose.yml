@@ -7,7 +7,6 @@ services:
         - HTTP_PROXY=${HTTP_PROXY}
         - HTTPS_PROXY=${HTTPS_PROXY}
     image: intel/model-downloader:4.4.0
-    pull_policy: never 
     container_name: model-downloader-lp
     environment:
       - HTTP_PROXY=${HTTP_PROXY}
@@ -86,7 +85,6 @@ services:
         - HTTP_PROXY=${HTTP_PROXY}
         - HTTPS_PROXY=${HTTPS_PROXY}
     image: intel/lp-vlm-workload-handler:4.4.0
-    pull_policy: never
     devices:
       - /dev/dri:/dev/dri
     group_add:
@@ -139,7 +137,6 @@ services:
   vlm-pipeline-runner:
     container_name: vlm-pipeline-runner    
     image: intel/pipeline-runner-lp:4.4.0
-    pull_policy: never
     environment:
       - VLM_WORKLOAD_ENABLED=${LP_VLM_WORKLOAD_ENABLED}
       - ROI_COORDINATES=${ROI_COORDINATES}

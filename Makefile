@@ -38,18 +38,12 @@ REGISTRY ?= true
 DOCKER_COMPOSE ?= docker-compose.yml
 
 TAG ?= 4.4.0
-#local image references
-MODELDOWNLOADER_IMAGE ?= model-downloader:$(TAG)
-PIPELINE_RUNNER_IMAGE ?= pipeline-runner-lp:$(TAG)
-BENCHMARK_IMAGE ?= benchmark:latest
+
 REGISTRY ?= true
 # Registry image references
 REGISTRY_MODEL_DOWNLOADER ?= intel/model-downloader:$(TAG)
 REGISTRY_PIPELINE_RUNNER ?= intel/pipeline-runner-lp:$(TAG)
 REGISTRY_BENCHMARK ?= intel/retail-benchmark:$(TAG)
-
-BASE_VLM_COMPOSE = "./lp-vlm/src/docker-compose-base.yml"
-VLM_COMPOSE = "./lp-vlm/src/docker-compose.yaml"
 
 VLM_LOGS_FILE ?= $(PWD)/vlm_loss_prevention.log
 LP_VLM_WORKLOAD_ENABLED := $(shell python3 lp-vlm/src/workload_utils.py --camera-config configs/$(CAMERA_STREAM) --has-lp-vlm)
@@ -71,6 +65,35 @@ download-models: check-models
 		echo ".....All models already present, skipping download....."; \
 	fi
 
+fetch-model-downloader:
+	@echo "Fetching model downloader from registry..."
+	docker pull $(REGISTRY_MODEL_DOWNLOADER)
+	@echo "Model downloader ready"
+
+build-model-downloader: | validate-pipeline-config
+	@echo "Building model downloader"
+	docker build --build-arg HTTPS_PROXY=${HTTPS_PROXY} --build-arg HTTP_PROXY=${HTTP_PROXY} -t $(REGISTRY_MODEL_DOWNLOADER) -f docker/Dockerfile.downloader .
+	@echo "assets downloader completed"
+
+run-model-downloader:
+	@echo "Running assets downloader"
+	docker run --rm \
+		-e HTTP_PROXY=${HTTP_PROXY} \
+		-e HTTPS_PROXY=${HTTPS_PROXY} \
+		-e http_proxy=${HTTP_PROXY} \
+		-e https_proxy=${HTTPS_PROXY} \
+		-e MODELS_DIR=/workspace/models \
+		-e WORKLOAD_DIST=${WORKLOAD_DIST} \
+		-e HF_HOME=/root/.cache/huggingface \
+		-e HUGGINGFACE_TOKEN=${HUGGINGFACE_TOKEN} \
+		-e HF_HUB_ENABLE_HF_TRANSFER=true \
+		-e HF_HUB_DOWNLOAD_TIMEOUT=600 \
+		-v "$(shell pwd)/models:/workspace/models" \
+		-v "$(shell pwd)/configs:/workspace/configs" \
+		-v "$(shell pwd)/models/ov-model:/root/.cache/huggingface" \
+		$(REGISTRY_MODEL_DOWNLOADER)
+	@echo "assets downloader completed"
+
 download-sample-videos: | validate-camera-config
 	@echo "Downloading and formatting videos for all cameras in $(CAMERA_STREAM)..."
 	python3 download-scripts/download-video.py --camera-config configs/$(CAMERA_STREAM) --format-script performance-tools/benchmark-scripts/format_avc_mp4.sh
@@ -81,9 +104,9 @@ update-submodules:
 	git submodule update --init --recursive
 	@echo "Submodules updated (if any present)."
 
-run-lp:
-	@echo Running loss prevention pipeline	
-	LOG_FILE="vlm_loss_prevention.log"; \
+run-lp: validate_workload_mapping update-submodules download-sample-videos
+	@echo "Running loss prevention pipeline"
+	@LOG_FILE="vlm_loss_prevention.log"; \
 	mkdir -p $$(dirname $$LOG_FILE); \
 	[ -f $$LOG_FILE ] || touch $$LOG_FILE; \
 	if [ "$(RENDER_MODE)" != "0" ]; then \
@@ -91,6 +114,7 @@ run-lp:
 	else \
 		$(MAKE) run; \
 	fi
+
 
 down-lp:	
 	docker compose -f src/$(DOCKER_COMPOSE) down	
@@ -107,7 +131,6 @@ run:
 		docker compose -f src/$(DOCKER_COMPOSE) build pipeline-runner; \
 		LP_VLM_WORKLOAD_ENABLED=$(LP_VLM_WORKLOAD_ENABLED) BATCH_SIZE_DETECT=$(BATCH_SIZE_DETECT) BATCH_SIZE_CLASSIFY=$(BATCH_SIZE_CLASSIFY) docker compose -f src/$(DOCKER_COMPOSE) up --build -d; \
 	fi
-
 
 run-render-mode: validate_workload_mapping
 	@if [ -z "$(DISPLAY)" ] || ! echo "$(DISPLAY)" | grep -qE "^:[0-9]+(\.[0-9]+)?$$"; then \
@@ -133,7 +156,6 @@ run-render-mode: validate_workload_mapping
 fetch-benchmark:
 	@echo "Fetching benchmark image from registry..."
 	docker pull $(REGISTRY_BENCHMARK)
-	docker tag $(REGISTRY_BENCHMARK) $(BENCHMARK_IMAGE)
 	@echo "Benchmark image ready"
 
 build-benchmark:
@@ -144,7 +166,7 @@ build-benchmark:
 		cd performance-tools && $(MAKE) build-benchmark-docker; \
 	fi
 
-benchmark: build-benchmark
+benchmark: build-benchmark download-sample-videos download-models
 	mkdir -p $$(dirname $(VLM_LOGS_FILE)); \
 	[ -f $(VLM_LOGS_FILE) ] || touch $(VLM_LOGS_FILE); \
 	cd performance-tools/benchmark-scripts && \
@@ -233,7 +255,7 @@ clean-all:
 
 clean-project-images:
 	@echo "Cleaning up project-specific images..."
-	@docker rmi $(MODELDOWNLOADER_IMAGE) $(PIPELINE_RUNNER_IMAGE) 2>/dev/null || true
+	@docker rmi $(REGISTRY_MODEL_DOWNLOADER) $(REGISTRY_PIPELINE_RUNNER) 2>/dev/null || true
 	@echo "Project images cleaned up"
 
 docs: clean-docs
