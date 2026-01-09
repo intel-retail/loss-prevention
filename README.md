@@ -127,6 +127,8 @@ export HUGGINGFACE_TOKEN=<your-huggingface-token>
 ### Run the VLM based workload
 ```sh
 make run-lp CAMERA_STREAM=camera_to_workload_vlm.json
+
+make benchmark CAMERA_STREAM=camera_to_workload_vlm.json
 ```
 
 ### 4. Run benchmarking on CPU/NPU/GPU.
