@@ -86,7 +86,6 @@ run-model-downloader:
 		-e WORKLOAD_DIST=${WORKLOAD_DIST} \
 		-e HF_HOME=/root/.cache/huggingface \
 		-e HUGGINGFACE_TOKEN=${HUGGINGFACE_TOKEN} \
-		-e HF_HUB_ENABLE_HF_TRANSFER=true \
 		-e HF_HUB_DOWNLOAD_TIMEOUT=600 \
 		-v "$(shell pwd)/models:/workspace/models" \
 		-v "$(shell pwd)/configs:/workspace/configs" \
