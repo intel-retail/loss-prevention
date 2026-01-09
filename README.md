@@ -24,6 +24,8 @@ git clone -b <release-or-tag> --single-branch https://github.com/intel-retail/lo
 ```
 git clone -b v4.0.0 --single-branch https://github.com/intel-retail/loss-prevention
 ```
+
+
 ### **NOTE:** 
 
 By default the application runs by pulling the pre-built images. If you want to build the images locally and then run the application, set the flag:
@@ -103,6 +105,30 @@ make down-lp
 When images are built locally-
 ```sh
 make down-lp REGISTRY=false
+```
+
+### Note: Environment Variables for lp_vlm Workload
+```sh
+# MinIO credentials (object storage)
+export MINIO_ROOT_USER=<your-minio-username>
+export MINIO_ROOT_PASSWORD=<your-minio-password>
+
+# RabbitMQ credentials (message broker)
+export RABBITMQ_USER=<your-rabbitmq-username>
+export RABBITMQ_PASSWORD=<your-rabbitmq-password>
+
+# Hugging Face token (required for gated models)
+# Generate a token from: https://huggingface.co/settings/tokens
+export GATED_MODEL=true
+export HUGGINGFACE_TOKEN=<your-huggingface-token>
+
+```
+
+### Run the VLM based workload
+```sh
+make run-lp CAMERA_STREAM=camera_to_workload_vlm.json
+
+make benchmark CAMERA_STREAM=camera_to_workload_vlm.json
 ```
 
 ### 4. Run benchmarking on CPU/NPU/GPU.

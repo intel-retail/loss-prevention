@@ -38,8 +38,11 @@ BASE_DIR.mkdir(parents=True, exist_ok=True)
 INT8_DIR.mkdir(parents=True, exist_ok=True)
 
 EXTRA_FILES = {
-    f"{MODEL_NAME}.txt": "https://raw.githubusercontent.com/open-edge-platform/edge-ai-libraries/main/libraries/dl-streamer/samples/labels/imagenet_2012.txt",
-    f"{MODEL_NAME}.json": "https://raw.githubusercontent.com/open-edge-platform/edge-ai-libraries/main/libraries/dl-streamer/samples/gstreamer/model_proc/public/preproc-aspect-ratio.json"
+    #f"{MODEL_NAME}.txt": "https://raw.githubusercontent.com/open-edge-platform/edge-ai-libraries/main/libraries/dl-streamer/samples/labels/imagenet_2012.txt",
+    #f"{MODEL_NAME}.json": "https://raw.githubusercontent.com/open-edge-platform/edge-ai-libraries/main/libraries/dl-streamer/samples/gstreamer/model_proc/public/preproc-aspect-ratio.json"
+
+    f"{MODEL_NAME}.txt": "https://raw.githubusercontent.com/open-edge-platform/dlstreamer/refs/heads/master/samples/labels/imagenet_2012.txt",
+    f"{MODEL_NAME}.json": "https://raw.githubusercontent.com/open-edge-platform/dlstreamer/refs/heads/master/samples/gstreamer/model_proc/public/preproc-aspect-ratio.json"
 }
 
 def run_downloader():
@@ -165,6 +168,7 @@ def quantize_model():
 def download_extra_files():
     downloaded_paths = {}
     for filename, url in EXTRA_FILES.items():
+        print(f"[INFO] Downloading extra file:================================= {filename}...")
         dest_path = BASE_DIR / filename
         if not dest_path.exists():
             urllib.request.urlretrieve(url, dest_path)

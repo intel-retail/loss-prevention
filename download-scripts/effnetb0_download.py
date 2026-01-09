@@ -44,8 +44,8 @@ def main():
     
     # Extra files
     extra_files = [
-        (f"{MODEL_NAME}.txt", "https://raw.githubusercontent.com/open-edge-platform/edge-ai-libraries/main/libraries/dl-streamer/samples/labels/imagenet_2012.txt", BASE_DIR),
-        (f"{MODEL_NAME}.json", "https://raw.githubusercontent.com/open-edge-platform/edge-ai-libraries/main/libraries/dl-streamer/samples/gstreamer/model_proc/public/preproc-aspect-ratio.json", BASE_DIR)
+        (f"{MODEL_NAME}.txt", "https://raw.githubusercontent.com/open-edge-platform/dlstreamer/refs/heads/master/samples/labels/imagenet_2012.txt", BASE_DIR),
+        (f"{MODEL_NAME}.json", "https://raw.githubusercontent.com/open-edge-platform/dlstreamer/refs/heads/master/samples/gstreamer/model_proc/public/preproc-aspect-ratio.json", BASE_DIR)
     ]
     
     success_count = 0
