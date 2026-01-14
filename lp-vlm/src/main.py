@@ -177,8 +177,6 @@ def process_object_detection_results(video_file, use_case):
                     ui_items.append({"item_name":item,"match":True})
                     result_queue.put({"item_name": item})
                     continue
-                if item in best_frames:
-                    continue
                 import time
 
                 log_start_time("USECASE_1")
@@ -521,6 +519,3 @@ if __name__ == "__main__":
     vlm_enhancer_thread.join() 
     logger.info("=== VLM Enhancer finished ===")
     logger.info("=== END OF PIPELINE RUN ===\n\n\n")
-
-
-
