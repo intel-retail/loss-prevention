@@ -38,9 +38,9 @@ if [ "${VLM_WORKLOAD_ENABLED}" = "0" ]; then
         echo "################# WARNING #################"
         echo "No workload is defined."
         echo "As a result, the generated GStreamer command is empty or invalid."
-        echo "Please check the workload configuration and try again."
+        echo "If this is not expected please check the workload configuration"
         echo "gst_cmd='$trimmed_gst_cmd'"
-        echo "Stopping container."
+        echo "Stopping container........"
         exit 1
     fi
     echo "#############  GStreamer pipeline command generated successfully ##########"   
