@@ -177,8 +177,6 @@ def process_object_detection_results(video_file, use_case):
                     ui_items.append({"item_name":item,"match":True})
                     result_queue.put({"item_name": item})
                     continue
-                if item in best_frames:
-                    continue
                 import time
 
                 log_start_time("USECASE_1")
@@ -307,28 +305,33 @@ def execute_loss_prevention_pipeline(video_file):
         
         yield "📹 Object Detection: ✅ Completed", final_od_results, "🤖 VLM Enhancement: ✅ Completed", unique_results, "🤖 Agent: ⚡ Running", []
         
+        agent_results = []
         # Phase 3: Agent Call for inventory validation
-        agent_status, agent_results = agent_call(unique_results)
+        for record in unique_results:
+            agent_status, agent_result = agent_call(record)
+            if agent_status:
+                agent_results.extend(agent_result)
+            log_end_time("USECASE_1")
         write_json_to_file({"agent_results":agent_results}, COMMON_RESULTS_DIR_FULL_PATH)
         
-        yield "📹 Object Detection: ✅ Completed", final_od_results, "🤖 VLM Enhancement: ✅ Completed", unique_results, agent_status, agent_results
-        log_end_time("USECASE_1")
+        yield "🧠 Decision Agent: ✅ Completed", final_od_results, "🤖 VLM Enhancement: ✅ Completed", unique_results, agent_status, agent_results
+        
     except Exception as e:
         error_message = f"Pipeline Error: {str(e)}"
         logger.error("Pipeline Script - Critical error in pipeline: %s", error_message)
         logger.error(traceback.format_exc())
-        yield f"📹 Object Detection: ❌ Failed - {error_message}", {}, f"🤖 VLM Enhancement: ❌ Failed - {error_message}", [], f"🤖 Agent: ❌ Failed - {error_message}", []
+        yield f"🧠 Decision Agent: ❌ Failed - {error_message}", {}, f"🤖 VLM Enhancement: ❌ Failed - {error_message}", [], f"🤖 Agent: ❌ Failed - {error_message}", []
 
 # ============================================================================
 # AGENT CALL FOR INVENTORY VALIDATION
 # ============================================================================
 
-def agent_call(vlm_results, use_case="decision_agent"):
+def agent_call(item, use_case="decision_agent"):
     """
     Agent call function that validates items against inventory and calls VLM for unmatched items.
     
     Args:
-        vlm_results: List of items from VLM enhancement
+        item: Single item from VLM enhancement
         use_case: The use case for the pipeline
     
     Returns:
@@ -337,61 +340,43 @@ def agent_call(vlm_results, use_case="decision_agent"):
     global inventory_list, inventory_set
     
     try:
-        logger.info("Pipeline Script - [agent_call] Starting inventory validation")
+        logger.info(f"Pipeline Script - [agent_call] Starting inventory validation {item}")
         
         if inventory_list is None:
             inventory_list = load_json_from_file(INVENTORY_FILE)
             inventory_set = set(item.strip().lower() for item in inventory_list)
         
-        # Collect items that don't match inventory
-        unmatched_items = []
-        matched_items = []
+
         
-        for result in vlm_results:
-            item_name = result.get("item_name", "").strip().lower()
+        item_name = item.get("item_name", "").strip().lower()
             
-            if item_name in inventory_set:
-                logger.info("Pipeline Script - [agent_call] Item '%s' found in inventory", item_name)
-                matched_items.append(result)
-            else:
-                logger.info("Pipeline Script - [agent_call] Item '%s' NOT found in inventory, will validate with VLM", item_name)
-                unmatched_items.append(result)
-        
-        # If no unmatched items, return early
-        if not unmatched_items:
-            logger.info("Pipeline Script - [agent_call] All items matched inventory, no VLM validation needed")
-            return "🤖 Agent: ✅ All items validated against inventory", vlm_results
+        if item_name in inventory_set:
+            logger.info(f"Pipeline Script - [agent_call] Item '{item_name}' found in inventory")
+            return True,[item]
         
         # Call VLM for unmatched items
-        logger.info("Pipeline Script - [agent_call] Calling VLM to validate %d unmatched items", len(unmatched_items))
+        logger.info("Pipeline Script - [agent_call] Item '%s' NOT found in inventory, will validate with VLM", item_name)
         
         # Prepare data for VLM call
         vlm_data = {
-            "items": [item.get("item_name", "") for item in unmatched_items],
+            "items": item_name,
             "use_case": use_case
         }       
         valid, vlm_validation_result, err_msg = call_vlm(vlm_data, use_case=use_case)
+        logger.info(f"Pipeline Script - [agent_call] result - {vlm_validation_result}-{valid}-{err_msg}")
         
-        if not valid or err_msg:
-            logger.error("Pipeline Script - [agent_call] VLM validation failed: %s", err_msg)
-            return f"🤖 Agent: ❌ VLM validation failed - {err_msg}", vlm_results
-        
-        # Update results based on VLM validation
-        validated_results = matched_items.copy()
-        
-        if vlm_validation_result and isinstance(vlm_validation_result, list):
-            validated_results.extend(vlm_validation_result)
-        else:
-            # If VLM didn't return proper results, keep unmatched items as is
-            validated_results.extend(unmatched_items)
-        logger.info("Pipeline Script - [agent_call] Agent validation completed. Matched: %d, Validated: %d", 
-                    len(matched_items), len(validated_results))
-        return "🤖 Agent: ✅ Inventory validation completed", validated_results
+        if not valid or err_msg or vlm_validation_result and not isinstance(vlm_validation_result, list):
+            logger.error(f"Pipeline Script - [agent_call] VLM validation failed for item_name {item_name}: %s", err_msg)
+            return False, []
+        # Process VLM validation results
+        logger.info("Pipeline Script - [agent_call] Agent validation completed. Item: %d, Validated: %d", 
+                    item_name, vlm_validation_result)
+        return True, vlm_validation_result
         
     except Exception as e:
         logger.error("Pipeline Script - [agent_call] Error in agent call: %s", str(e))
         logger.error(traceback.format_exc())
-        return f"🤖 Agent: ❌ Failed - {str(e)}", vlm_results
+        return False, []
 # ============================================================================
 # INITIALIZATION
 # ============================================================================
@@ -521,6 +506,3 @@ if __name__ == "__main__":
     vlm_enhancer_thread.join() 
     logger.info("=== VLM Enhancer finished ===")
     logger.info("=== END OF PIPELINE RUN ===\n\n\n")
-
-
-

@@ -35,10 +35,12 @@ if [ "${VLM_WORKLOAD_ENABLED}" = "0" ]; then
 
     # Exit if gst_cmd is empty or only base stub
     if [[ -z "$trimmed_gst_cmd" || "$trimmed_gst_cmd" == "gst-launch-1.0 --verbose \\" ]]; then
-        echo "################# ERROR #################"
-        echo "Generated GStreamer command is invalid or empty"
+        echo "################# WARNING #################"
+        echo "No workload is defined."
+        echo "As a result, the generated GStreamer command is empty or invalid."
+        echo "If this is not expected please check the workload configuration"
         echo "gst_cmd='$trimmed_gst_cmd'"
-        echo "Stopping container."
+        echo "Stopping container........"
         exit 1
     fi
     echo "#############  GStreamer pipeline command generated successfully ##########"   

@@ -124,7 +124,7 @@ class Publisher:
             # Frame tracking
             self.frame_counter = 0
             self.run_id = f"{int(time.time())}-{random.randint(1000, 9999)}"
-            
+            self.person = 0
             # Directory setup
             self.metadata_dir = METADATA_DIR_FULL_PATH
             self.frames_dir = FRAMES_DIR_FULL_PATH
@@ -253,11 +253,20 @@ class Publisher:
                     logger.info(f"Items extracted from label: {self.item_frameid_mapper}")
                     self.item_frameid_mapper[label].append(frame_path)
                     
-                    if len(self.item_frameid_mapper[label]) >= THRESHOLD and (len(self.sent_items) == 0 or label != self.sent_items[-1]):
-                        logger.info(f"Sending Data: {self.item_frameid_mapper}")
-                        self._send_detection_notification(label)
+                    if len(self.item_frameid_mapper[label]) >= THRESHOLD :
+                        if len(self.sent_items) == 0 or label != self.sent_items[-1]:
+                            logger.info(f"Sending Data: {self.item_frameid_mapper}")
+                            self._send_detection_notification(label)
+                            self.sent_items.append(label)
+                            self.person=0
+                            del self.item_frameid_mapper[label]
+                        else:
+                            logger.info(f"Data already sent for {label}, skipping.")
+                            del self.item_frameid_mapper[label]
+                else:
+                    self.person+= 1
+                    if self.person>5:
                         self.sent_items.append(label)
-                        del self.item_frameid_mapper[label]
         except Exception as e:
             logger.error(f"Error processing detections: {e}")
             logger.error(traceback.format_exc())

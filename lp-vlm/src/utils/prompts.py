@@ -110,6 +110,7 @@ We have following items in grocery store:
  - "Coca-Cola Bottle Small"
  - "Coca-Cola Bottle Large"
  - "Peeled Pomegranate"
+ - "Yellow Banana"
  
 There may be spelling mistakes or additional prepositions from above but the item should be same as above items. Compare the grocery item name with the valid items in the store and check if it matches any of them based on the size criteria defined below.
 
@@ -123,9 +124,9 @@ There may be spelling mistakes or additional prepositions from above but the ite
   - The final output must be in JSON format with a single object (not an array)
   - Examples:
     * If input is "Coca-Cola Bottle 500 ml" then output is:
-     [{"item_name": "Coca-Cola Bottle 500 ml", "match": true}]
+     [{"item_name": "Coca-Cola Bottle Medium", "match": true}]
     * If input is "Coca-Cola Bottle 3 liters" then output is:
-     [{"item_name": "Coca-Cola Bottle 3 liters", "match": false}]
+     [{"item_name": "Coca-Cola Bottle Large", "match": false}]
   - If the item name is valid according to the size validator, set "match" to true; otherwise, set it to false.
   - Return only a single JSON object in an array."""
 

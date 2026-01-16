@@ -131,7 +131,7 @@ def build_gst_element(cfg):
         # Try to get module and function from cfg (populated from camera_to_workload.json)
         module = cfg.get("module", "")
         function = cfg.get("function", "")
-        elem = f"gvapython module={module} function={function}  "
+        elem = f"gvapython module=/home/pipeline-server/src/{module} function={function}  "
     elif cfg["type"] in ["gvatrack", "gvaattachroi", "gvametaconvert", "gvametapublish", "gvawatermark", "gvafpscounter", "fpsdisplaysink", "queue", "videoconvert", "decodebin", "filesrc", "fakesink"]:
         elem = cfg["type"]
     else:

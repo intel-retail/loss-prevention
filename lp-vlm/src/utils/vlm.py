@@ -108,7 +108,7 @@ def extract_prompt_and_images(frame_records: Dict[str, Any], use_case: str = Non
     # Extract images based on frame_records format
     if use_case == "decision_agent":
         # For decision_agent, append the JSON data to prompt
-        prompt = f"{prompt}\nInput {json.dumps(frame_records)}"
+        prompt = f"{prompt}\nInput {json.dumps(frame_records.get('items', {}), indent=4)}"
     else:
         # Extract image from presigned_url
         presigned_url = frame_records.get("presigned_url", "")
@@ -144,6 +144,7 @@ def call_vlm(
             return False, {}, "No images extracted from frame_records"
         
         vlm = get_vlm_component()
+        #logger.info(f"VLM Input: {prompt}, images count: {len(images)}")
         output = vlm.generate(prompt, images=images)
         
         elapsed = time.time() - start_time
@@ -160,15 +161,18 @@ def call_vlm(
                 json_str = raw_text[json_start:json_end + 1]
                 try:
                     parsed = json.loads(json_str)
+                    logger.info("vlm Script - [call_vlm] Successfully parsed JSON from extracted string", parsed)
                     return True, parsed, ""
                 except Exception as e:
+                    logger.error(f"vlm Script - [call_vlm] - Failed to parse JSON from extracted string: {e}")
                     return False, {}, f"Failed to parse JSON: {e}; content: {raw_text}"
             
             # If no JSON array, try to parse as generic response
             try:
                 parsed = json.loads(raw_text)
                 return True, parsed, ""
-            except:
+            except Exception as e:
+                logger.error(f"vlm Script - [call_vlm] - Failed to parse JSON from raw text: {e}")
                 return True, {"raw_response": raw_text}, ""
         else:
             return False, {}, "No output from VLM model"
