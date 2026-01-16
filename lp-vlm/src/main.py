@@ -179,7 +179,7 @@ def process_object_detection_results(video_file, use_case):
                     continue
                 import time
 
-                log_start_time(f"USECASE_1")
+                log_start_time("USECASE_1")
 
                 # compute time to get best frame
                 best_frame, score = get_best_frame(frame_names, bucket_name=data.get("bucket", ""))
@@ -311,7 +311,7 @@ def execute_loss_prevention_pipeline(video_file):
             agent_status, agent_result = agent_call(record)
             if agent_status:
                 agent_results.extend(agent_result)
-            log_end_time(f"USECASE_1")
+            log_end_time("USECASE_1")
         write_json_to_file({"agent_results":agent_results}, COMMON_RESULTS_DIR_FULL_PATH)
         
         yield "🧠 Decision Agent: ✅ Completed", final_od_results, "🤖 VLM Enhancement: ✅ Completed", unique_results, agent_status, agent_results
