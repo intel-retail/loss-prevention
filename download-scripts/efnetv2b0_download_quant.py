@@ -41,8 +41,8 @@ EXTRA_FILES = {
     #f"{MODEL_NAME}.txt": "https://raw.githubusercontent.com/open-edge-platform/edge-ai-libraries/main/libraries/dl-streamer/samples/labels/imagenet_2012.txt",
     #f"{MODEL_NAME}.json": "https://raw.githubusercontent.com/open-edge-platform/edge-ai-libraries/main/libraries/dl-streamer/samples/gstreamer/model_proc/public/preproc-aspect-ratio.json"
 
-    f"{MODEL_NAME}.txt": "https://raw.githubusercontent.com/open-edge-platform/dlstreamer/refs/heads/master/samples/labels/imagenet_2012.txt",
-    f"{MODEL_NAME}.json": "https://raw.githubusercontent.com/open-edge-platform/dlstreamer/refs/heads/master/samples/gstreamer/model_proc/public/preproc-aspect-ratio.json"
+    f"{MODEL_NAME}.txt": "https://raw.githubusercontent.com/open-edge-platform/dlstreamer/refs/tags/v2025.2.0/samples/labels/imagenet_2012.txt",
+    f"{MODEL_NAME}.json": "https://raw.githubusercontent.com/open-edge-platform/dlstreamer/refs/tags/v2025.2.0/samples/gstreamer/model_proc/public/preproc-aspect-ratio.json"
 }
 
 def run_downloader():
