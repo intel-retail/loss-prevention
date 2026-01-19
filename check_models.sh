@@ -16,6 +16,8 @@ declare -a REQUIRED_MODELS=(
     "object_classification/efficientnet-b0/efficientnet-b0.txt"
     "object_classification/face-reidentification-retail-0095/FP16/face-reidentification-retail-0095.bin"
     "object_classification/face-reidentification-retail-0095/FP16/face-reidentification-retail-0095.xml"
+    "object_classification/age-gender-recognition-retail-0013/FP16/age-gender-recognition-retail-0013.bin"
+    "object_classification/age-gender-recognition-retail-0013/FP16/age-gender-recognition-retail-0013.xml"
     "object_detection/face-detection-retail-0004/FP16/face-detection-retail-0004.bin"
     "object_detection/face-detection-retail-0004/FP16/face-detection-retail-0004.xml"
     "object_detection/yolo11n/FP16/yolo11n.bin"

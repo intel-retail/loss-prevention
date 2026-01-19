@@ -1,0 +1,32 @@
+{
+  "workload_pipeline_map": {
+     "asc_obj_detection_age_prediction": [
+      {
+        "type": "gvadetect",
+        "model": "yolo11n",
+        "device": "CPU",
+        "precision": "INT8"
+      },
+      {
+        "type": "gvaclassify",
+        "model": "efficientnet-b0",
+        "device": "CPU",
+        "precision": "INT8"
+      }
+    ],
+    "asc_obj_detection_age_prediction_face_detection": [
+      {
+        "type": "gvadetect",
+        "model": "face-detection-retail-0004",
+        "device": "CPU",
+        "precision": "FP16"
+      },
+      {
+        "type": "gvaclassify",
+        "model": "age-gender-recognition-retail-0013",
+        "device": "CPU",
+        "precision": "FP16"
+      }
+    ]
+  }
+}

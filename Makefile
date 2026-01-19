@@ -203,14 +203,14 @@ benchmark-stream-density: build-benchmark download-models
     ( \
 	python3 -m venv venv && \
 	. venv/bin/activate && \
-	pip3 install -r requirements.txt && \	
+	pip3 install -r requirements.txt && \
 	python3 benchmark.py \
 		--compose_file ../../src/$(DOCKER_COMPOSE) \
 		--init_duration $(INIT_DURATION) \
 		--target_fps $(TARGET_FPS) \
 		--container_names $(CONTAINER_NAMES) \
 		--density_increment $(DENSITY_INCREMENT) \
-		--results_dir $(RESULTS_DIR); \	
+		--results_dir $(RESULTS_DIR); \
 	deactivate \
 	)
 	
@@ -226,9 +226,8 @@ benchmark-quickstart: download-models download-sample-videos
 	( \
 	python3 -m venv venv && \
 	. venv/bin/activate && \
-	pip3 install -r requirements.txt && \	
+	pip3 install -r requirements.txt && \
 	python3 benchmark.py --compose_file ../../src/$(DOCKER_COMPOSE) --pipelines $(PIPELINE_COUNT) --results_dir $(RESULTS_DIR); \
-	&& \
 	deactivate \
 	)
 	$(MAKE) consolidate-metrics
