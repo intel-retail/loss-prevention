@@ -123,7 +123,7 @@ def build_gst_element(cfg):
     elif cfg["type"] == "gvaclassify":
         # Always use the precision from the current step config
         model_path, label_path, proc_path = download_model_if_missing(model, "gvaclassify", cfg.get("precision", "")) 
-        elem = f"gvaclassify {name_str} batch-size={BATCH_SIZE_CLASSIFY} inference-region=1 scale-method=fast model={model_path} device={device} labels={label_path} model-proc={proc_path} {CLASSIFICATION_PRE_PROCESS}"
+        elem = f"gvaclassify {name_str} batch-size={BATCH_SIZE_CLASSIFY} inference-region=1 scale-method=fast model={model_path} device={device} model-proc={proc_path} {CLASSIFICATION_PRE_PROCESS}"
     elif cfg["type"] == "gvainference":
         model_path = download_model_if_missing(model, "gvainference", cfg.get("precision", ""))
         elem = f"gvainference  model={model_path} device={device} "

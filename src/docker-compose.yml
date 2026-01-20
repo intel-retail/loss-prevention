@@ -185,7 +185,7 @@ services:
         condition: service_started
 
   lp-pipeline-runner:
-    container_name: lp-pipeline-runner
+    #container_name: lp-pipeline-runner
     build:
       context: ..
       dockerfile: docker/Dockerfile.pipeline

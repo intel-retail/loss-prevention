@@ -36,15 +36,15 @@ elif [[ "$MODEL_NAME" == Qwen* ]]; then
         echo "[INFO] ###### Compressing VLM model: $MODEL_NAME ($PRECISION)"
         bash "$SCRIPT_BASE_PATH/compress_model.sh" "$MODEL_NAME" "$PRECISION" "${HUGGINGFACE_TOKEN:-}"
     fi
-elif [[ "$MODEL_NAME" == face-reidentification-retail-* ]]; then
+elif [[ "$MODEL_NAME" == face-reidentification-retail-* ]] || [[ "$MODEL_NAME" == age-gender-recognition-retail-* ]]; then
     echo "[INFO] ###### Downloading face model: $MODEL_NAME ($PRECISION)"
     "$SCRIPT_BASE_PATH/omz-model-download.sh" "$MODEL_NAME" "$MODELS_PATH/object_classification" "$PRECISION"
 elif [[ "$MODEL_NAME" == efficientnet* ]]; then
     echo "[INFO] ###### Downloading classification model: $MODEL_NAME ($PRECISION)"
     python3 "$SCRIPT_BASE_PATH/effnetb0_download.py" "$MODEL_NAME" "$MODELS_PATH"
 elif [[ "$MODEL_NAME" == face-detection-retail-* ]]; then
-    echo "[INFO] ###### Downloading classification model: $MODEL_NAME ($PRECISION)"
-   "$SCRIPT_BASE_PATH/omz-model-download.sh" "$MODEL_NAME" "$MODELS_PATH/object_detection" "$PRECISION"   
+    echo "[INFO] ###### Downloading detection model: $MODEL_NAME ($PRECISION)"
+   "$SCRIPT_BASE_PATH/omz-model-download.sh" "$MODEL_NAME" "$MODELS_PATH/object_detection" "$PRECISION"
 else
     echo "[WARN] Unknown model type: $MODEL_NAME"
 fi

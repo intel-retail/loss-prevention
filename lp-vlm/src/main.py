@@ -314,7 +314,7 @@ def execute_loss_prevention_pipeline(video_file):
             log_end_time("USECASE_1")
         write_json_to_file({"agent_results":agent_results}, COMMON_RESULTS_DIR_FULL_PATH)
         
-        yield "🧠 Decision Agent: ✅ Completed", final_od_results, "🤖 VLM Enhancement: ✅ Completed", unique_results, agent_status, agent_results
+        yield "🧠 Decision Agent: ✅ Completed", final_od_results, "🤖 VLM Enhancement: ✅ Completed", unique_results, "🤖 Agent: ✅ Completed", agent_results
         
     except Exception as e:
         error_message = f"Pipeline Error: {str(e)}"
