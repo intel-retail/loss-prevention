@@ -79,7 +79,29 @@ echo "=== Cleaning up Open Model Zoo repo ..."
 rm -rf "$OMZ_DIR"
 
 # ==============================
-# 6️⃣ Verify download
+# 6️⃣ Download model_proc JSON
+# ==============================
+if [[ "$MODEL_NAME" == face-reidentification-retail-* ]] || [[ "$MODEL_NAME" == age-gender-recognition-retail-* ]] || [[ "$MODEL_NAME" == face-detection-retail-* ]]; then
+    echo "=== Downloading model_proc JSON for: $MODEL_NAME ..."
+    MODEL_PROC_URL="https://raw.githubusercontent.com/open-edge-platform/dlstreamer/refs/tags/v2025.2.0/samples/gstreamer/model_proc/intel/${MODEL_NAME}.json"
+    MODEL_PROC_PATH="$MODELS_PATH/$MODEL_NAME/${MODEL_NAME}.json"
+
+    if [[ -f "$MODEL_PROC_PATH" ]]; then
+        echo "[INFO] Model proc JSON already exists at $MODEL_PROC_PATH, skipping download"
+    else
+        if wget --no-check-certificate --timeout=30 --tries=2 "$MODEL_PROC_URL" -P "$(dirname "$MODEL_PROC_PATH")"; then
+            echo "[INFO] Successfully downloaded model_proc JSON for $MODEL_NAME"
+        else
+            echo "[WARN] Failed to download model_proc JSON from $MODEL_PROC_URL"
+            echo "[WARN] Model $MODEL_NAME may not work properly without model_proc configuration"
+        fi
+    fi
+else
+    echo "=== Skipping model_proc JSON download (not required for $MODEL_NAME)"
+fi
+
+# ==============================
+# 7️⃣ Verify download
 # ==============================
 echo "=== Listing downloaded model files ..."
 find "$MODELS_PATH/$MODEL_NAME" -type f \( -name "*.xml" -o -name "*.bin" \) | sort
