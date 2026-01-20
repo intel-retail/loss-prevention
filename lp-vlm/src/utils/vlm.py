@@ -161,7 +161,7 @@ def call_vlm(
                 json_str = raw_text[json_start:json_end + 1]
                 try:
                     parsed = json.loads(json_str)
-                    logger.info("vlm Script - [call_vlm] Successfully parsed JSON from extracted string", parsed)
+                    logger.info(f"vlm Script - [call_vlm] Successfully parsed JSON from extracted string: {parsed}")
                     return True, parsed, ""
                 except Exception as e:
                     logger.error(f"vlm Script - [call_vlm] - Failed to parse JSON from extracted string: {e}")
