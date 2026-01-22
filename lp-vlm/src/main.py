@@ -369,7 +369,7 @@ def agent_call(item, use_case="decision_agent"):
             logger.error(f"Pipeline Script - [agent_call] VLM validation failed for item_name {item_name}: %s", err_msg)
             return False, []
         # Process VLM validation results
-        logger.info("Pipeline Script - [agent_call] Agent validation completed. Item: %d, Validated: %d", 
+        logger.info("Pipeline Script - [agent_call] Agent validation completed. Item: %s, Validated: %s", 
                     item_name, vlm_validation_result)
         return True, vlm_validation_result
         
