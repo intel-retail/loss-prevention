@@ -10,7 +10,7 @@
       {
         "type": "gvaclassify",
         "model": "efficientnet-b0",
-        "device": "GPU",
+        "device": "NPU",
         "precision": "INT8"
       }
     ],
@@ -18,13 +18,13 @@
       {
         "type": "gvadetect",
         "model": "face-detection-retail-0004",
-        "device": "GPU",
+        "device": "NPU",
         "precision": "FP16"
       },
       {
         "type": "gvaclassify",
         "model": "age-gender-recognition-retail-0013",
-        "device": "NPU",
+        "device": "GPU",
         "precision": "FP16"
       }
     ],
@@ -40,13 +40,13 @@
       {
         "type": "gvadetect",
         "model": "yolo11n",
-        "device": "GPU",
+        "device": "NPU",
         "precision": "INT8"
       },
       {
         "type": "gvaclassify",
         "model": "efficientnet-b0",
-        "device": "NPU",
+        "device": "GPU",
         "precision": "INT8"
       }
     ]
