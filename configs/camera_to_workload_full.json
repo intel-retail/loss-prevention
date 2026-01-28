@@ -1,0 +1,91 @@
+{
+  "lane_config": {
+    "cameras": [  
+      { 
+        "camera_id": "cam1",
+        "fps": 15,
+        "width": 1080,
+        "height": 1920,
+        "fileSrc":"items-in-basket-32658421.mp4|https://www.pexels.com/download/video/32658421", 
+        "streamUri": "rtsp://rtsp-streamer:8554/cam1",
+        "workloads": ["items_in_basket"],
+        "region_of_interest": {
+          "x": 335,
+          "y": 900,
+          "x2": 1060,
+          "y2": 1340
+        }
+      },
+      { 
+        "camera_id": "cam2", 
+         "fps": 15,
+        "width": 1080,
+        "height": 1920,
+        "fileSrc":"hidden-items-product-switching-32658426.mp4|https://www.pexels.com/download/video/32658426", 
+        "streamUri": "rtsp://rtsp-streamer:8554/cam2",
+        "workloads": ["hidden_items"],
+        "region_of_interest": {
+          "x": 335,
+          "y": 900,
+          "x2": 1060,
+          "y2": 1340
+        }
+      },   
+      { 
+        "camera_id": "cam3", 
+        "width": 1920,
+        "height": 1080,
+        "fps": 15,
+        "fileSrc":"fake-scan-detection-32658425.mp4|https://www.pexels.com/download/video/32658425", 
+        "streamUri": "rtsp://rtsp-streamer:8554/cam3",
+        "workloads": ["fake_scan_detection"],
+        "region_of_interest": {
+          "x": 25,
+          "y": 535,
+          "x2": 1300,
+          "y2": 1085
+        }
+      },
+      { 
+        "camera_id": "cam4",
+        "fps": 15,
+        "width": 1080,
+        "height": 1920,
+        "fileSrc":"items-in-basket-32658421.mp4|https://www.pexels.com/download/video/32658421", 
+        "streamUri": "rtsp://rtsp-streamer:8554/cam4",
+        "workloads": ["multi_product_identification"],
+        "region_of_interest": {
+          "x": 335,
+          "y": 900,
+          "x2": 1060,
+          "y2": 1340
+        }
+      },
+      { 
+        "camera_id": "cam5", 
+         "fps": 15,
+        "width": 1080,
+        "height": 1920,
+        "fileSrc":"hidden-items-product-switching-32658426.mp4|https://www.pexels.com/download/video/32658426", 
+        "streamUri": "rtsp://rtsp-streamer:8554/cam5",
+        "workloads": ["product_switching"],
+        "region_of_interest": {
+          "x": 335,
+          "y": 900,
+          "x2": 1060,
+          "y2": 1340
+        }
+      },
+      { 
+        "camera_id": "cam6", 
+         "fps": 15,
+        "width": 1080,
+        "height": 1920,
+        "fileSrc":"face-detection-3249935.mp4|https://www.pexels.com/download/video/3249935", 
+        "streamUri": "rtsp://rtsp-streamer:8554/cam6",
+        "workloads": ["sweet_heartening"]
+      }
+      
+    ]
+  }
+}

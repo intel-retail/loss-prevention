@@ -13,6 +13,8 @@ services:
       - HTTPS_PROXY=${HTTPS_PROXY}
       - http_proxy=${http_proxy}
       - https_proxy=${https_proxy}
+      - NO_PROXY=${NO_PROXY}
+      - no_proxy=rabbitmq,minio-service,model-downloader,rtsp-streamer,localhost,127.0.0.1
       - MODELS_DIR=/workspace/models
       - WORKLOAD_DIST=${WORKLOAD_DIST:-workload_to_pipeline.json}
       - MODEL_NAME=${MODEL_NAME}
@@ -74,6 +76,22 @@ services:
     networks:
       - my_network
 
+  rtsp-streamer:
+    container_name: rtsp-streamer
+    build:
+      context: ./rtsp-streamer
+      dockerfile: Dockerfile
+    image: intel/rtsp-streamer:local
+    restart: unless-stopped
+    ports:
+      - "${RTSP_PORT:-8554}:8554"
+    environment:
+      - RTSP_PORT=${RTSP_PORT:-8554}
+    volumes:
+      - ${RTSP_MEDIA_DIR:-../performance-tools/sample-media}:/media:ro
+    networks:
+      - my_network
+
     
   # --- main services ---
   lp-vlm-workload-handler:
@@ -93,6 +111,7 @@ services:
       - ${RENDER_GROUP_ID:-1002}
     environment:
       - VLM_WORKLOAD_ENABLED=${LP_VLM_WORKLOAD_ENABLED}
+      - VLM_DEVICE=CPU
       - HTTP_PROXY=${HTTP_PROXY}
       - HTTPS_PROXY=${HTTPS_PROXY}
       - http_proxy=${http_proxy}
@@ -106,11 +125,14 @@ services:
       - RABBITMQ_HOST=rabbitmq
       - RABBITMQ_PORT=5672
       - RABBITMQ_MANAGEMENT_PORT=15672
-      - no_proxy=rabbitmq,minio-service,model-downloader,localhost,127.0.0.1
+      - no_proxy=rabbitmq,minio-service,model-downloader,rtsp-streamer,localhost,127.0.0.1
+      - NO_PROXY=rabbitmq,minio-service,model-downloader,rtsp-streamer,localhost,127.0.0.1
       - AMQP_NOTE=Use nc rabbitmq 5672 (curl is not valid for AMQP)     
       - CONTAINER_RESULTS_PATH=${CONTAINER_RESULTS_PATH:-/app/results}
       - WORKLOAD_DIST=${WORKLOAD_DIST:-workload_to_pipeline.json}
       - CAMERA_STREAM=${CAMERA_STREAM:-camera_to_workload.json}
+      - RTSP_STREAM_HOST=${RTSP_STREAM_HOST:-rtsp-streamer}
+      - RTSP_STREAM_PORT=${RTSP_STREAM_PORT:-8554}
     volumes:
       - ../lp-vlm/src/utils:/app/utils
       - ../lp-vlm/src/pipeline:/app/pipeline
@@ -153,12 +175,15 @@ services:
       - RABBITMQ_HOST=rabbitmq
       - RABBITMQ_PORT=5672
       - RABBITMQ_MANAGEMENT_PORT=15672
-      - no_proxy=rabbitmq,minio-service,model-downloader,localhost,127.0.0.1
+      - no_proxy=rabbitmq,minio-service,model-downloader,rtsp-streamer,localhost,127.0.0.1
+      - NO_PROXY=rabbitmq,minio-service,model-downloader,rtsp-streamer,localhost,127.0.0.1
       - AMQP_NOTE=Use nc rabbitmq 5672 (curl is not valid for AMQP)
       - CAMERA_STREAM=${CAMERA_STREAM:-camera_to_workload.json}
       - WORKLOAD_DIST=${WORKLOAD_DIST:-workload_to_pipeline.json}
       - BATCH_SIZE_DETECT=${BATCH_SIZE_DETECT:-1}
       - BATCH_SIZE_CLASSIFY=${BATCH_SIZE_CLASSIFY:-1}
+      - RTSP_STREAM_HOST=${RTSP_STREAM_HOST:-rtsp-streamer}
+      - RTSP_STREAM_PORT=${RTSP_STREAM_PORT:-8554}
     volumes:
       - ../lp-vlm/src/pipeline/publish.py:/home/pipeline-server/lp-vlm/gvapython/publish.py
       - ../lp-vlm/src/pipeline/send_end_message.py:/home/pipeline-server/lp-vlm/gvapython/send_end_message.py
@@ -217,6 +242,10 @@ services:
       - WORKLOAD_DIST=${WORKLOAD_DIST:-workload_to_pipeline.json}
       - BATCH_SIZE_DETECT=${BATCH_SIZE_DETECT:-1}
       - BATCH_SIZE_CLASSIFY=${BATCH_SIZE_CLASSIFY:-1}
+      - RTSP_STREAM_HOST=${RTSP_STREAM_HOST:-rtsp-streamer}
+      - RTSP_STREAM_PORT=${RTSP_STREAM_PORT:-8554}
+      - NO_PROXY=localhost,127.0.0.0/8,10.0.0.0/24,*.intel.com,192.168.0.0/16,10.223.23.127,172.25.0.0/16,rtsp-streamer
+      - no_proxy=localhost,127.0.0.0/8,10.0.0.0/24,*.intel.com,192.168.0.0/16,10.223.23.127,172.25.0.0/16,rtsp-streamer
     
     volumes:
       - ../models:/home/pipeline-server/models
@@ -225,7 +254,8 @@ services:
       - ../configs:/home/pipeline-server/configs
       - ../src/pipelines:/home/pipeline-server/pipelines
       - /tmp/.X11-unix:/tmp/.X11-unix:rw 
-    network_mode: host
+    networks:
+      - my_network
     privileged: true
 
 volumes:

@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 import copy
 from datetime import datetime
+from urllib.parse import urlparse
 from dotenv import dotenv_values
 import sys
 
@@ -15,6 +16,9 @@ CONFIG_WORKLOAD_TO_PIPELINE = f"/home/pipeline-server/configs/{WORKLOAD_DIST}"
 MODELSERVER_DIR = "/home/pipeline-server"
 MODELSERVER_MODELS_DIR = "/home/pipeline-server/models"
 MODELSERVER_VIDEOS_DIR = "/home/pipeline-server/sample-media"
+RTSP_DEFAULT_HOST = os.getenv("RTSP_STREAM_HOST", "rtsp-streamer")
+RTSP_DEFAULT_PORT = os.getenv("RTSP_STREAM_PORT", "8554")
+RTSP_DEFAULT_LATENCY = os.getenv("RTSP_LATENCY", "200")
 
 
 def download_video_if_missing(video_name, width=None, fps=None):
@@ -27,6 +31,59 @@ def download_video_if_missing(video_name, width=None, fps=None):
     file_name = f"{base_name}-{width}-{fps}-bench.mp4"
     video_path = os.path.join(MODELSERVER_VIDEOS_DIR, file_name)
     return video_path
+
+
+def sanitize_gst_name(raw: str) -> str:
+    if not raw:
+        return "stream"
+    cleaned = "".join(ch if ch.isalnum() or ch in ("_", "-") else "_" for ch in raw)
+    if not cleaned:
+        cleaned = "stream"
+    if cleaned[0].isdigit():
+        cleaned = f"cam_{cleaned}"
+    return cleaned
+
+
+def derive_stream_uri(camera: dict) -> str:
+    for key in ("streamUri", "stream_uri", "rtspUri", "rtsp_url"):
+        value = str(camera.get(key, ""))
+        cleaned = value.strip().strip('"').strip("'")
+        if cleaned:
+            if "://" in cleaned:
+                parsed = urlparse(cleaned)
+                scheme = parsed.scheme or "rtsp"
+                host = RTSP_DEFAULT_HOST or (parsed.hostname or "rtsp-streamer")
+                port = RTSP_DEFAULT_PORT or (str(parsed.port) if parsed.port else "8554")
+                path = parsed.path or ""
+                query = f"?{parsed.query}" if parsed.query else ""
+                return f"{scheme}://{host}:{port}{path}{query}"
+            path = cleaned if cleaned.startswith("/") else f"/{cleaned}"
+            return f"rtsp://{RTSP_DEFAULT_HOST}:{RTSP_DEFAULT_PORT}{path}"
+    camera_id = str(camera.get("camera_id", "")).strip()
+    if camera_id:
+        return f"rtsp://{RTSP_DEFAULT_HOST}:{RTSP_DEFAULT_PORT}/{camera_id}"
+    return ""
+
+
+def derive_stream_name(camera: dict, stream_uri: str) -> str:
+    camera_id = str(camera.get("camera_id", "")).strip()
+    if camera_id:
+        return sanitize_gst_name(camera_id)
+
+    if stream_uri:
+        parsed = urlparse(stream_uri)
+        if parsed.path:
+            candidate = Path(parsed.path).name
+            if candidate:
+                return sanitize_gst_name(candidate)
+        if parsed.hostname:
+            return sanitize_gst_name(parsed.hostname)
+
+    file_src = str(camera.get("fileSrc", "")).split("|")[0].strip()
+    if file_src:
+        return sanitize_gst_name(Path(file_src).stem)
+
+    return "stream"
 
 def download_model_if_missing(model_name, model_type=None, precision=None):
     if model_type == "gvadetect":
@@ -150,8 +207,10 @@ def build_dynamic_gstlaunch_command(camera, workloads, workload_map, branch_idx=
     workload_signatures = []
     video_files = []
     camera_id = camera.get("camera_id", f"cam{branch_idx+1}")
+    stream_uri = derive_stream_uri(camera)
+    source_name = derive_stream_name(camera, stream_uri)
     signature_to_steps = {}
-    signature_to_video = {}
+    signature_to_source = {}
     for w in workloads:
         if w in workload_map:
             steps = []
@@ -184,16 +243,25 @@ def build_dynamic_gstlaunch_command(camera, workloads, workload_map, branch_idx=
             sig = model_prec_signature
             if sig not in signature_to_steps:
                 signature_to_steps[sig] = steps
-                # Each unique signature gets a video file
-                file_src = camera["fileSrc"]
-                video_name = file_src.split("|")[0].strip()
-                width = camera.get("width", 1920)
-                fps = camera.get("fps", 15)
-                video_file = download_video_if_missing(video_name, width, fps)
-                signature_to_video[sig] = video_file
+                if stream_uri:
+                    signature_to_source[sig] = {
+                        "type": "rtsp",
+                        "uri": stream_uri,
+                        "name": source_name,
+                    }
+                else:
+                    file_src = str(camera.get("fileSrc", "")).split("|")[0].strip()
+                    width = camera.get("width", 1920)
+                    fps = camera.get("fps", 15)
+                    video_file = download_video_if_missing(file_src, width, fps)
+                    signature_to_source[sig] = {
+                        "type": "file",
+                        "path": video_file,
+                        "name": source_name,
+                    }
     pipelines = []
     for idx, (sig, steps) in enumerate(signature_to_steps.items()):
-        video_file = signature_to_video[sig]
+        source_info = signature_to_source[sig]
         # Get DECODE for the first step's device, if present
         first_device = steps[0].get("device")
         
@@ -201,8 +269,21 @@ def build_dynamic_gstlaunch_command(camera, workloads, workload_map, branch_idx=
         vapostproc_elem = "vapostproc !" if first_device and first_device.upper() in ["NPU", "GPU"] else ""
         
         first_env_vars = get_env_vars_for_device(first_device) if first_device else {}
-        DECODE = first_env_vars.get("DECODE") or "decodebin"
-        pipeline = f"filesrc location={video_file} ! {DECODE} "
+        DECODE = (first_env_vars.get("DECODE") or "decodebin").strip()
+        if not DECODE:
+            DECODE = "decodebin"
+        if source_info.get("type") == "rtsp":
+            pipeline = (
+                f"rtspsrc name={source_info['name']} location=\"{source_info['uri']}\" "
+                f"protocols=tcp latency={RTSP_DEFAULT_LATENCY} ! "
+                "rtph264depay ! h264parse config-interval=-1 ! queue ! "
+                f"{DECODE} "
+            )
+        else:
+            pipeline = (
+                f"filesrc name={source_info['name']} location={source_info['path']} ! "
+                f"{DECODE} "
+            )
         rois = []
         seen_rois = set()
         for step in steps:
