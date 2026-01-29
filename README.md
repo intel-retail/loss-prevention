@@ -7,7 +7,7 @@
 # Table of Contents 📑
 1. [Overview](#overview)
 2. [Prerequisites](#-prerequisites)
-3. [QuickStart: Run with Pre-Built Images](#-quickstart-run-with-pre-built-images)
+3. [QuickStart](#-quickstart)
 4. [Project Structure](#-project-structure)
 5. [Advanced Usage](#heavy_plus_sign-advanced-usage)
 6. [Troubleshooting](#️-troubleshooting)
@@ -34,7 +34,7 @@ It leverages Intel® hardware and software, GStreamer, and OpenVINO™ to enable
     - [NPU](https://dlstreamer.github.io/dev_guide/advanced_install/advanced_install_guide_prerequisites.html#prerequisite-2-install-intel-npu-drivers)
 - Sufficient disk space for models, videos, and results
 
-## 🚀 QuickStart: Run with Pre-Built Images
+## 🚀 QuickStart
 + __Clone the repo with the below command__
     ```
     git clone -b <release-or-tag> --single-branch https://github.com/intel-retail/loss-prevention
@@ -44,21 +44,24 @@ It leverages Intel® hardware and software, GStreamer, and OpenVINO™ to enable
     git clone -b v4.0.0 --single-branch https://github.com/intel-retail/loss-prevention
     ```
 >[!IMPORTANT]
->When the application is run default loss prevention workload is executed           
-
->To know more about available default and preconfigured workloads :point_right: [Workloads](#4-pre-configured-workloads)
+>Default Settings
+>
+> - Run with Pre-built images.
+> - Headless mode is enabled.
+> - Default workload : loss prevention(CPU) 
+>   - To know more about available default and preconfigured workloads :point_right: [Workloads](#4-pre-configured-workloads)
 + __Run the application__
-  
-    *Visual Mode*
-
-    ```
-    RENDER_MODE=1 REGISTRY=true make run-lp
-    ```
 
     *Headless Mode*
 
     ```
-    RENDER_MODE=0 REGISTRY=true make run-lp
+    make run-lp
+    ```
+  
+    *Visual Mode*
+
+    ```
+    RENDER_MODE=1 make run-lp
     ```
 > :bulb:
 > For the first time execution, it will take some time to download videos, models and docker images
@@ -75,7 +78,7 @@ __What to Expect__
      - `<loss-prevention-workspace>/results/pipeline_stream*.log` - FPS metrics (one value per line)
      - `<oss-prevention-workspace>/results/gst-launch_*.log` - Full GStreamer output
               
-          :white_check_mark: Content in files ❌ No Content in files
+          :white_check_mark: Content in files ❌ No Files ❌ No Content in files
      
         >In case of failure refer Section [TroubleShooting](#%EF%B8%8F-troubleshooting)
 
@@ -106,7 +109,7 @@ make down-lp
     #Update github performance-tool submodule
     make update-submodules REGISTRY=false
     #Download sample videos used by the performance tools
-    make download-sample-videos
+    make download-sample-videos REGISTRY=false
     #Run the LP application
     make run-render-mode REGISTRY=false RENDER_MODE=1
 ```
@@ -264,7 +267,7 @@ If adding new videos, place your video files in the directory **performance-tool
   ```
 ## 🛠️ TroubleShooting
 
-+ If results are empty, check Docker logs for errors:
++ If results folder is empty, check Docker logs for errors:
     + List the docker containers
       ```sh
         docker ps -a
@@ -273,6 +276,9 @@ If adding new videos, place your video files in the directory **performance-tool
       ```sh
         docker logs <container_id>
       ```
++ If the file content in  `<loss-prevention-workspace>/results/pipeline_stream*.log` is empty, check GStreamer output file for errors:
+    +  `<oss-prevention-workspace>/results/gst-launch_*.log`
+      
 ## &#8505; Useful Information
 
 + __Make Commands__
