@@ -32,6 +32,9 @@ It leverages Intel® hardware and software, GStreamer, and OpenVINO™ to enable
     ```
     git clone -b v4.0.0 --single-branch https://github.com/intel-retail/loss-prevention
     ```
+>[!IMPORTANT]
+>By default loss prevention workload is executed.
+>To run different workloads refer [Workloads](#4-run-different-workloads) Section
 + __Run the application__
   
     *Visual Mode*
@@ -138,18 +141,25 @@ make benchmark
     cat benchmark/metrics.csv
     ```
 
-#### 4. Run Custom Workloads
-The application is highly configurable via JSON files in the `configs/` directory
+#### 4. Run Different Workloads
 
-**To try a new camera or workload:**
-1. Edit `configs/camera_to_workload.json` to add your camera and assign workloads.
-2. Edit `configs/workload_to_pipeline.json` to define or update the pipeline for your workload.
-3. (Optional) Place your video files in the appropriate directory and update the `fileSrc` path.
-4. Re-run the pipeline as described above.
++ Automated Self Check Out
+
+
+
++ Custom Workloads
+
+  The application is highly configurable via JSON files in the `configs/` directory
+
+    **To try a new camera or workload:**
+    1. Edit `configs/camera_to_workload.json` to add your camera and assign workloads.
+    2. Edit `configs/workload_to_pipeline.json` to define or update the pipeline for your workload.
+    3. (Optional) Place your video files in the appropriate directory and update the `fileSrc` path.
+    4. Re-run the pipeline as described above.
    
-##### ⚙️ Configuration
-- **`camera_to_workload.json`**: Maps each camera to one or more workloads. To add or remove a camera, edit the `lane_config.cameras` array in this file. Each camera entry can specify its video source, region of interest, and assigned workloads.
-    - Example:
+    ##### ⚙️ Configuration
+    - **`camera_to_workload.json`**: Maps each camera to one or more workloads. To add or remove a camera, edit the `lane_config.cameras` array in this file. Each     camera entry can specify its video source, region of interest, and assigned workloads.
+      Example:
       ```json
       {
         "lane_config": {
@@ -165,8 +175,8 @@ The application is highly configurable via JSON files in the `configs/` director
         }
       }
       ```
-- **`workload_to_pipeline.json`**: Maps each workload name to a pipeline definition (sequence of GStreamer elements and models). To add or update a workload, edit the `workload_pipeline_map` in this file.
-    - Example:
+    - **`workload_to_pipeline.json`**: Maps each workload name to a pipeline definition (sequence of GStreamer elements and models). To add or update a workload,         edit the `workload_pipeline_map` in this file.
+      Example:
       ```json
       {
         "workload_pipeline_map": {
