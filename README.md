@@ -46,7 +46,7 @@ It leverages Intel® hardware and software, GStreamer, and OpenVINO™ to enable
 >[!IMPORTANT]
 >When the application is run default loss prevention workload is executed           
 
->To know more about available default and preconfigured workloads :point_right: [Workloads](#4-workloads)
+>To know more about available default and preconfigured workloads :point_right: [Workloads](#4-pre-configured-workloads)
 + __Run the application__
   
     *Visual Mode*
@@ -151,36 +151,48 @@ make benchmark
     cat benchmark/metrics.csv
     ```
 
-### 4. Workloads
-> [!Important]
-> To run a workload other than the default, you must specify both the camera-to-workload mapping and the workload-to-device distribution.
-> ```sh
-> #CAMERA_STREAM: to define camera settings and their associated workloads for the pipeline
-> #WORKLOAD_DIST: to define how each workload is assigned to a specific processing unit (CPU, GPU, NPU)
->
-> #Run the application
-> CAMERA_STREAM=<camera_stream> WORKLOAD_DIST=<workload-dist> make run-lp
->
-> #Run the benchmark
-> CAMERA_STREAM=<camera_stream> WORKLOAD_DIST=<workload-dist> make benchmark
-> ```
+### 4. Pre-configured Workloads
+The preconfigured workload supports multiple hardware configurations out of the box. Use the `CAMERA_STREAM` and `WORKLOAD_DIST` variables to customize which cameras and hardware (CPU, GPU, NPU) are used by your pipeline.
 
-The following preconfigured workloads are available for use with the Loss Prevention Pipeline System.
-
+**How To Use:**
+- Specify the appropriate files as environment variables when running or benchmarking:
+    ```sh
+    CAMERA_STREAM=<camera_stream> WORKLOAD_DIST=<workload_dist> make run-lp
+    ```
+    Or for benchmarking:
+    ```sh
+    CAMERA_STREAM=<camera_stream> WORKLOAD_DIST=<workload_dist> make benchmark
+    ```
 #### 4.1 Loss Prevention
 
-| WORKLOAD | CAMERA_STREAM | WORKLOAD_DIST |
-|-------------------------------| ----------------------------------------------|----------------------------------------------|
-|  Default Workload(CPU)        |  camera_to_workload.json                      | workload_to_pipeline.json                    | 
-|  Workloads on GPU             |  camera_to_workload.json                      | workload_to_pipeline_gpu.json                |
-|  Workloads on NPU-GPU         |  camera_to_workload.json                      | workload_to_pipeline_gpu-npu.json                |
-|  Workloads on HETEROGENEOUS   |  camera_to_workload.json                      | workload_to_pipeline_hetero.json                |
+| Description             | CAMERA_STREAM                  | WORKLOAD_DIST                        |
+|-------------------------|-------------------------------|--------------------------------------|
+| CPU (Default)           | camera_to_workload.json        | workload_to_pipeline.json            |
+| GPU                     | camera_to_workload.json        | workload_to_pipeline_gpu.json        |
+| NPU + GPU               | camera_to_workload.json        | workload_to_pipeline_gpu-npu.json    |
+| Heterogeneous           | camera_to_workload.json        | workload_to_pipeline_hetero.json     |
 
-**Included Sub-Workloads**
-- items_in_basket, hidden_items, fake_scan_detection, multi_product_identification, product_switching, sweet_heartening
-
+> [!NOTE]
+> The following sub-workloads are automatically included and enabled in the configuration:
+> 
+> `items_in_basket`
+  `hidden_items`
+  `fake_scan_detection`
+  `multi_product_identification`
+  `product_switching`
+  `sweet_heartening`
 
 #### 4.2 Automated Self Check Out
+
+| Description                                    | CAMERA_STREAM                  | WORKLOAD_DIST                        |
+|------------------------------------------------|-------------------------------|--------------------------------------|
+| Object Detection (GPU)                         | camera_to_workload_asc_object_detection.json       | workload_to_pipeline_asc_object_detection_gpu.json        |
+| Object Detection (NPU)                         | camera_to_workload_asc_object_detection.json       | workload_to_pipeline_asc_object_detection_npu.json        |
+| Object Detection & Classification (GPU)        | camera_to_workload_asc_object_detection_classification.json        | workload_to_pipeline_asc_object_detection_classification_gpu.json     |
+| Object Detection & Classification (NPU)        | camera_to_workload_asc_object_detection_classification.json        | workload_to_pipeline_asc_object_detection_classification_npu.json     |
+| Age Prediction & Face Detection (GPU)          | camera_to_workload_asc_age_verification.json        | workload_to_pipeline_asc_age_verification_gpu.json     |
+| Age Prediction & Face Detection (NPU)          | camera_to_workload_asc_age_verification.json        | workload_to_pipeline_asc_age_verification_npu.json     |
+| Heterogenous                  | camera_to_workload_asc_hetero.json        | workload_to_pipeline_hetero.json     |
 
 
 
@@ -189,56 +201,78 @@ The application is highly configurable via JSON files in the `configs/` director
 
 **To try a new camera or workload:**
 
-    1. Edit `configs/camera_to_workload.json` to add your camera and assign workloads.
-    2. Edit `configs/workload_to_pipeline.json` to define or update the pipeline for your workload.
-    3. (Optional) Place your video files in the appropriate directory and update the `fileSrc` path.
-    4. Re-run the pipeline as described above.
-   
-Configuration Details
-    
-- **camera_to_workload.json**: Maps each camera to one or more workloads. To add or remove a camera, edit the `lane_config.cameras` array in this file. Each         camera entry can specify its video source, region of interest, and assigned workloads.
-      Example:
-      ```json
-          {
-            "lane_config": {
-              "cameras": [
+1. Create new camera to workload mapping in `configs/camera_to_workload_custom.json` to add your camera and assign workloads.
+    - **camera_to_workload_custom.json**: Maps each camera to one or more workloads. 
+        - To add or remove a camera, edit the `lane_config.cameras` array in the file.
+        - Each camera entry can specify its video source, region of interest, and assigned workloads.
+        Example:
+          ```json
+              {
+                "lane_config": {
+                 "cameras": [
                 {
                   "camera_id": "cam1",
                   "fileSrc": "sample-media/video1.mp4",
-                  "workloads": ["items_in_basket", "multi_product_identification"],
+                  "workloads": ["custom_workload_1"],
+                  "region_of_interest": {"x": 100, "y": 100, "x2": 800, "y2": 600}              
+                },
+                {
+                  "camera_id": "cam2",
+                  "fileSrc": "sample-media/video2.mp4",
+                  "workloads": ["custom_workload_2", "custom_workload_3"],
                   "region_of_interest": {"x": 100, "y": 100, "x2": 800, "y2": 600}              
                 }
               ]
             }
           }
-      ```
-    
- - **workload_to_pipeline.json**: Maps each workload name to a pipeline definition (sequence of GStreamer elements and models). To add or update a workload,         edit the `workload_pipeline_map` in this file.
-      Example:
+          ```
+If adding new videos, place your video files in the directory **performance-tools/sample-media/** and update the `fileSrc` path.
+
+2. Create new `configs/workload_to_pipeline_custom.json` to define pipeline for your workload.
+    - **workload_to_pipeline_custom.json**: Maps each workload name to a pipeline definition (sequence of GStreamer elements and models). 
+        Example:
+      
       ```json
       {
         "workload_pipeline_map": {
-          "items_in_basket": [
+          "custom_workload_1": [
             {"type": "gvadetect", "model": "yolo11n", "precision": "INT8", "device": "CPU"},
             {"type": "gvaclassify", "model": "efficientnet-v2-b0", "precision": "INT8", "device": "CPU"}
+          ],
+          "custom_workload_2": [
+            {"type": "gvadetect", "model": "yolo11n", "precision": "INT16", "device": "NPU"},
+            {"type": "gvaclassify", "model": "efficientnet-v2-b0", "precision": "INT16", "device": "NPU"}
+          ],
+          "custom_workload_3": [
+            {"type": "gvadetect", "model": "yolo11n", "precision": "INT8", "device": "GPU"},
+            {"type": "gvaclassify", "model": "efficientnet-v2-b0", "precision": "INT8", "device": "GPU"}
           ]
         }
       }
       ```
-      
+3. Run validate configs command, to verify configuration files
+   ```sh
+   make validate-all-configs
+   ```
+4. Re-run the pipeline as described above.
+     
 > [!NOTE]
-> Since the GStreamer pipeline is generated dynamically based on the provided configuration(camera_to_workload and workload_to_pipeline json), the pipeline.sh     file gets updated every time the user runs make run-lp or make benchmark. This ensures that the pipeline reflects the latest changes.
+> Since the GStreamer pipeline is generated dynamically based on the provided configuration(camera_to_workload and workload_to_pipeline json),
+> the pipeline.sh file gets updated every time the user runs make run-lp or make benchmark. This ensures that the pipeline reflects the latest changes.
   ```sh
         src/pipelines/pipeline.sh
   ```
 ## 🛠️ TroubleShooting
 
 + If results are empty, check Docker logs for errors:
-```
-docker logs pipeline-runner
-```
-
-
+    + List the docker containers
+      ```sh
+        docker ps -a
+      ```
+    + Check each container logs
+      ```sh
+        docker logs <container_id>
+      ```
 ## &#8505; Useful Information
 
 + __Make Commands__
