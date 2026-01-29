@@ -3,11 +3,22 @@
 >  The **main** branch of this repository contains work-in-progress development code for the upcoming release, and is **not guaranteed to be stable or working**.
 >
 > **The source for the latest release can be found at [Releases](https://github.com/intel-retail/loss-prevention/releases).**
+
+# Table of Contents 📑
+1. [Overview](#overview)
+2. [Prerequisites](#-prerequisites)
+3. [QuickStart: Run with Pre-Built Images](#-quickstart-run-with-pre-built-images)
+4. [Project Structure](#-project-structure)
+5. [Advanced Usage](#heavy_plus_sign-advanced-usage)
+6. [Troubleshooting](#️-troubleshooting)
+7. [Useful Information](#ℹ-useful-information)
+
 ## Overview
 
 The Loss Prevention Pipeline System is an open-source reference implementation for building and deploying video analytics pipelines for retail use cases:
 - Loss Prevention
 - Automated self checkout
+- User Defined Workloads
     
 It leverages Intel® hardware and software, GStreamer, and OpenVINO™ to enable scalable, real-time object detection and classification at the edge.
 
@@ -33,8 +44,9 @@ It leverages Intel® hardware and software, GStreamer, and OpenVINO™ to enable
     git clone -b v4.0.0 --single-branch https://github.com/intel-retail/loss-prevention
     ```
 >[!IMPORTANT]
->By default loss prevention workload is executed.
->To run different workloads refer [Workloads](#4-run-different-workloads) Section
+>When the application is run default loss prevention workload is executed           
+
+>To know more about default workload and other workloads refer [Workloads](#4-run-different-workloads) Section
 + __Run the application__
   
     *Visual Mode*
@@ -51,7 +63,7 @@ It leverages Intel® hardware and software, GStreamer, and OpenVINO™ to enable
 > :bulb:
 > For the first time execution, it will take some time to download videos, models and docker images
 
-__:eyes: What to Expect__
+__What to Expect__
   
 + *Visual Mode*
   - A video window opens showing the retail video with detection overlays
@@ -61,15 +73,14 @@ __:eyes: What to Expect__
 + *Visual and Headless Mode*
    - Verify Output files:       
      - `<loss-prevention-workspace>/results/pipeline_stream*.log` - FPS metrics (one value per line)
-     - `<oss-prevention-workspac>/results/gst-launch_*.log` - Full GStreamer output
+     - `<oss-prevention-workspace>/results/gst-launch_*.log` - Full GStreamer output
               
           :white_check_mark: Content in files ❌ No Content in files
      
-        >🐞
         >In case of failure refer Section [TroubleShooting](#%EF%B8%8F-troubleshooting)
 
 
-__:stop_sign: Stop the application__
+__Stop the application__
 ```sh
 make down-lp
 ```
@@ -81,13 +92,13 @@ make down-lp
 - `docs/` — Documentation (HLD, LLD, system design)
 - `download-scripts/` — Scripts for downloading models and videos
 - `src/` — Main source code and pipeline runner scripts
-- `Makefile` — Build automation and workflow commands-
+- `Makefile` — Build automation and workflow commands
 
 ## :heavy_plus_sign: Advanced Usage
 >[!IMPORTANT]
 >For a comprehensive and advanced guide, refer to- [Loss Prevention Documentation Guide](https://intel-retail.github.io/documentation/use-cases/loss-prevention/loss-prevention.html)
 
-#### 1. To build the images locally and run the application:
+### 1. To build the images locally and run the application:
 
 ```sh
     #Download the models
@@ -104,10 +115,10 @@ make down-lp
     make run-lp REGISTRY=false RENDER_MODE=1
 ```
 
-#### 2. Run the VLM based workload
+### 2. Run the VLM based workload
 
 > [!IMPORTANT]
-> Required Environment Variables
+> Required Bash Environment Variables before running the workload
 >```sh
 >    #MinIO credentials (object storage)
 >    export MINIO_ROOT_USER=<your-minio-username>
@@ -126,13 +137,12 @@ make down-lp
  make run-lp CAMERA_STREAM=camera_to_workload_vlm.json
  ```
 
-#### 3. Run benchmarking on CPU/NPU/GPU.
->*By default, the configuration is set to use the CPU. If you want to benchmark the application on GPU or NPU, please update the device value in workload_to_pipeline.json.*
+### 3. Benchmark
+>By default, the configuration is set to use the CPU. If you want to benchmark the application on GPU or NPU, please refer [Workloads](#4-run-different-workloads) Section
 
 ```sh
 make benchmark
 ```
-
 + See the benchmarking results.
 
     ```sh
@@ -141,41 +151,57 @@ make benchmark
     cat benchmark/metrics.csv
     ```
 
-#### 4. Run Different Workloads
+### 4. Run Different Workloads
+> [!NOTE]
+> To run different workloads execute below command by replacing the values 
+> ```sh
+> #CAMERA_STREAM: to define camera settings and their associated workloads for the pipeline
+> #WORKLOAD_DIST: to define how each workload is assigned to a specific processing unit (CPU, GPU, NPU)
+>
+> #Running the application
+> CAMERA_STREAM=<camera_stream> WORKLOAD_DIST=<workload-dist> make run-lp
+>
+> #Running the benchmark
+> CAMERA_STREAM=<camera_stream> WORKLOAD_DIST=<workload-dist> make benchmark
+> ```
+#### 4.1 Loss Prevention
 
-+ Automated Self Check Out
+
+#### 4.2 Automated Self Check Out
 
 
 
-+ Custom Workloads
+#### 4.3 User Defined Workloads
+The application is highly configurable via JSON files in the `configs/` directory
 
-  The application is highly configurable via JSON files in the `configs/` directory
+**To try a new camera or workload:**
 
-    **To try a new camera or workload:**
     1. Edit `configs/camera_to_workload.json` to add your camera and assign workloads.
     2. Edit `configs/workload_to_pipeline.json` to define or update the pipeline for your workload.
     3. (Optional) Place your video files in the appropriate directory and update the `fileSrc` path.
     4. Re-run the pipeline as described above.
    
-    ##### ⚙️ Configuration
-    - **`camera_to_workload.json`**: Maps each camera to one or more workloads. To add or remove a camera, edit the `lane_config.cameras` array in this file. Each     camera entry can specify its video source, region of interest, and assigned workloads.
+Configuration Details
+    
+- **camera_to_workload.json**: Maps each camera to one or more workloads. To add or remove a camera, edit the `lane_config.cameras` array in this file. Each         camera entry can specify its video source, region of interest, and assigned workloads.
       Example:
       ```json
-      {
-        "lane_config": {
-          "cameras": [
-            {
-              "camera_id": "cam1",
-              "fileSrc": "sample-media/video1.mp4",
-              "workloads": ["items_in_basket", "multi_product_identification"],
-              "region_of_interest": {"x": 100, "y": 100, "x2": 800, "y2": 600}              
-            },
-            ...
-          ]
-        }
-      }
+          {
+            "lane_config": {
+              "cameras": [
+                {
+                  "camera_id": "cam1",
+                  "fileSrc": "sample-media/video1.mp4",
+                  "workloads": ["items_in_basket", "multi_product_identification"],
+                  "region_of_interest": {"x": 100, "y": 100, "x2": 800, "y2": 600}              
+                },
+                ...
+              ]
+            }
+          }
       ```
-    - **`workload_to_pipeline.json`**: Maps each workload name to a pipeline definition (sequence of GStreamer elements and models). To add or update a workload,         edit the `workload_pipeline_map` in this file.
+    
+ - **workload_to_pipeline.json**: Maps each workload name to a pipeline definition (sequence of GStreamer elements and models). To add or update a workload,         edit the `workload_pipeline_map` in this file.
       Example:
       ```json
       {
@@ -188,7 +214,12 @@ make benchmark
         }
       }
       ```
-
+      
+> [!NOTE]
+> Since the GStreamer pipeline is generated dynamically based on the provided configuration(camera_to_workload and workload_to_pipeline json), the pipeline.sh     file gets updated every time the user runs make run-lp or make benchmark. This ensures that the pipeline reflects the latest changes.
+  ```sh
+        src/pipelines/pipeline.sh
+  ```
 ## 🛠️ TroubleShooting
 
 + If results are empty, check Docker logs for errors:
@@ -204,11 +235,5 @@ docker logs pipeline-runner
     - `make clean-images` — Remove dangling Docker images
     - `make clean-containers` — Remove stopped containers
     - `make clean-all` — Remove all unused Docker resources
-+ __View the Dynamically Generated GStreamer Pipeline__
->*Since the GStreamer pipeline is generated dynamically based on the provided configuration(camera_to_workload and workload_to_pipeline json), the pipeline.sh file gets updated every time the user runs make run-lp or make benchmark. This ensures that the pipeline reflects the latest changes.*
-```sh
 
-src/pipelines/pipeline.sh
-
-```
 
