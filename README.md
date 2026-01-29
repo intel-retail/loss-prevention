@@ -1,8 +1,8 @@
 # Loss Prevention Pipeline System
 > [!WARNING]
->  The **main** branch of this repository contains work-in-progress development code for the upcoming release, and is **not guaranteed to be stable or working**.
+>  The **main** branch of this repository contains work-in-progress development code for an upcoming release, and is **not guaranteed to be stable or working**.
 >
-> **The source for the latest release can be found at [Releases](https://github.com/intel-retail/loss-prevention/releases).**
+> For the latest stable release :point_right: [Releases](https://github.com/intel-retail/loss-prevention/releases)
 
 # Table of Contents 📑
 1. [Overview](#overview)
@@ -46,7 +46,7 @@ It leverages Intel® hardware and software, GStreamer, and OpenVINO™ to enable
 >[!IMPORTANT]
 >When the application is run default loss prevention workload is executed           
 
->To know more about default workload and other workloads refer [Workloads](#4-run-different-workloads) Section
+>To know more about available default and preconfigured workloads :point_right: [Workloads](#4-workloads)
 + __Run the application__
   
     *Visual Mode*
@@ -118,7 +118,7 @@ make down-lp
 ### 2. Run the VLM based workload
 
 > [!IMPORTANT]
-> Required Bash Environment Variables before running the workload
+> Set the below bash Environment Variables
 >```sh
 >    #MinIO credentials (object storage)
 >    export MINIO_ROOT_USER=<your-minio-username>
@@ -151,21 +151,31 @@ make benchmark
     cat benchmark/metrics.csv
     ```
 
-### 4. Run Different Workloads
-> [!NOTE]
-> To run different workloads execute below command by replacing the values 
+### 4. Workloads
+> [!Important]
+> To run a workload other than the default, you must specify both the camera-to-workload mapping and the workload-to-device distribution.
 > ```sh
 > #CAMERA_STREAM: to define camera settings and their associated workloads for the pipeline
 > #WORKLOAD_DIST: to define how each workload is assigned to a specific processing unit (CPU, GPU, NPU)
 >
-> #Running the application
+> #Run the application
 > CAMERA_STREAM=<camera_stream> WORKLOAD_DIST=<workload-dist> make run-lp
 >
-> #Running the benchmark
+> #Run the benchmark
 > CAMERA_STREAM=<camera_stream> WORKLOAD_DIST=<workload-dist> make benchmark
 > ```
-#### 4.1 Loss Prevention
 
+The following preconfigured workloads are available for use with the Loss Prevention Pipeline System.
+
+#### 4.1 Loss Prevention
+| CAMERA_STREAM                 | WORKLOAD_DIST                                | DESCRIPTION                                  |
+|-------------------------------|----------------------------------------------|----------------------------------------------|
+|              |   |  |
+|        |   |  |
+|               |      |  |
+|  |  |  |
+|             |               |  |
+|         |     | |
 
 #### 4.2 Automated Self Check Out
 
