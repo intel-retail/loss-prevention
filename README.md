@@ -141,7 +141,9 @@ make down-lp
  ```
 
 ### 3. Benchmark
->By default, the configuration is set to use the CPU. If you want to benchmark the application on GPU or NPU, please :point_right: [Workloads](#4-run-different-workloads) Section
+>By default, the configuration is set to use the Loss Prevention (CPU) workload.
+>
+>If you want to benchmark the application on GPU or NPU, please :point_right: [Workloads](#4-run-different-workloads)
 
 ```sh
 make benchmark
