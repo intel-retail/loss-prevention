@@ -59,7 +59,7 @@ __:eyes: What to Expect__
           :white_check_mark: Content in files ❌ No Content in files
      
         >🐞
-        >In case of failure refer Section [TroubleShooting](#troubleshooting)
+        >In case of failure refer Section [TroubleShooting](#%EF%B8%8F-troubleshooting)
 
 
 __:stop_sign: Stop the application__
