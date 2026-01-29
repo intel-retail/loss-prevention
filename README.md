@@ -168,14 +168,17 @@ make benchmark
 The following preconfigured workloads are available for use with the Loss Prevention Pipeline System.
 
 #### 4.1 Loss Prevention
-| CAMERA_STREAM                 | WORKLOAD_DIST                                | DESCRIPTION                                  |
-|-------------------------------|----------------------------------------------|----------------------------------------------|
-|              |   |  |
-|        |   |  |
-|               |      |  |
-|  |  |  |
-|             |               |  |
-|         |     | |
+
+| WORKLOAD | CAMERA_STREAM | WORKLOAD_DIST |
+|-------------------------------| ----------------------------------------------|----------------------------------------------|
+|  Default Workload(CPU)        |  camera_to_workload.json                      | workload_to_pipeline.json                    | 
+|  Workloads on GPU             |  camera_to_workload.json                      | workload_to_pipeline_gpu.json                |
+|  Workloads on NPU-GPU         |  camera_to_workload.json                      | workload_to_pipeline_gpu-npu.json                |
+|  Workloads on HETEROGENEOUS   |  camera_to_workload.json                      | workload_to_pipeline_hetero.json                |
+
+**Included Sub-Workloads**
+- items_in_basket, hidden_items, fake_scan_detection, multi_product_identification, product_switching, sweet_heartening
+
 
 #### 4.2 Automated Self Check Out
 
@@ -204,8 +207,7 @@ Configuration Details
                   "fileSrc": "sample-media/video1.mp4",
                   "workloads": ["items_in_basket", "multi_product_identification"],
                   "region_of_interest": {"x": 100, "y": 100, "x2": 800, "y2": 600}              
-                },
-                ...
+                }
               ]
             }
           }
@@ -219,8 +221,7 @@ Configuration Details
           "items_in_basket": [
             {"type": "gvadetect", "model": "yolo11n", "precision": "INT8", "device": "CPU"},
             {"type": "gvaclassify", "model": "efficientnet-v2-b0", "precision": "INT8", "device": "CPU"}
-          ],
-          ...
+          ]
         }
       }
       ```
