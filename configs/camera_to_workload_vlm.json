@@ -6,7 +6,8 @@
         "fps": 15,
         "width": 1080,
         "height": 1920,
-        "fileSrc":"lp-vlm.mp4|https://www.pexels.com/download/video/35256160", 
+        "fileSrc":"items-in-basket-32658421.mp4|https://www.pexels.com/download/video/32658421", 
+        "streamUri": "rtsp://rtsp-streamer:8554/items-in-basket-32658421-1080-15-bench",
         "workloads": ["lp_vlm"]
       }
     ]

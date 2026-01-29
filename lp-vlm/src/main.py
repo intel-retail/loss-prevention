@@ -369,7 +369,7 @@ def agent_call(item, use_case="decision_agent"):
             logger.error(f"Pipeline Script - [agent_call] VLM validation failed for item_name {item_name}: %s", err_msg)
             return False, []
         # Process VLM validation results
-        logger.info("Pipeline Script - [agent_call] Agent validation completed. Item: %s, Validated: %s", 
+        logger.info("Pipeline Script - [agent_call] Agent validation completed. Item: %d, Validated: %d", 
                     item_name, vlm_validation_result)
         return True, vlm_validation_result
         
@@ -408,7 +408,7 @@ def main(video_file_name=None):
         video_file_name = get_video_name_only(camera_config_path)
     
     
-    logger.info("Pipeline Script - VIDEO_NAME:======== %s", video_file_name)
+    logger.info("Pipeline Script - STREAM_NAME:======== %s", video_file_name)
     
     global od_results_shown, od_pipeline_status, vlm_pipeline_status
     

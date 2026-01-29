@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-import json
-import os
-import logging
-from pathlib import Path
 import argparse
+import json
+import logging
+import os
+from pathlib import Path
+from urllib.parse import urlparse
 
 # -------------------- Logger Setup --------------------
 logging.basicConfig(
@@ -15,6 +16,8 @@ logger = logging.getLogger(__name__)
 # -------------------- Defaults --------------------
 CONFIG_PATH_DEFAULT = "../../configs/camera_to_workload.json"
 TARGET_WORKLOAD = "lp_vlm"  # normalized compare
+RTSP_DEFAULT_HOST = os.getenv("RTSP_STREAM_HOST", "rtsp-streamer")
+RTSP_DEFAULT_PORT = os.getenv("RTSP_STREAM_PORT", "8554")
 
 # -------------------- Load JSON --------------------
 def load_config(camera_cfg_path: str) -> dict:
@@ -36,20 +39,57 @@ def camera_has_vlm(camera_obj) -> bool:
     return TARGET_WORKLOAD in normalized
 
 def extract_video_name(fileSrc, width=None, fps=None) -> str:
-    """
-    Return "<first-fileSrc>-<width>-<fps>.mp4"
-    - first-fileSrc is the segment before '|'
-    - existing extension is removed before appending width/fps
-    """
+    """Return a sanitized stem for legacy file-based workloads."""
     if not fileSrc:
         return ""
-    base = fileSrc.split("|")[0].strip()
-    # remove extension if present
-    if "." in base:
-        base = base.rsplit(".", 1)[0]
-    w = "" if width is None else str(width).strip()
-    f = "" if fps is None else str(fps).strip()
-    return f"{base}-{w}-{f}-bench.mp4"
+    raw = fileSrc.split("|")[0].strip()
+    base = Path(raw).stem if raw else ""
+    if not base:
+        return ""
+    if width is None or fps is None:
+        return base
+    w = str(width).strip()
+    f = str(fps).strip()
+    return f"{base}-{w}-{f}-bench"
+
+
+def derive_stream_uri(camera: dict) -> str:
+    for key in ("streamUri", "stream_uri", "rtspUri", "rtsp_url"):
+        raw = str(camera.get(key, ""))
+        cleaned = raw.strip().strip('"').strip("'")
+        if cleaned:
+            if "://" in cleaned:
+                parsed = urlparse(cleaned)
+                scheme = parsed.scheme or "rtsp"
+                host = RTSP_DEFAULT_HOST or (parsed.hostname or "rtsp-streamer")
+                port = RTSP_DEFAULT_PORT or (str(parsed.port) if parsed.port else "8554")
+                path = parsed.path or ""
+                query = f"?{parsed.query}" if parsed.query else ""
+                return f"{scheme}://{host}:{port}{path}{query}"
+            path = cleaned if cleaned.startswith("/") else f"/{cleaned}"
+            return f"rtsp://{RTSP_DEFAULT_HOST}:{RTSP_DEFAULT_PORT}{path}"
+
+    camera_id = str(camera.get("camera_id", "")).strip()
+    if camera_id:
+        return f"rtsp://{RTSP_DEFAULT_HOST}:{RTSP_DEFAULT_PORT}/{camera_id}"
+    return ""
+
+
+def derive_stream_name(camera: dict, stream_uri: str) -> str:
+    camera_id = str(camera.get("camera_id", "")).strip()
+    if camera_id:
+        return camera_id
+
+    if stream_uri:
+        parsed = urlparse(stream_uri)
+        candidate = Path(parsed.path).name
+        if candidate:
+            return candidate
+        if parsed.hostname:
+            return parsed.hostname
+
+    fileSrc = camera.get("fileSrc", "")
+    return extract_video_name(fileSrc, camera.get("width"), camera.get("fps"))
 
 # -------------------- Main Validation --------------------
 def validate_and_extract_vlm_config(camera_cfg_path: str = None) -> dict:
@@ -58,7 +98,7 @@ def validate_and_extract_vlm_config(camera_cfg_path: str = None) -> dict:
     Extract and return video metadata.
     
     Returns:
-        dict with keys: camera_id, video_name, width, fps, roi
+        dict with keys: stream_name, stream_uri, roi
     
     Raises:
         ValueError: if zero or more than one LP_VLM workload found
@@ -97,21 +137,22 @@ def validate_and_extract_vlm_config(camera_cfg_path: str = None) -> dict:
     # Extract metadata from the single LP_VLM camera
     cam = vlm_cameras[0]
     camera_id = cam.get("camera_id", "unknown")
-    fileSrc = cam.get("fileSrc", "")
-    width = cam.get("width")
-    fps = cam.get("fps")
     roi_dict = cam.get("region_of_interest", {})
-    
-    video_name = extract_video_name(fileSrc, width, fps)
-    
-    if not video_name:
-        raise ValueError(f"[ERROR] Camera {camera_id} has empty fileSrc")
+
+    stream_uri = derive_stream_uri(cam)
+    stream_name = derive_stream_name(cam, stream_uri)
+
+    if not stream_uri:
+        raise ValueError(f"[ERROR] Camera {camera_id} is missing an RTSP stream URI")
+    if not stream_name:
+        raise ValueError(f"[ERROR] Camera {camera_id} has no stream identifier")
     
     # Format ROI as comma-separated string: x,y,x2,y2
     roi = f"{roi_dict.get('x', '')},{roi_dict.get('y', '')},{roi_dict.get('x2', '')},{roi_dict.get('y2', '')}"
     
-    result = {        
-        "video_name": video_name,        
+    result = {
+        "stream_name": stream_name,
+        "stream_uri": stream_uri,
         "roi": roi
     }
     return result
@@ -129,19 +170,19 @@ def has_lp_vlm_workload(camera_cfg_path: str = None) -> bool:
     return False
 
 def get_video_name_only(camera_cfg_path: str = None) -> str:
-    video_name, _ = get_video_from_config(camera_cfg_path)
-    return video_name
+    stream_name, _, _ = get_video_from_config(camera_cfg_path)
+    return stream_name
 
 def get_video_from_config(camera_cfg_path: str = None):
     """
-    Validate VLM configuration and extract video file name.
-    Sets VIDEO_NAME and ROI_COORDINATES environment variables.
+    Validate VLM configuration and extract stream metadata.
+    Sets stream name, URI, and ROI values.
     
     Args:
         camera_cfg_path: Optional path to camera config file
         
     Returns:
-        str: video file name from configuration
+        tuple: (stream_name, stream_uri, roi_coordinates)
         
     Raises:
         ValueError: if configuration validation fails
@@ -150,11 +191,12 @@ def get_video_from_config(camera_cfg_path: str = None):
     
     try:
         vlm_config = validate_and_extract_vlm_config(camera_cfg_path)
-        
-        video_file_name = vlm_config.get("video_name")
+
+        stream_name = vlm_config.get("stream_name")
+        stream_uri = vlm_config.get("stream_uri")
         roi_coordinates = vlm_config.get("roi", "")
-      
-        return video_file_name, roi_coordinates
+
+        return stream_name, stream_uri, roi_coordinates
         
     except Exception as e:
         logger.error("Failed to validate lp_vlm configuration: %s", str(e))
@@ -183,7 +225,12 @@ if __name__ == "__main__":
     parser.add_argument(
         "--get-video",
         action="store_true",
-        help="Return video name and ROI for lp_vlm workload"
+        help="Return stream metadata for lp_vlm workload"
+    )
+    parser.add_argument(
+        "--get-stream-uri",
+        action="store_true",
+        help="Return only the RTSP URI for lp_vlm workload"
     )
 
     args = parser.parse_args()
@@ -195,8 +242,16 @@ if __name__ == "__main__":
             exit(0)
 
         if args.get_video:
-            video_name, roi_coordinates = get_video_from_config(args.camera_config)
-            print(f"{video_name} {roi_coordinates}")
+            stream_name, stream_uri, roi_coordinates = get_video_from_config(args.camera_config)
+            print(json.dumps({
+                "stream_name": stream_name,
+                "stream_uri": stream_uri,
+                "roi": roi_coordinates
+            }))
+            exit(0)
+        if args.get_stream_uri:
+            _, stream_uri, _ = get_video_from_config(args.camera_config)
+            print(stream_uri)
             exit(0)
         if args.get_video_name:
             video_name = get_video_name_only(args.camera_config)

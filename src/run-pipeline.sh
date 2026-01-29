@@ -45,6 +45,7 @@ if [ "${VLM_WORKLOAD_ENABLED}" = "0" ]; then
     fi
     echo "#############  GStreamer pipeline command generated successfully ##########"   
 
+    CONTAINER_NAME="${CONTAINER_NAME:-gst}"
     CONTAINER_NAME="${CONTAINER_NAME//\"/}" # Remove double quotes
     cid="${cid}_${CONTAINER_NAME}"
     echo "==================CONTAINER_NAME: ${CONTAINER_NAME}"
@@ -89,31 +90,35 @@ if [ "${VLM_WORKLOAD_ENABLED}" = "0" ]; then
     results_dir="/home/pipeline-server/results"
     mkdir -p "$results_dir"
 
-    # Count filesrc lines to determine number of streams
-    filesrc_count=$(grep -c "filesrc location=" "$pipeline_file")
-    echo "Found $filesrc_count filesrc lines in $pipeline_file"
+    # Count source elements (filesrc or rtspsrc) to determine number of streams
+    source_count=$(grep -E -i -c "(filesrc|rtspsrc)" "$pipeline_file" || echo "0")
+    echo "Found $source_count source elements in $pipeline_file"
+    
+    # DEBUG: Print first few lines of pipeline file to understand format
+    echo "===== DEBUG: First 5 lines of pipeline file ====="
+    head -5 "$pipeline_file"
+    echo "===== DEBUG: Lines containing rtspsrc or filesrc ====="
+    grep -i -E "(rtspsrc|filesrc)" "$pipeline_file" || echo "No matches found"
+    echo "================================================="
 
-    # Extract first name= value from each filesrc line
-    declare -a filesrc_names
+    # Extract stream identifiers from source elements
+    declare -a source_names
     while IFS= read -r line; do
-        if [[ "$line" == *"filesrc location="* ]]; then
-            # Extract first name= value from this line
-            if [[ "$line" =~ name=([^[:space:]]+) ]]; then
-                name="${BASH_REMATCH[1]}"
-                filesrc_names+=("$name")
-            else
-                # Fallback if no name found
-                filesrc_names+=("stream${#filesrc_names[@]}")
-            fi
+        # Match rtspsrc name=... or filesrc name=... (name comes before location)
+        if [[ "$line" =~ (rtspsrc|filesrc)[[:space:]]+name=([^[:space:]]+) ]]; then
+            # Extract the name value
+            name="${BASH_REMATCH[2]}"
+            source_names+=("$name")
         fi
     done < "$pipeline_file"
 
-    echo "Extracted filesrc names: ${filesrc_names[*]}"
+    echo "Extracted stream names: ${source_names[*]}"
 
     # Create per-stream pipeline log files using extracted names
     declare -a pipeline_logs
-    for i in "${!filesrc_names[@]}"; do
-        name="${filesrc_names[i]}"
+    pipeline_logs=()  # Initialize as empty array to prevent unbound variable error
+    for i in "${!source_names[@]}"; do
+        name="${source_names[i]}"
         # Sanitize name for filename
         safe_name=$(echo "$name" | tr -cd '[:alnum:]_-')
         # Updated filename pattern: pipeline_stream<i>_safe_name_timestamp.log
@@ -152,7 +157,7 @@ if [ "${VLM_WORKLOAD_ENABLED}" = "0" ]; then
         # Match only FpsCounter(last ...) lines (ignore 'average' lines)
         if [[ "$line" =~ FpsCounter\(last.*number-streams=([0-9]+) ]]; then
             num_streams="${BASH_REMATCH[1]}"
-            if [[ "$num_streams" -eq "$filesrc_count" ]]; then
+            if [[ "$num_streams" -eq "$source_count" ]]; then
                 if [[ "$num_streams" -eq 1 ]]; then
                     if [[ "$line" =~ per-stream=([0-9]+\.[0-9]+) ]]; then
                         fps_array=("${BASH_REMATCH[1]}")
