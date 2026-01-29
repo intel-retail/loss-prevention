@@ -80,7 +80,7 @@ __What to Expect__
               
           :white_check_mark: Content in files ❌ No Files ❌ No Content in files
      
-        >In case of failure refer Section [TroubleShooting](#%EF%B8%8F-troubleshooting)
+        >In case of failure :point_right: [TroubleShooting](#%EF%B8%8F-troubleshooting)
 
 
 __Stop the application__
@@ -99,7 +99,7 @@ make down-lp
 
 ## :heavy_plus_sign: Advanced Usage
 >[!IMPORTANT]
->For a comprehensive and advanced guide, refer to- [Loss Prevention Documentation Guide](https://intel-retail.github.io/documentation/use-cases/loss-prevention/loss-prevention.html)
+>For a comprehensive and advanced guide, :point_right: [Loss Prevention Documentation Guide](https://intel-retail.github.io/documentation/use-cases/loss-prevention/loss-prevention.html)
 
 ### 1. To build the images locally and run the application:
 
@@ -141,7 +141,7 @@ make down-lp
  ```
 
 ### 3. Benchmark
->By default, the configuration is set to use the CPU. If you want to benchmark the application on GPU or NPU, please refer [Workloads](#4-run-different-workloads) Section
+>By default, the configuration is set to use the CPU. If you want to benchmark the application on GPU or NPU, please :point_right: [Workloads](#4-run-different-workloads) Section
 
 ```sh
 make benchmark
@@ -153,6 +153,9 @@ make benchmark
 
     cat benchmark/metrics.csv
     ```
+>[!IMPORTANT]
+>For Advanced Benchmark settings, :point_right: [Benchmarking Guide](https://intel-retail.github.io/documentation/use-cases/loss-prevention/advanced.html)
+
 
 ### 4. Pre-configured Workloads
 The preconfigured workload supports multiple hardware configurations out of the box. Use the `CAMERA_STREAM` and `WORKLOAD_DIST` variables to customize which cameras and hardware (CPU, GPU, NPU) are used by your pipeline.
