@@ -49,5 +49,9 @@ ENV MEDIA_DIR=/media \
 
 EXPOSE 8554
 
+# ---- Health Check ----
+HEALTHCHECK --interval=10s --timeout=5s --retries=3 \
+  CMD nc -z 127.0.0.1 ${RTSP_PORT} || exit 1
+
 # ---- Run ----
 ENTRYPOINT ["/opt/rtsp-streamer/start.sh"]

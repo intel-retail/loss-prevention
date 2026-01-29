@@ -275,7 +275,8 @@ def build_dynamic_gstlaunch_command(camera, workloads, workload_map, branch_idx=
         if source_info.get("type") == "rtsp":
             pipeline = (
                 f"rtspsrc name={source_info['name']} location=\"{source_info['uri']}\" "
-                f"protocols=tcp latency={RTSP_DEFAULT_LATENCY} ! "
+                f"protocols=tcp latency={RTSP_DEFAULT_LATENCY} "
+                f"timeout=5000000 retry=3 drop-on-latency=true ! "
                 "rtph264depay ! h264parse config-interval=-1 ! queue ! "
                 f"{DECODE} "
             )
