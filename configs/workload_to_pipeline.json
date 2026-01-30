@@ -18,13 +18,13 @@
       {        
         "type": "gvadetect",
         "model": "yolo11n",       
-        "device": "CPU",
-        "precision": "INT8"
+        "device": "NPU",
+        "precision": "INT8" 
       },
       {
         "type": "gvaclassify",
         "model": "efficientnet-b0",
-        "device": "CPU",
+        "device": "NPU",
         "precision": "INT8"
       }
     ],
