@@ -6,13 +6,19 @@ MODEL_PATH="/home/pipeline-server/lp-vlm/models"
 WORKLOAD_PIPELINE_CONFIG="/home/pipeline-server/lp-vlm/configs/"$WORKLOAD_DIST
 
 
-VIDEO_NAME="$(python3 /home/pipeline-server/lp-vlm/workload_utils.py \
+STREAM_NAME="$(python3 /home/pipeline-server/lp-vlm/workload_utils.py \
   --camera-config "/home/pipeline-server/lp-vlm/configs/${CAMERA_STREAM}" \
   --get-video-name)"
-  
-export VIDEO_NAME
+STREAM_URI="$(python3 /home/pipeline-server/lp-vlm/workload_utils.py \
+  --camera-config "/home/pipeline-server/lp-vlm/configs/${CAMERA_STREAM}" \
+  --get-stream-uri)"
 
-echo "VIDEO_NAME from env:" $VIDEO_NAME
+export STREAM_NAME
+export STREAM_URI
+export VIDEO_NAME="$STREAM_NAME"
+
+echo "STREAM_NAME from config:" "$STREAM_NAME"
+echo "STREAM_URI from config:" "$STREAM_URI"
 echo "WORKLOAD_DIST from env:" $WORKLOAD_DIST
 echo "CONFIG_PATH set to:" $WORKLOAD_PIPELINE_CONFIG
 
@@ -64,12 +70,12 @@ fi
 
 echo "🔍 Using model: $MODEL_FULL_PATH"
 
-if [ -z "$VIDEO_NAME" ] || [ ! -f "$INPUT_DIR/$VIDEO_NAME" ]; then
-  echo "Error: VIDEO_NAME is not set or file does not exist: $INPUT_DIR/$VIDEO_NAME"
+if [ -z "$STREAM_URI" ]; then
+  echo "Error: STREAM_URI is not set"
   exit 1
 fi
 
-echo "Starting Object Detection pipeline for video: $INPUT_DIR/$VIDEO_NAME"
+echo "Starting Object Detection pipeline for stream: $STREAM_URI"
 
 export GST_DEBUG=4
 
@@ -83,7 +89,8 @@ else
 fi
 
 time gst-launch-1.0 --verbose \
-  filesrc location="$INPUT_DIR/$VIDEO_NAME" ! \
+  rtspsrc location="$STREAM_URI" protocols=tcp latency=${RTSP_LATENCY:-200} ! \
+  rtph264depay ! h264parse config-interval=-1 ! queue ! \
   decodebin3 ! videoconvert ! videorate ! \
   video/x-raw,format=BGR,framerate=13/1 ! \
   gvadetect model-instance-id=detect1_1 name=lp-vlm batch-size=1 \
