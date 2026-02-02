@@ -5,6 +5,8 @@ import logging
 import os
 from pathlib import Path
 from urllib.parse import urlparse
+import socket
+import subprocess
 
 # -------------------- Logger Setup --------------------
 logging.basicConfig(
@@ -18,6 +20,51 @@ CONFIG_PATH_DEFAULT = "../../configs/camera_to_workload.json"
 TARGET_WORKLOAD = "lp_vlm"  # normalized compare
 RTSP_DEFAULT_HOST = os.getenv("RTSP_STREAM_HOST", "rtsp-streamer")
 RTSP_DEFAULT_PORT = os.getenv("RTSP_STREAM_PORT", "8554")
+
+# -------------------- Stream Validation --------------------
+def check_rtsp_stream_exists(stream_uri: str, timeout: int = 3) -> bool:
+    """
+    Check if a specific RTSP stream path is available using GStreamer.
+    Returns True if the stream is accessible, False otherwise.
+    """
+    try:
+        import subprocess
+        
+        # Use gst-launch to test if stream exists with a very short timeout
+        # This will fail quickly if the stream doesn't exist (404 Not Found)
+        cmd = [
+            'timeout', '5',  # Kill after 5 seconds
+            'gst-launch-1.0',
+            'rtspsrc', f'location={stream_uri}',
+            'protocols=tcp',
+            'latency=200',
+            'timeout=2000000',  # 2 second RTSP timeout
+            '!', 'fakesink'
+        ]
+        
+        result = subprocess.run(
+            cmd,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+            timeout=6,
+            text=True
+        )
+        
+        # Check if stderr contains "Not Found" or "404"
+        if result.stderr and ('Not Found' in result.stderr or '404' in result.stderr or 'Not found' in result.stderr):
+            logger.warning(f"RTSP stream not found: {stream_uri}")
+            return False
+            
+        # If command succeeded or timed out (stream exists but we didn't wait), it's available
+        return True
+        
+    except subprocess.TimeoutExpired:
+        # Timeout means stream connected successfully
+        return True
+    except Exception as e:
+        logger.warning(f"Could not check RTSP stream {stream_uri}: {e}")
+        # If we can't check, assume it exists to avoid false negatives
+        return True
 
 # -------------------- Load JSON --------------------
 def load_config(camera_cfg_path: str) -> dict:
@@ -54,6 +101,22 @@ def extract_video_name(fileSrc, width=None, fps=None) -> str:
 
 
 def derive_stream_uri(camera: dict) -> str:
+    """
+    Dynamically construct RTSP stream URI from fileSrc.
+    Format: rtsp://{host}:{port}/{video_name}-{width}-{fps}-bench
+    Falls back to legacy streamUri keys if fileSrc is not available.
+    """
+    # First, try to construct from fileSrc (preferred approach)
+    fileSrc = str(camera.get("fileSrc", "")).split("|")[0].strip()
+    if fileSrc:
+        # Remove .mp4 extension if present
+        base_name = fileSrc[:-4] if fileSrc.endswith('.mp4') else fileSrc
+        width = camera.get("width", 1920)
+        fps = camera.get("fps", 15)
+        stream_path = f"{base_name}-{width}-{fps}-bench"
+        return f"rtsp://{RTSP_DEFAULT_HOST}:{RTSP_DEFAULT_PORT}/{stream_path}"
+    
+    # Legacy fallback: check for explicit streamUri keys
     for key in ("streamUri", "stream_uri", "rtspUri", "rtsp_url"):
         raw = str(camera.get(key, ""))
         cleaned = raw.strip().strip('"').strip("'")
@@ -69,6 +132,7 @@ def derive_stream_uri(camera: dict) -> str:
             path = cleaned if cleaned.startswith("/") else f"/{cleaned}"
             return f"rtsp://{RTSP_DEFAULT_HOST}:{RTSP_DEFAULT_PORT}{path}"
 
+    # Last resort: use camera_id
     camera_id = str(camera.get("camera_id", "")).strip()
     if camera_id:
         return f"rtsp://{RTSP_DEFAULT_HOST}:{RTSP_DEFAULT_PORT}/{camera_id}"
@@ -146,6 +210,18 @@ def validate_and_extract_vlm_config(camera_cfg_path: str = None) -> dict:
         raise ValueError(f"[ERROR] Camera {camera_id} is missing an RTSP stream URI")
     if not stream_name:
         raise ValueError(f"[ERROR] Camera {camera_id} has no stream identifier")
+    
+    # Validate RTSP stream availability
+    if stream_uri.startswith("rtsp://"):
+        if not check_rtsp_stream_exists(stream_uri):
+            file_src = str(cam.get("fileSrc", "")).split("|")[0].strip()
+            logger.warning(f"⚠️  WARNING: RTSP stream not available for camera '{camera_id}': {stream_uri}")
+            logger.warning(f"    Expected video file: {file_src}")
+            logger.warning(f"    Please ensure the video exists in the sample-media directory.")
+            raise ValueError(
+                f"[ERROR] RTSP stream not available for camera {camera_id}: {stream_uri}. "
+                f"Expected video: {file_src}"
+            )
     
     # Format ROI as comma-separated string: x,y,x2,y2
     roi = f"{roi_dict.get('x', '')},{roi_dict.get('y', '')},{roi_dict.get('x2', '')},{roi_dict.get('y2', '')}"

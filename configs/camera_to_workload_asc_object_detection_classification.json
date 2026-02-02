@@ -7,7 +7,6 @@
         "width": 1080,
         "height": 1920,
         "fileSrc":"obj_classification-1920-15-bench.mp4|https://www.pexels.com/download/video/6891009", 
-        "streamUri": "rtsp://rtsp-streamer:8554/obj_classification-1920-15-bench",
         "workloads": ["asc_object_detection_yolo11n_classification_effnetb0"]
       }
       

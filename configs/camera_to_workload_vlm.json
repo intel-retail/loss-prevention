@@ -7,7 +7,6 @@
         "width": 1080,
         "height": 1920,
         "fileSrc":"items-in-basket-32658421.mp4|https://www.pexels.com/download/video/32658421", 
-        "streamUri": "rtsp://rtsp-streamer:8554/items-in-basket-32658421-1080-15-bench",
         "workloads": ["lp_vlm"]
       }
     ]
