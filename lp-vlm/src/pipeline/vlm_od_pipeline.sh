@@ -6,18 +6,17 @@ MODEL_PATH="/home/pipeline-server/lp-vlm/models"
 WORKLOAD_PIPELINE_CONFIG="/home/pipeline-server/lp-vlm/configs/"$WORKLOAD_DIST
 
 
-STREAM_NAME="$(python3 /home/pipeline-server/lp-vlm/workload_utils.py \
+VIDEO_NAME="$(python3 /home/pipeline-server/lp-vlm/workload_utils.py \
   --camera-config "/home/pipeline-server/lp-vlm/configs/${CAMERA_STREAM}" \
   --get-video-name)"
 STREAM_URI="$(python3 /home/pipeline-server/lp-vlm/workload_utils.py \
   --camera-config "/home/pipeline-server/lp-vlm/configs/${CAMERA_STREAM}" \
   --get-stream-uri)"
 
-export STREAM_NAME
+export VIDEO_NAME
 export STREAM_URI
-export VIDEO_NAME="$STREAM_NAME"
 
-echo "STREAM_NAME from config:" "$STREAM_NAME"
+echo "VIDEO_NAME from config:" "$VIDEO_NAME"
 echo "STREAM_URI from config:" "$STREAM_URI"
 echo "WORKLOAD_DIST from env:" $WORKLOAD_DIST
 echo "CONFIG_PATH set to:" $WORKLOAD_PIPELINE_CONFIG
