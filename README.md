@@ -107,13 +107,15 @@ When images are built locally-
 make down-lp REGISTRY=false
 ```
 
-### Note: Environment Variables for lp_vlm Workload
+### Note: Required Environment Variables
+
+#### For VLM Workload:
 ```sh
 # MinIO credentials (object storage)
 export MINIO_ROOT_USER=<your-minio-username>
 export MINIO_ROOT_PASSWORD=<your-minio-password>
 
-# RabbitMQ credentials (message broker)
+# RabbitMQ credentials (message broker) - REQUIRED
 export RABBITMQ_USER=<your-rabbitmq-username>
 export RABBITMQ_PASSWORD=<your-rabbitmq-password>
 
@@ -121,7 +123,22 @@ export RABBITMQ_PASSWORD=<your-rabbitmq-password>
 # Generate a token from: https://huggingface.co/settings/tokens
 export GATED_MODEL=true
 export HUGGINGFACE_TOKEN=<your-huggingface-token>
+```
 
+#### For Corporate Networks with Proxy:
+```sh
+# HTTP/HTTPS Proxy settings
+export HTTP_PROXY=<HTTP PROXY>
+export HTTPS_PROXY=<HTTPS PROXY>
+export NO_PROXY=localhost,127.0.0.1,rabbitmq,minio-service,rtsp-streamer
+```
+
+#### Optional RTSP Configuration:
+```sh
+# RTSP Server configuration (defaults shown)
+export RTSP_STREAM_HOST=rtsp-streamer  # Hostname of RTSP server
+export RTSP_STREAM_PORT=8554           # RTSP port
+export RTSP_MEDIA_DIR=../performance-tools/sample-media  # Video source directory
 ```
 
 ### Run the VLM based workload
@@ -166,23 +183,53 @@ src/pipelines/pipeline.sh
 
 The application is highly configurable via JSON files in the `configs/` directory:
 
-- **`camera_to_workload.json`**: Maps each camera to one or more workloads. To add or remove a camera, edit the `lane_config.cameras` array in this file. Each camera entry can specify its video source, region of interest, and assigned workloads.
-    - Example:
-      ```json
-      {
-        "lane_config": {
-          "cameras": [
-            {
-              "camera_id": "cam1",
-              "fileSrc": "sample-media/video1.mp4",
-              "workloads": ["items_in_basket", "multi_product_identification"],
-              "region_of_interest": {"x": 100, "y": 100, "x2": 800, "y2": 600}              
-            },
-            ...
-          ]
-        }
+- **`camera_to_workload.json`**: Maps each camera to one or more workloads. To add or remove a camera, edit the `lane_config.cameras` array in this file. Each camera entry can specify its video source (file or RTSP stream), region of interest, and assigned workloads.
+    
+    **Option 1: RTSP Stream Source (Recommended for Production)**
+    ```json
+    {
+      "lane_config": {
+        "cameras": [
+          {
+            "camera_id": "cam1",
+            "streamUri": "rtsp://rtsp-streamer:8554/video-stream-name",
+            "workloads": ["items_in_basket", "multi_product_identification"],
+            "region_of_interest": {"x": 100, "y": 100, "x2": 800, "y2": 600}
+          }
+        ]
       }
-      ```
+    }
+    ```
+    
+    **Option 2: File-Based Source (Development/Testing)**
+    ```json
+    {
+      "lane_config": {
+        "cameras": [
+          {
+            "camera_id": "cam1",
+            "fileSrc": "sample-media/video1.mp4|https://source-url.com/video.mp4",
+            "width": 1920,
+            "height": 1080,
+            "fps": 15,
+            "workloads": ["items_in_basket", "multi_product_identification"],
+            "region_of_interest": {"x": 100, "y": 100, "x2": 800, "y2": 600}
+          }
+        ]
+      }
+    }
+    ```
+    
+    **Option 3: Hybrid Configuration (Both RTSP and File Source)**
+    ```json
+    {
+      "camera_id": "cam1",
+      "streamUri": "rtsp://rtsp-streamer:8554/video-stream-name",
+      "fileSrc": "sample-media/video1.mp4|https://fallback-url.com",
+      "workloads": ["items_in_basket"]
+    }
+    ```
+    > **Note:** If both `streamUri` and `fileSrc` are provided, `streamUri` takes priority. The system falls back to `fileSrc` if RTSP is unavailable.
 - **`workload_to_pipeline.json`**: Maps each workload name to a pipeline definition (sequence of GStreamer elements and models). To add or update a workload, edit the `workload_pipeline_map` in this file.
     - Example:
       ```json
@@ -199,9 +246,53 @@ The application is highly configurable via JSON files in the `configs/` director
 
 **To try a new camera or workload:**
 1. Edit `configs/camera_to_workload.json` to add your camera and assign workloads.
-2. Edit `configs/workload_to_pipeline.json` to define or update the pipeline for your workload.
-3. (Optional) Place your video files in the appropriate directory and update the `fileSrc` path.
-4. Re-run the pipeline as described above.
+2. For RTSP sources: Add `"streamUri": "rtsp://host:port/stream-name"` to your camera config.
+3. For file sources: Place your video files in `performance-tools/sample-media/` and update `fileSrc`.
+4. Edit `configs/workload_to_pipeline.json` to define or update the pipeline for your workload.
+5. Re-run the pipeline as described above.
+
+## 🎥 RTSP Streaming Architecture
+
+The system includes an integrated RTSP server (MediaMTX) that streams video files for testing and development:
+
+### How It Works:
+1. **RTSP Server Container** (`rtsp-streamer`): 
+   - Automatically starts MediaMTX server on port 8554
+   - Streams all `.mp4` files from `performance-tools/sample-media/`
+   - Each video becomes an RTSP stream: `rtsp://rtsp-streamer:8554/<video-name>`
+
+2. **Pipeline Consumption**:
+   - GStreamer pipelines connect via `rtspsrc` element
+   - Supports TCP transport with configurable latency
+   - Automatic retry and timeout handling
+
+3. **Stream Naming Convention**:
+   - Video: `items-in-basket-32658421-1080-15-bench.mp4`
+   - Stream: `rtsp://rtsp-streamer:8554/items-in-basket-32658421-1080-15-bench`
+
+### RTSP Server Features:
+- **Loop Playback**: Videos restart automatically when finished
+- **TCP Transport**: Reliable streaming over corporate networks
+- **Low Latency**: Default 200ms latency for real-time processing
+- **Multiple Streams**: Supports concurrent camera streams
+- **Proxy Support**: Works through corporate HTTP/HTTPS proxies
+
+### Connecting External RTSP Cameras:
+To use real RTSP cameras instead of the built-in server:
+
+```json
+{
+  "camera_id": "external_cam1",
+  "streamUri": "rtsp://192.168.1.100:554/stream1",
+  "workloads": ["items_in_basket"]
+}
+```
+
+### RTSP Troubleshooting:
+- **Connection timeout**: Check `RTSP_STREAM_HOST` and `RTSP_STREAM_PORT` environment variables
+- **Stream not found**: Verify video file exists in `performance-tools/sample-media/`
+- **Black frames**: Ensure video codec is H.264 (most compatible)
+- **Check RTSP server logs**: `docker logs rtsp-streamer`
 
 ## 📁 Project Structure
 
@@ -210,7 +301,29 @@ The application is highly configurable via JSON files in the `configs/` director
 - `docs/` — Documentation (HLD, LLD, system design)
 - `download-scripts/` — Scripts for downloading models and videos
 - `src/` — Main source code and pipeline runner scripts
+  - `src/rtsp-streamer/` — RTSP server container (MediaMTX + FFmpeg)
+  - `src/gst-pipeline-generator.py` — Dynamic GStreamer pipeline generator
+  - `src/docker-compose.yml` — Multi-container orchestration
+- `performance-tools/sample-media/` — Video files for RTSP streaming
 - `Makefile` — Build automation and workflow commands
+
+## 🐳 Docker Services
+
+The application runs the following Docker containers:
+
+| Service | Purpose | Port | Notes |
+|---------|---------|------|-------|
+| `rtsp-streamer` | RTSP video streaming server | 8554 | Streams videos from sample-media |
+| `rabbitmq` | Message broker for VLM workload | 5672, 15672 | Requires credentials |
+| `minio-service` | Object storage for frames | 4000, 4001 | S3-compatible storage |
+| `model-downloader` | Downloads AI models | - | Runs once at startup |
+| `lp-vlm-workload-handler` | VLM inference processor | - | GPU/CPU inference |
+| `vlm-pipeline-runner` | VLM pipeline orchestrator | - | Requires DISPLAY variable |
+| `lp-pipeline-runner` | Main inference pipeline | - | Supports CPU/GPU/NPU |
+
+**Network Configuration:**
+- All services run on `my_network` bridge network for DNS resolution
+- Use `rtsp-streamer`, `rabbitmq`, `minio-service` as hostnames for inter-service communication
 
 ---
 

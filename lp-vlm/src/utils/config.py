@@ -16,7 +16,7 @@ LP_APP_BASE_DIR = "/app"
 
 RESULTS_DIR = "results"
 MODELS_DIR = "models"
-LOGS_DIR = os.path.join(LP_APP_BASE_DIR)
+LOGS_DIR = os.path.join(LP_APP_BASE_DIR, "logs")
 
 MINIO_HOST = f"{LP_IP}:{MINIO_API_HOST_PORT}"
 
@@ -44,6 +44,9 @@ def setup_logging():
     logger = logging.getLogger("loss_prevention_app")
     logger.setLevel(logging.INFO)
 
+    # Ensure logs directory exists
+    os.makedirs(LOGS_DIR, exist_ok=True)
+    
     file_handler = logging.FileHandler(os.path.join(LOGS_DIR, "loss_prevention_app.log"))
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     file_handler.setFormatter(formatter)

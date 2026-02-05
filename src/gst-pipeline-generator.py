@@ -3,8 +3,11 @@ import json
 from pathlib import Path
 import copy
 from datetime import datetime
+from urllib.parse import urlparse
 from dotenv import dotenv_values
 import sys
+import socket
+import time
 
 WORKLOAD_DIST = os.environ.get("WORKLOAD_DIST", "workload_to_pipeline.json")
 CAMERA_STREAM = os.environ.get("CAMERA_STREAM", "camera_to_workload.json")
@@ -15,6 +18,9 @@ CONFIG_WORKLOAD_TO_PIPELINE = f"/home/pipeline-server/configs/{WORKLOAD_DIST}"
 MODELSERVER_DIR = "/home/pipeline-server"
 MODELSERVER_MODELS_DIR = "/home/pipeline-server/models"
 MODELSERVER_VIDEOS_DIR = "/home/pipeline-server/sample-media"
+RTSP_DEFAULT_HOST = os.getenv("RTSP_STREAM_HOST", "rtsp-streamer")
+RTSP_DEFAULT_PORT = os.getenv("RTSP_STREAM_PORT", "8554")
+RTSP_DEFAULT_LATENCY = os.getenv("RTSP_LATENCY", "200")
 
 
 def download_video_if_missing(video_name, width=None, fps=None):
@@ -27,6 +33,121 @@ def download_video_if_missing(video_name, width=None, fps=None):
     file_name = f"{base_name}-{width}-{fps}-bench.mp4"
     video_path = os.path.join(MODELSERVER_VIDEOS_DIR, file_name)
     return video_path
+
+
+def sanitize_gst_name(raw: str) -> str:
+    if not raw:
+        return "stream"
+    cleaned = "".join(ch if ch.isalnum() or ch in ("_", "-") else "_" for ch in raw)
+    if not cleaned:
+        cleaned = "stream"
+    if cleaned[0].isdigit():
+        cleaned = f"cam_{cleaned}"
+    return cleaned
+
+
+def check_rtsp_stream_exists(stream_uri: str, timeout: int = 3) -> bool:
+    """
+    Check if a specific RTSP stream path is available using GStreamer.
+    Returns True if the stream is accessible, False otherwise.
+    """
+    try:
+        import subprocess
+        
+        # Use gst-launch to test if stream exists with a very short timeout
+        # This will fail quickly if the stream doesn't exist (404 Not Found)
+        cmd = [
+            'timeout', '5',  # Kill after 5 seconds
+            'gst-launch-1.0',
+            'rtspsrc', f'location={stream_uri}',
+            'protocols=tcp',
+            'latency=200',
+            'timeout=2000000',  # 2 second RTSP timeout
+            '!', 'fakesink'
+        ]
+        
+        result = subprocess.run(
+            cmd,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+            timeout=6,
+            text=True
+        )
+        
+        # Check if stderr contains "Not Found" or "404"
+        if result.stderr and ('Not Found' in result.stderr or '404' in result.stderr or 'Not found' in result.stderr):
+            return False
+            
+        # If command succeeded or timed out (stream exists but we didn't wait), it's available
+        return True
+        
+    except subprocess.TimeoutExpired:
+        # Timeout means stream connected successfully
+        return True
+    except Exception as e:
+        print(f"Warning: Could not check RTSP stream {stream_uri}: {e}", file=sys.stderr)
+        # If we can't check, assume it exists to avoid false negatives
+        return True
+
+
+def derive_stream_uri(camera: dict) -> str:
+    """
+    Dynamically construct RTSP stream URI from fileSrc.
+    Format: rtsp://{host}:{port}/{video_name}-{width}-{fps}-bench
+    Falls back to legacy streamUri keys if fileSrc is not available.
+    """
+    # First, try to construct from fileSrc (preferred approach)
+    file_src = str(camera.get("fileSrc", "")).split("|")[0].strip()
+    if file_src:
+        # Remove .mp4 extension if present
+        base_name = file_src[:-4] if file_src.endswith('.mp4') else file_src
+        width = camera.get("width", 1920)
+        fps = camera.get("fps", 15)
+        stream_path = f"{base_name}-{width}-{fps}-bench"
+        return f"rtsp://{RTSP_DEFAULT_HOST}:{RTSP_DEFAULT_PORT}/{stream_path}"
+    
+    # Legacy fallback: check for explicit streamUri keys
+    for key in ("streamUri", "stream_uri", "rtspUri", "rtsp_url"):
+        value = str(camera.get(key, ""))
+        cleaned = value.strip().strip('"').strip("'")
+        if cleaned:
+            if "://" in cleaned:
+                parsed = urlparse(cleaned)
+                scheme = parsed.scheme or "rtsp"
+                host = RTSP_DEFAULT_HOST or (parsed.hostname or "rtsp-streamer")
+                port = RTSP_DEFAULT_PORT or (str(parsed.port) if parsed.port else "8554")
+                path = parsed.path or ""
+                query = f"?{parsed.query}" if parsed.query else ""
+                return f"{scheme}://{host}:{port}{path}{query}"
+            path = cleaned if cleaned.startswith("/") else f"/{cleaned}"
+            return f"rtsp://{RTSP_DEFAULT_HOST}:{RTSP_DEFAULT_PORT}{path}"
+    
+    # Last resort: use camera_id
+    camera_id = str(camera.get("camera_id", "")).strip()
+    if camera_id:
+        return f"rtsp://{RTSP_DEFAULT_HOST}:{RTSP_DEFAULT_PORT}/{camera_id}"
+    return ""
+
+
+def derive_stream_name(camera: dict, stream_uri: str) -> str:
+    camera_id = str(camera.get("camera_id", "")).strip()
+    if camera_id:
+        return sanitize_gst_name(camera_id)
+
+    if stream_uri:
+        parsed = urlparse(stream_uri)
+        if parsed.path:
+            candidate = Path(parsed.path).name
+            if candidate:
+                return sanitize_gst_name(candidate)
+        if parsed.hostname:
+            return sanitize_gst_name(parsed.hostname)
+
+    file_src = str(camera.get("fileSrc", "")).split("|")[0].strip()
+    if file_src:
+        return sanitize_gst_name(Path(file_src).stem)
+
+    return "stream"
 
 def download_model_if_missing(model_name, model_type=None, precision=None):
     if model_type == "gvadetect":
@@ -150,8 +271,10 @@ def build_dynamic_gstlaunch_command(camera, workloads, workload_map, branch_idx=
     workload_signatures = []
     video_files = []
     camera_id = camera.get("camera_id", f"cam{branch_idx+1}")
+    stream_uri = derive_stream_uri(camera)
+    source_name = derive_stream_name(camera, stream_uri)
     signature_to_steps = {}
-    signature_to_video = {}
+    signature_to_source = {}
     for w in workloads:
         if w in workload_map:
             steps = []
@@ -184,16 +307,25 @@ def build_dynamic_gstlaunch_command(camera, workloads, workload_map, branch_idx=
             sig = model_prec_signature
             if sig not in signature_to_steps:
                 signature_to_steps[sig] = steps
-                # Each unique signature gets a video file
-                file_src = camera["fileSrc"]
-                video_name = file_src.split("|")[0].strip()
-                width = camera.get("width", 1920)
-                fps = camera.get("fps", 15)
-                video_file = download_video_if_missing(video_name, width, fps)
-                signature_to_video[sig] = video_file
+                if stream_uri:
+                    signature_to_source[sig] = {
+                        "type": "rtsp",
+                        "uri": stream_uri,
+                        "name": source_name,
+                    }
+                else:
+                    file_src = str(camera.get("fileSrc", "")).split("|")[0].strip()
+                    width = camera.get("width", 1920)
+                    fps = camera.get("fps", 15)
+                    video_file = download_video_if_missing(file_src, width, fps)
+                    signature_to_source[sig] = {
+                        "type": "file",
+                        "path": video_file,
+                        "name": source_name,
+                    }
     pipelines = []
     for idx, (sig, steps) in enumerate(signature_to_steps.items()):
-        video_file = signature_to_video[sig]
+        source_info = signature_to_source[sig]
         # Get DECODE for the first step's device, if present
         first_device = steps[0].get("device")
         
@@ -201,8 +333,22 @@ def build_dynamic_gstlaunch_command(camera, workloads, workload_map, branch_idx=
         vapostproc_elem = "vapostproc !" if first_device and first_device.upper() in ["NPU", "GPU"] else ""
         
         first_env_vars = get_env_vars_for_device(first_device) if first_device else {}
-        DECODE = first_env_vars.get("DECODE") or "decodebin"
-        pipeline = f"filesrc location={video_file} ! {DECODE} "
+        DECODE = (first_env_vars.get("DECODE") or "decodebin").strip()
+        if not DECODE:
+            DECODE = "decodebin"
+        if source_info.get("type") == "rtsp":
+            pipeline = (
+                f"rtspsrc name={source_info['name']} location=\"{source_info['uri']}\" "
+                f"protocols=tcp latency={RTSP_DEFAULT_LATENCY} "
+                f"timeout=5000000 retry=3 drop-on-latency=true ! "
+                "rtph264depay ! h264parse config-interval=-1 ! queue ! "
+                f"{DECODE} "
+            )
+        else:
+            pipeline = (
+                f"filesrc name={source_info['name']} location={source_info['path']} ! "
+                f"{DECODE} "
+            )
         rois = []
         seen_rois = set()
         for step in steps:
@@ -302,7 +448,7 @@ def main():
     model_instance_map = {}
     model_instance_counter = [0]
     
-    # Filter out cameras with lp_vlm workload
+    # Filter out cameras with lp_vlm workload and validate streams
     cameras = camera_config["lane_config"]["cameras"]
     filtered_cameras = []
     
@@ -319,6 +465,17 @@ def main():
         if "lp_vlm" in normalized_workloads:
             print(f"Skipping camera {cam.get('camera_id', 'unknown')} with lp_vlm workload", file=sys.stderr)
             continue
+        
+        # Check if stream exists for RTSP sources
+        stream_uri = derive_stream_uri(cam)
+        if stream_uri and stream_uri.startswith("rtsp://"):
+            if not check_rtsp_stream_exists(stream_uri):
+                camera_id = cam.get('camera_id', 'unknown')
+                file_src = str(cam.get("fileSrc", "")).split("|")[0].strip()
+                print(f"⚠️  WARNING: Skipping camera '{camera_id}' - RTSP stream not available: {stream_uri}", file=sys.stderr)
+                print(f"    Expected video file: {file_src}", file=sys.stderr)
+                print(f"    Please ensure the video exists in the sample-media directory.", file=sys.stderr)
+                continue
         
         filtered_cameras.append(cam)
     
