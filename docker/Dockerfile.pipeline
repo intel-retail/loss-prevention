@@ -17,6 +17,7 @@ COPY configs/ /home/pipeline-server/configs/
 # COPY configs/camera_to_workload.json /home/pipeline-server/configs/camera_to_workload.json
 #COPY models /home/pipeline-server/models
 #COPY performance-tools/sample-media /home/pipeline-server/sample-media
+COPY src/create-pipeline.sh scripts/
 COPY src/run-pipeline.sh scripts/
 COPY src/person_reid.py /home/pipeline-server/src/
 COPY src/gst-pipeline-generator.py scripts/
@@ -25,7 +26,8 @@ COPY src/res/* res/
 # Copy VLM pipeline python scripts
 COPY ../lp-vlm/src/pipeline/* /home/pipeline-server/lp-vlm/gvapython/
 
+RUN chmod +x scripts/create-pipeline.sh
 RUN chmod +x scripts/run-pipeline.sh
 RUN chmod +x /home/pipeline-server/lp-vlm/gvapython/vlm_od_pipeline.sh
 
-ENTRYPOINT ["scripts/run-pipeline.sh"]
+ENTRYPOINT ["/bin/bash", "-c", "scripts/run-pipeline.sh"]
