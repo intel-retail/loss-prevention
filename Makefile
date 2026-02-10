@@ -198,6 +198,8 @@ benchmark-stream-density: build-benchmark download-models
 		echo "╚════════════════════════════════════════════════════════════╝";\
 		sleep 5;\
     fi
+	mkdir -p $$(dirname $(VLM_LOGS_FILE)); \
+	[ -f $(VLM_LOGS_FILE) ] || touch $(VLM_LOGS_FILE); \
 	cd performance-tools/benchmark-scripts && \
 	export MULTI_STREAM_MODE=1 && \
     ( \
@@ -221,6 +223,8 @@ benchmark-quickstart: download-models download-sample-videos
 		echo "Building benchmark container locally..."; \
 		$(MAKE) build-benchmark; \
 	fi
+	mkdir -p $$(dirname $(VLM_LOGS_FILE)); \
+	[ -f $(VLM_LOGS_FILE) ] || touch $(VLM_LOGS_FILE); \
 	cd performance-tools/benchmark-scripts && \
 	export MULTI_STREAM_MODE=1 && \
 	( \
