@@ -45,14 +45,13 @@ for file in "$@"; do
   filename=$(basename "$file")
   stream_name=${filename%.*}
   echo "Starting RTSP stream $stream_name from $file"
-  # -re throttles playback to real-time; -stream_loop -1 restarts the file forever
+  # -re throttles playback to real-time
   # -c copy copies audio/video streams without re-encoding
   # -f rtsp publishes to MediaMTX via RTSP protocol
   "$FFMPEG_BIN" \
     -hide_banner \
     -loglevel info \
     -re \
-    -stream_loop -1 \
     -i "$file" \
     -c copy \
     -rtsp_transport tcp \
