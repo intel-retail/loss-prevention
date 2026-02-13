@@ -19,7 +19,8 @@ export LLM_BASE_DIR=$(PWD)/microservices/vlm/ov-models
 export MINIO_API_HOST_PORT=4000
 export MINIO_CONSOLE_HOST_PORT=4001
 export LP_IP=$(HOST_IP)
-
+export LOCAL_UID=$(id -u)
+export LOCAL_GID=$(id -g)
 
 # Default values for benchmark
 PIPELINE_COUNT ?= 1
@@ -123,12 +124,13 @@ down-lp:
 	@echo "VLM cleanup completed"
 
 run:
+	@mkdir -p results results/vlm-results
 	@if [ "$(REGISTRY)" = "true" ]; then \
 		echo "##############Using registry mode - fetching pipeline runner..."; \
-		LP_VLM_WORKLOAD_ENABLED=$(LP_VLM_WORKLOAD_ENABLED) BATCH_SIZE_DETECT=$(BATCH_SIZE_DETECT) BATCH_SIZE_CLASSIFY=$(BATCH_SIZE_CLASSIFY) docker compose -f src/$(DOCKER_COMPOSE) up -d; \
+		LOCAL_UID=$(shell id -u) LOCAL_GID=$(shell id -g) LP_VLM_WORKLOAD_ENABLED=$(LP_VLM_WORKLOAD_ENABLED) BATCH_SIZE_DETECT=$(BATCH_SIZE_DETECT) BATCH_SIZE_CLASSIFY=$(BATCH_SIZE_CLASSIFY) docker compose -f src/$(DOCKER_COMPOSE) up -d; \
 	else \
 		docker compose -f src/$(DOCKER_COMPOSE) build pipeline-runner; \
-		LP_VLM_WORKLOAD_ENABLED=$(LP_VLM_WORKLOAD_ENABLED) BATCH_SIZE_DETECT=$(BATCH_SIZE_DETECT) BATCH_SIZE_CLASSIFY=$(BATCH_SIZE_CLASSIFY) docker compose -f src/$(DOCKER_COMPOSE) up --build -d; \
+		LOCAL_UID=$(shell id -u) LOCAL_GID=$(shell id -g) LP_VLM_WORKLOAD_ENABLED=$(LP_VLM_WORKLOAD_ENABLED) BATCH_SIZE_DETECT=$(BATCH_SIZE_DETECT) BATCH_SIZE_CLASSIFY=$(BATCH_SIZE_CLASSIFY) docker compose -f src/$(DOCKER_COMPOSE) up --build -d; \
 	fi
 
 run-render-mode: validate_workload_mapping
@@ -145,10 +147,12 @@ run-render-mode: validate_workload_mapping
 	@xhost +local:docker	
 	@if [ "$(REGISTRY)" = "true" ]; then \
 		echo "##############Using registry mode - fetching pipeline runner..."; \
-		RENDER_MODE=1  LP_VLM_WORKLOAD_ENABLED=$(LP_VLM_WORKLOAD_ENABLED) CAMERA_STREAM=$(CAMERA_STREAM) WORKLOAD_DIST=$(WORKLOAD_DIST) BATCH_SIZE_DETECT=$(BATCH_SIZE_DETECT) BATCH_SIZE_CLASSIFY=$(BATCH_SIZE_CLASSIFY) docker compose -f src/$(DOCKER_COMPOSE) up -d; \
+		mkdir -p results results/vlm-results; \
+		LOCAL_UID=$(shell id -u) LOCAL_GID=$(shell id -g) RENDER_MODE=1  LP_VLM_WORKLOAD_ENABLED=$(LP_VLM_WORKLOAD_ENABLED) CAMERA_STREAM=$(CAMERA_STREAM) WORKLOAD_DIST=$(WORKLOAD_DIST) BATCH_SIZE_DETECT=$(BATCH_SIZE_DETECT) BATCH_SIZE_CLASSIFY=$(BATCH_SIZE_CLASSIFY) docker compose -f src/$(DOCKER_COMPOSE) up -d; \
 	else \
 		docker compose -f src/$(DOCKER_COMPOSE) build; \
-		RENDER_MODE=1 LP_VLM_WORKLOAD_ENABLED=$(LP_VLM_WORKLOAD_ENABLED) CAMERA_STREAM=$(CAMERA_STREAM) WORKLOAD_DIST=$(WORKLOAD_DIST) BATCH_SIZE_DETECT=$(BATCH_SIZE_DETECT) BATCH_SIZE_CLASSIFY=$(BATCH_SIZE_CLASSIFY) docker compose -f src/$(DOCKER_COMPOSE) up --build -d; \
+		mkdir -p results results/vlm-results; \
+		LOCAL_UID=$(shell id -u) LOCAL_GID=$(shell id -g) RENDER_MODE=1 LP_VLM_WORKLOAD_ENABLED=$(LP_VLM_WORKLOAD_ENABLED) CAMERA_STREAM=$(CAMERA_STREAM) WORKLOAD_DIST=$(WORKLOAD_DIST) BATCH_SIZE_DETECT=$(BATCH_SIZE_DETECT) BATCH_SIZE_CLASSIFY=$(BATCH_SIZE_CLASSIFY) docker compose -f src/$(DOCKER_COMPOSE) up --build -d; \
 	fi	
 	$(MAKE) clean-images
 
