@@ -5,6 +5,7 @@ MEDIA_DIR=${MEDIA_DIR:-/media}
 RTSP_PORT=${RTSP_PORT:-8554}
 FFMPEG_BIN=${FFMPEG_BIN:-ffmpeg}
 MEDIAMTX_BIN=${MEDIAMTX_BIN:-/opt/rtsp-streamer/mediamtx}
+STREAM_LOOP=${STREAM_LOOP:-false}
 
 if [ ! -d "$MEDIA_DIR" ]; then
   echo "Media directory $MEDIA_DIR does not exist" >&2
@@ -46,12 +47,18 @@ for file in "$@"; do
   stream_name=${filename%.*}
   echo "Starting RTSP stream $stream_name from $file"
   # -re throttles playback to real-time
+  # -stream_loop -1 loops the video indefinitely (if STREAM_LOOP=true)
   # -c copy copies audio/video streams without re-encoding
   # -f rtsp publishes to MediaMTX via RTSP protocol
+  loop_args=""
+  if [ "$STREAM_LOOP" = "true" ]; then
+    loop_args="-stream_loop -1"
+  fi
   "$FFMPEG_BIN" \
     -hide_banner \
     -loglevel info \
     -re \
+    $loop_args \
     -i "$file" \
     -c copy \
     -rtsp_transport tcp \
