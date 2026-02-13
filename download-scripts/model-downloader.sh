@@ -61,3 +61,14 @@ else
     echo "  - MODEL_NAME (+ optional MODEL_TYPE, PRECISION)"
     exit 1
 fi
+
+############################################
+# Final step: fix ownership for host user
+############################################
+if [[ -n "${LOCAL_UID:-}" && -n "${LOCAL_GID:-}" ]]; then
+    echo "[INFO] Adjusting ownership of downloaded models to ${LOCAL_UID}:${LOCAL_GID}"
+    chown -R "${LOCAL_UID}:${LOCAL_GID}" "${MODELS_PATH}" 2>/dev/null || \
+      echo "[WARN] Unable to chown models directory; continuing."
+else
+    echo "[INFO] LOCAL_UID/LOCAL_GID not set; skipping ownership adjustment"
+fi
