@@ -97,6 +97,7 @@ services:
       - https_proxy=${https_proxy}
       - NO_PROXY=${NO_PROXY}
       - RTSP_PORT=${RTSP_PORT:-8554}
+      - STREAM_LOOP=${STREAM_LOOP:-false}
     volumes:
       - ${RTSP_MEDIA_DIR:-../performance-tools/sample-media}:/media:ro
     networks:

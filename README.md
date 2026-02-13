@@ -139,6 +139,7 @@ export NO_PROXY=localhost,127.0.0.1,rabbitmq,minio-service,rtsp-streamer
 export RTSP_STREAM_HOST=rtsp-streamer  # Hostname of RTSP server
 export RTSP_STREAM_PORT=8554           # RTSP port
 export RTSP_MEDIA_DIR=../performance-tools/sample-media  # Video source directory
+export STREAM_LOOP=false               # Set to 'true' to loop video streams indefinitely
 ```
 
 ### Run the VLM based workload
