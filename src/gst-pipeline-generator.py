@@ -411,9 +411,9 @@ def build_dynamic_gstlaunch_command(camera, workloads, workload_map, branch_idx=
             pipeline += f" ! gvametaconvert ! tee name={tee_name} "
             results_dir = "/home/pipeline-server/results"
             out_file = f"{results_dir}/rs-{branch_idx+1}_{idx+1}__{name_idx_counter[0]}_{timestamp}.jsonl"
-            pipeline += f"    {tee_name}. ! queue {queue_params} ! gvametapublish file-format=json-lines file-path={out_file} ! gvafpscounter name={stream_id} "
+            pipeline += f"    {tee_name}. ! queue {queue_params} ! gvametapublish file-format=json-lines file-path={out_file} ! gvafpscounter name={stream_id} ! fakesink sync=false async=false "
         else:
-            pipeline += f" ! tee name={tee_name}  {tee_name}. ! queue {queue_params} ! gvafpscounter name={stream_id} "
+            pipeline += f" ! tee name={tee_name}  {tee_name}. ! queue {queue_params} ! gvafpscounter name={stream_id} ! fakesink sync=false async=false "
             #pipeline += f"    {tee_name}. ! queue ! gvafpscounter ! fakesink sync=false async=false "
         render_mode = os.environ.get("RENDER_MODE", "0")
         if render_mode == "1":
