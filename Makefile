@@ -83,6 +83,8 @@ run-model-downloader:
 		-e HTTPS_PROXY=${HTTPS_PROXY} \
 		-e http_proxy=${HTTP_PROXY} \
 		-e https_proxy=${HTTPS_PROXY} \
+		-e LOCAL_UID=$(shell id -u) \
+		-e LOCAL_GID=$(shell id -g) \
 		-e MODELS_DIR=/workspace/models \
 		-e WORKLOAD_DIST=${WORKLOAD_DIST} \
 		-e HF_HOME=/root/.cache/huggingface \
