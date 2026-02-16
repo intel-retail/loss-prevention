@@ -21,6 +21,32 @@ The Loss Prevention Pipeline System is an open-source reference implementation f
     
 It leverages Intel® hardware and software, GStreamer, and OpenVINO™ to enable scalable, real-time object detection and classification at the edge.
 
+### 🎥 RTSP Streaming Architecture
+
+The system includes an integrated RTSP server (MediaMTX) that streams video files for testing and development:
+
+#### How It Works:
+1. **RTSP Server Container** (`rtsp-streamer`): 
+   - Automatically starts MediaMTX server on port 8554
+   - Streams all `.mp4` files from `performance-tools/sample-media/`
+   - Each video becomes an RTSP stream: `rtsp://rtsp-streamer:8554/<video-name>`
+
+2. **Pipeline Consumption**:
+   - GStreamer pipelines connect via `rtspsrc` element
+   - Supports TCP transport with configurable latency
+   - Automatic retry and timeout handling
+
+3. **Stream Naming Convention**:
+   - Video: `items-in-basket-32658421-1080-15-bench.mp4`
+   - Stream: `rtsp://rtsp-streamer:8554/items-in-basket-32658421-1080-15-bench`
+
+#### RTSP Server Features:
+- **Loop Playback**: Videos restart automatically when finished
+- **TCP Transport**: Reliable streaming over corporate networks
+- **Low Latency**: Default 200ms latency for real-time processing
+- **Multiple Streams**: Supports concurrent camera streams
+- **Proxy Support**: Works through corporate HTTP/HTTPS proxies
+
 ## 📋 Prerequisites
 
 - Ubuntu 24.04 or newer (Linux recommended), Desktop edition (or Server edition with GUI installed).
@@ -33,6 +59,21 @@ It leverages Intel® hardware and software, GStreamer, and OpenVINO™ to enable
     - [NPU](https://dlstreamer.github.io/dev_guide/advanced_install/advanced_install_guide_prerequisites.html#prerequisite-2-install-intel-npu-drivers)
 - Sufficient disk space for models, videos, and results
 
+- For Corporate Networks with Proxy:
+    ```sh
+    # HTTP/HTTPS Proxy settings
+    export HTTP_PROXY=<HTTP PROXY>
+    export HTTPS_PROXY=<HTTPS PROXY>
+    export NO_PROXY=localhost,127.0.0.1,rabbitmq,minio-service,rtsp-streamer
+    ```
+- Optional RTSP Configuration:
+    ```sh
+    # RTSP Server configuration (defaults shown)
+    export RTSP_STREAM_HOST=rtsp-streamer  # Hostname of RTSP server
+    export RTSP_STREAM_PORT=8554           # RTSP port
+    export RTSP_MEDIA_DIR=../performance-tools/sample-media  # Video source directory
+    export STREAM_LOOP=false               # Set to 'true' to loop video streams indefinitely
+    ```
 ## 🚀 QuickStart
 + __Clone the repo with the below command__
     ```
@@ -94,7 +135,29 @@ make down-lp
 - `docs/` — Documentation (HLD, LLD, system design)
 - `download-scripts/` — Scripts for downloading models and videos
 - `src/` — Main source code and pipeline runner scripts
+- `src/rtsp-streamer/` — RTSP server container (MediaMTX + FFmpeg)
+- `src/gst-pipeline-generator.py` — Dynamic GStreamer pipeline generator
+- `src/docker-compose.yml` — Multi-container orchestration
+- `performance-tools/sample-media/` — Video files for RTSP streaming
 - `Makefile` — Build automation and workflow commands
+
+## 🐳 Docker Services
+
+The application runs the following Docker containers:
+
+| Service | Purpose | Port | Notes |
+|---------|---------|------|-------|
+| `rtsp-streamer` | RTSP video streaming server | 8554 | Streams videos from sample-media |
+| `rabbitmq` | Message broker for VLM workload | 5672, 15672 | Requires credentials |
+| `minio-service` | Object storage for frames | 4000, 4001 | S3-compatible storage |
+| `model-downloader` | Downloads AI models | - | Runs once at startup |
+| `lp-vlm-workload-handler` | VLM inference processor | - | GPU/CPU inference |
+| `vlm-pipeline-runner` | VLM pipeline orchestrator | - | Requires DISPLAY variable |
+| `lp-pipeline-runner` | Main inference pipeline | - | Supports CPU/GPU/NPU |
+
+**Network Configuration:**
+- All services run on `my_network` bridge network for DNS resolution
+- Use `rtsp-streamer`, `rabbitmq`, `minio-service` as hostnames for inter-service communication
 
 ## :heavy_plus_sign: Advanced Usage
 >[!IMPORTANT]
@@ -139,9 +202,8 @@ make down-lp
  make run-lp CAMERA_STREAM=camera_to_workload_vlm.json
  ```
 
-### 3. Pre-configured Workloads
-The preconfigured workload supports multiple hardware configurations out of the box. Use the `CAMERA_STREAM` and `WORKLOAD_DIST` variables to customize which cameras and hardware (CPU, GPU, NPU) are used by your pipeline.
-
+### 3. Configuration
+The application is highly configurable via JSON files in the `configs/` directory and with environment variables `CAMERA_STREAM` and `WORKLOAD_DIST`. 
 For more details, please refer [Default Workloads](https://intel-retail.github.io/documentation/use-cases/loss-prevention/getting_started.html#pre-configured-workloads)
 
 ### 4. Benchmark
