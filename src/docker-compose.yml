@@ -86,7 +86,7 @@ services:
         - HTTP_PROXY=${HTTP_PROXY}
         - HTTPS_PROXY=${HTTPS_PROXY}
     image: intel/lp-vlm-workload-handler:4.4.0
-    user: "${LOCAL_UID:-1000}:${LOCAL_GID:-1000}"
+    #user: "${LOCAL_UID:-1000}:${LOCAL_GID:-1000}"
     devices:
       - /dev/dri:/dev/dri
     group_add:
@@ -139,7 +139,7 @@ services:
   vlm-pipeline-runner:
     container_name: vlm-pipeline-runner    
     image: intel/pipeline-runner-lp:4.4.0
-    user: "${LOCAL_UID:-1000}:${LOCAL_GID:-1000}"
+    #user: "${LOCAL_UID:-1000}:${LOCAL_GID:-1000}"
     environment:
       - VLM_WORKLOAD_ENABLED=${LP_VLM_WORKLOAD_ENABLED}
       - ROI_COORDINATES=${ROI_COORDINATES}
