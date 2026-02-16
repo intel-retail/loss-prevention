@@ -15,6 +15,8 @@ services:
       - https_proxy=${https_proxy}
       - NO_PROXY=${NO_PROXY}
       - no_proxy=rabbitmq,minio-service,model-downloader,rtsp-streamer,localhost,127.0.0.1
+      - LOCAL_UID=${LOCAL_UID}
+      - LOCAL_GID=${LOCAL_GID}
       - MODELS_DIR=/workspace/models
       - WORKLOAD_DIST=${WORKLOAD_DIST:-workload_to_pipeline.json}
       - MODEL_NAME=${MODEL_NAME}
@@ -27,7 +29,6 @@ services:
       - ../results:/workspace/results
       - ../models/ov-model:/root/.cache/huggingface
     command: ["/bin/bash", "-c", "/workspace/scripts/model-downloader.sh"]
-    
   rabbitmq:
     image: rabbitmq:3-management
     container_name: rabbitmq
@@ -114,6 +115,7 @@ services:
         - HTTP_PROXY=${HTTP_PROXY}
         - HTTPS_PROXY=${HTTPS_PROXY}
     image: intel/lp-vlm-workload-handler:4.4.0
+    #user: "${LOCAL_UID:-1000}:${LOCAL_GID:-1000}"
     devices:
       - /dev/dri:/dev/dri
     group_add:
@@ -170,6 +172,7 @@ services:
   vlm-pipeline-runner:
     container_name: vlm-pipeline-runner    
     image: intel/pipeline-runner-lp:4.4.0
+    #user: "${LOCAL_UID:-1000}:${LOCAL_GID:-1000}"
     environment:
       - VLM_WORKLOAD_ENABLED=${LP_VLM_WORKLOAD_ENABLED}
       - ROI_COORDINATES=${ROI_COORDINATES}
@@ -229,6 +232,7 @@ services:
         - HTTP_PROXY=${HTTP_PROXY}
         - HTTPS_PROXY=${HTTPS_PROXY}
     image: intel/pipeline-runner-lp:4.4.0
+    user: "${LOCAL_UID:-1000}:${LOCAL_GID:-1000}"
     deploy:
       mode: replicated
       replicas: ${PIPELINE_COUNT:-1}
