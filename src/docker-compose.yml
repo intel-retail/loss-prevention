@@ -198,6 +198,7 @@ services:
       - BATCH_SIZE_CLASSIFY=${BATCH_SIZE_CLASSIFY:-1}
       - RTSP_STREAM_HOST=${RTSP_STREAM_HOST:-rtsp-streamer}
       - RTSP_STREAM_PORT=${RTSP_STREAM_PORT:-8554}
+      - CONTAINER_NAME=${CONTAINER_NAME:-gst}
     volumes:
       - ../lp-vlm/src/pipeline/publish.py:/home/pipeline-server/lp-vlm/gvapython/publish.py
       - ../lp-vlm/src/pipeline/send_end_message.py:/home/pipeline-server/lp-vlm/gvapython/send_end_message.py
@@ -231,6 +232,7 @@ services:
       args:
         - HTTP_PROXY=${HTTP_PROXY}
         - HTTPS_PROXY=${HTTPS_PROXY}
+    image: intel/pipeline-runner-lp:4.4.0    
     image: intel/pipeline-runner-lp:4.4.0
     user: "${LOCAL_UID:-1000}:${LOCAL_GID:-1000}"
     deploy:
@@ -261,6 +263,7 @@ services:
       - RTSP_STREAM_PORT=${RTSP_STREAM_PORT:-8554}
       - NO_PROXY=localhost,127.0.0.0/8,10.0.0.0/24,*.intel.com,192.168.0.0/16,10.223.23.127,172.25.0.0/16,rtsp-streamer
       - no_proxy=localhost,127.0.0.0/8,10.0.0.0/24,*.intel.com,192.168.0.0/16,10.223.23.127,172.25.0.0/16,rtsp-streamer
+      - PIPELINE_COUNT=${PIPELINE_COUNT:-1}
     
     volumes:
       - ../models:/home/pipeline-server/models
