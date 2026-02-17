@@ -22,9 +22,10 @@ jobs:
           - name: Download the Models
             run: make download-models
           - name: Build the Pipeline Runner
-            run: make build-pipeline-runner
+            run: make build-pipeline-runner REGISTRY=false
           #- name: Run the Pipeline Runner
           #  run: make run-pipeline-runner
   
+
 
 
