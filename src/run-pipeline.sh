@@ -1,86 +1,54 @@
 #!/bin/bash
 
 # -----------------------------
-# Conditional execution based on VLM_WORKLOAD_ENABLED
+# Pipeline Execution Script
+# Creates pipeline first, then runs it and captures results
+# Usage: run-pipeline.sh [pipelines_directory] [pipeline_file_name]
 # -----------------------------
 
 set -euo pipefail
 
 echo ">>>>>>>>>>>>> VLM_WORKLOAD_ENABLED=${VLM_WORKLOAD_ENABLED} <<<<<<<<<<<<<<<"
-
+echo ">>>>>>>>>>>>> DEBUG: Environment variables related to PIPELINE <<<<<<<<<<<<<<<"
+env | grep -i pipeline || echo "No PIPELINE variables found"
+echo ">>>>>>>>>>>>> DEBUG: All environment variables <<<<<<<<<<<<<<<"
+env | sort
+#sleep 2h
 if [ "${VLM_WORKLOAD_ENABLED}" = "0" ]; then
-    # -----------------------------
-    # Configuration & Environment
-    # -----------------------------
-    CAMERA_STREAM="${CAMERA_STREAM:-camera_to_workload.json}"
-    WORKLOAD_DIST="${WORKLOAD_DIST:-workload_to_pipeline.json}"
-
-    export CAMERA_STREAM
-    export WORKLOAD_DIST
-
-    echo "################# Using camera config: $CAMERA_STREAM ###################"
-    echo "################# Using workload config: $WORKLOAD_DIST ###################"
-
-    export PYTHONPATH=/home/pipeline-server/src:$PYTHONPATH
+    # Parse command line arguments
+    pipelines_dir="${1:-/home/pipeline-server/pipelines}"
+    pipeline_file_name="${2:-pipeline.sh}"
+    num_of_pipelines=${PIPELINE_COUNT:-1}
+    echo "################# Using pipelines directory: $pipelines_dir ###################"
+    echo "################# Using pipeline file name: $pipeline_file_name ###################"
+    echo "################# Using number of pipelines: $num_of_pipelines ###################"
+    
+    # First, create the pipeline
+    echo "################# Step 1: Creating Pipeline ###################"
+    bash "$(dirname "$0")/create-pipeline.sh" "$pipelines_dir" "$pipeline_file_name" "$num_of_pipelines"
+    
+    if [ $? -ne 0 ]; then
+        echo "################# ERROR: Pipeline creation failed ###################"
+        exit 1
+    fi
+    
+    echo "################# Step 2: Running Pipeline ###################"
     # Use TIMESTAMP env variable if set, otherwise fallback to date
     cid=$(date +%Y%m%d%H%M%S)$(date +%6N | cut -c1-6)
     export TIMESTAMP=$cid
     echo "===============TIMESTAMP===================: $TIMESTAMP"
-
-    gst_cmd=$(python3 "$(dirname "$0")/gst-pipeline-generator.py")    
-    
-    # Exit container if gst_cmd is empty or whitespace
-    # Trim whitespace
-    trimmed_gst_cmd="$(echo "$gst_cmd" | tr -d '\n' | sed 's/[[:space:]]*$//')"
-
-    # Exit if gst_cmd is empty or only base stub
-    if [[ -z "$trimmed_gst_cmd" || "$trimmed_gst_cmd" == "gst-launch-1.0 --verbose \\" ]]; then
-        echo "################# WARNING #################"
-        echo "No workload is defined."
-        echo "As a result, the generated GStreamer command is empty or invalid."
-        echo "If this is not expected please check the workload configuration"
-        echo "gst_cmd='$trimmed_gst_cmd'"
-        echo "Stopping container........"
-        exit 1
-    fi
-    echo "#############  GStreamer pipeline command generated successfully ##########"   
 
     CONTAINER_NAME="${CONTAINER_NAME//\"/}" # Remove double quotes
     cid="${cid}_${CONTAINER_NAME}"
     echo "==================CONTAINER_NAME: ${CONTAINER_NAME}"
     echo "cid: $cid"
 
-    echo "############# Generating GStreamer pipeline command ##########"
-    echo "################### RENDER_MODE ################# $RENDER_MODE"
-
-   
-    # -----------------------------
-    # Prepare pipelines directory
-    # -----------------------------
-    pipelines_dir="/home/pipeline-server/pipelines"
-    mkdir -p "$pipelines_dir"
-
-    if [ -d "$pipelines_dir" ]; then
-        echo "################# Pipelines directory exists: $pipelines_dir ###################"
-    else
-        echo "################# ERROR: Failed to create pipelines directory: $pipelines_dir ###################"
-    fi
-
-    # Create pipeline.sh
-    pipeline_file="$pipelines_dir/pipeline.sh"
-    echo "################# Creating pipeline file: $pipeline_file ###################"
-    echo "#!/bin/bash" > "$pipeline_file"
-    echo "# Generated GStreamer pipeline command" >> "$pipeline_file"
-    echo "# Generated on: $(date)" >> "$pipeline_file"
-    echo "" >> "$pipeline_file"
-    echo "$gst_cmd" >> "$pipeline_file"
-    chmod +x "$pipeline_file"
-
-    if [ -f "$pipeline_file" ]; then
-        echo "################# Pipeline file created successfully: $pipeline_file ###################"
-        echo "################# File size: $(stat -c%s "$pipeline_file") bytes ###################"
-    else
-        echo "################# ERROR: Failed to create pipeline file: $pipeline_file ###################"
+    # Check if pipeline file exists
+    pipeline_file="$pipelines_dir/$pipeline_file_name"
+    if [ ! -f "$pipeline_file" ]; then
+        echo "################# ERROR: Pipeline file not found: $pipeline_file ###################"
+        echo "Please run create-pipeline.sh first to generate the pipeline file."
+        exit 1
     fi
 
     # -----------------------------
@@ -89,31 +57,34 @@ if [ "${VLM_WORKLOAD_ENABLED}" = "0" ]; then
     results_dir="/home/pipeline-server/results"
     mkdir -p "$results_dir"
 
-    # Count filesrc lines to determine number of streams
-    filesrc_count=$(grep -c "filesrc location=" "$pipeline_file")
-    echo "Found $filesrc_count filesrc lines in $pipeline_file"
+    # Count source elements (filesrc or rtspsrc) to determine number of streams
+    source_count=$(grep -E -i -c "(filesrc|rtspsrc)" "$pipeline_file" || echo "0")
+    echo "Found $source_count source elements in $pipeline_file"
+    
+    # DEBUG: Print first few lines of pipeline file to understand format
+    echo "===== DEBUG: First 5 lines of pipeline file ====="
+    head -5 "$pipeline_file"
+    echo "===== DEBUG: Lines containing rtspsrc or filesrc ====="
+    grep -i -E "(rtspsrc|filesrc)" "$pipeline_file" || echo "No matches found"
+    echo "================================================="
 
-    # Extract first name= value from each filesrc line
-    declare -a filesrc_names
+    # Extract stream identifiers from source elements
+    declare -a source_names
     while IFS= read -r line; do
-        if [[ "$line" == *"filesrc location="* ]]; then
-            # Extract first name= value from this line
-            if [[ "$line" =~ name=([^[:space:]]+) ]]; then
-                name="${BASH_REMATCH[1]}"
-                filesrc_names+=("$name")
-            else
-                # Fallback if no name found
-                filesrc_names+=("stream${#filesrc_names[@]}")
-            fi
+        # Match rtspsrc name=... or filesrc name=... (name comes before location)
+        if [[ "$line" =~ (rtspsrc|filesrc)[[:space:]]+name=([^[:space:]]+) ]]; then
+            # Extract the name value
+            name="${BASH_REMATCH[2]}"
+            source_names+=("$name")
         fi
     done < "$pipeline_file"
 
-    echo "Extracted filesrc names: ${filesrc_names[*]}"
-
+    echo "Extracted stream names: ${source_names[*]}"
     # Create per-stream pipeline log files using extracted names
     declare -a pipeline_logs
-    for i in "${!filesrc_names[@]}"; do
-        name="${filesrc_names[i]}"
+    pipeline_logs=()  # Initialize as empty array to prevent unbound variable error
+    for i in "${!source_names[@]}"; do
+        name="${source_names[i]}"
         # Sanitize name for filename
         safe_name=$(echo "$name" | tr -cd '[:alnum:]_-')
         # Updated filename pattern: pipeline_stream<i>_safe_name_timestamp.log
@@ -152,7 +123,7 @@ if [ "${VLM_WORKLOAD_ENABLED}" = "0" ]; then
         # Match only FpsCounter(last ...) lines (ignore 'average' lines)
         if [[ "$line" =~ FpsCounter\(last.*number-streams=([0-9]+) ]]; then
             num_streams="${BASH_REMATCH[1]}"
-            if [[ "$num_streams" -eq "$filesrc_count" ]]; then
+            if [[ "$num_streams" -eq "$source_count" ]]; then
                 if [[ "$num_streams" -eq 1 ]]; then
                     if [[ "$line" =~ per-stream=([0-9]+\.[0-9]+) ]]; then
                         fps_array=("${BASH_REMATCH[1]}")

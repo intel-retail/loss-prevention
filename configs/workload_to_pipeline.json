@@ -19,7 +19,7 @@
         "type": "gvadetect",
         "model": "yolo11n",       
         "device": "NPU",
-        "precision": "INT8"
+        "precision": "INT8" 
       },
       {
         "type": "gvaclassify",
