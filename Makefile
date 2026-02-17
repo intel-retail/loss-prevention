@@ -38,7 +38,7 @@ BATCH_SIZE_CLASSIFY ?= 1
 REGISTRY ?= true
 DOCKER_COMPOSE ?= docker-compose.yml
 
-TAG ?= 4.4.0
+TAG ?= 2026.0-rc1
 
 REGISTRY ?= true
 # Registry image references
@@ -176,6 +176,7 @@ benchmark: build-benchmark download-sample-videos download-models
 	[ -f $(VLM_LOGS_FILE) ] || touch $(VLM_LOGS_FILE); \
 	cd performance-tools/benchmark-scripts && \
 	export MULTI_STREAM_MODE=1 && \
+	export STREAM_LOOP=true && \
 	export LP_VLM_WORKLOAD_ENABLED=$(LP_VLM_WORKLOAD_ENABLED) && \
 	( \
 		python3 -m venv venv && \
@@ -190,7 +191,7 @@ benchmark: build-benchmark download-sample-videos download-models
 
 
 
-benchmark-stream-density: build-benchmark download-models
+benchmark-stream-density: build-benchmark download-sample-videos download-models
 	@if [ "$(OOM_PROTECTION)" = "0" ]; then \
         echo "╔════════════════════════════════════════════════════════════╗";\
 		echo "║ WARNING                                                    ║";\
@@ -208,6 +209,7 @@ benchmark-stream-density: build-benchmark download-models
 	[ -f $(VLM_LOGS_FILE) ] || touch $(VLM_LOGS_FILE); \
 	cd performance-tools/benchmark-scripts && \
 	export MULTI_STREAM_MODE=1 && \
+	export STREAM_LOOP=true && \
     ( \
 	python3 -m venv venv && \
 	. venv/bin/activate && \
@@ -232,6 +234,7 @@ benchmark-quickstart: download-models download-sample-videos
 	mkdir -p $$(dirname $(VLM_LOGS_FILE)); \
 	[ -f $(VLM_LOGS_FILE) ] || touch $(VLM_LOGS_FILE); \
 	cd performance-tools/benchmark-scripts && \
+	export STREAM_LOOP=true && \
 	export MULTI_STREAM_MODE=1 && \
 	( \
 	python3 -m venv venv && \

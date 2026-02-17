@@ -6,7 +6,7 @@ services:
       args:
         - HTTP_PROXY=${HTTP_PROXY}
         - HTTPS_PROXY=${HTTPS_PROXY}
-    image: intel/model-downloader:4.4.0
+    image: intel/model-downloader:2026.0-rc1
     container_name: model-downloader-lp
     environment:
       - HTTP_PROXY=${HTTP_PROXY}
@@ -87,7 +87,7 @@ services:
         - HTTPS_PROXY=${HTTPS_PROXY}
         - http_proxy=${http_proxy}
         - https_proxy=${https_proxy}
-    image: intel/rtsp-streamer:local
+    image: intel/rtsp-streamer:2026.0-rc1
     restart: unless-stopped
     ports:
       - "${RTSP_PORT:-8554}:8554"
@@ -114,7 +114,7 @@ services:
       args:
         - HTTP_PROXY=${HTTP_PROXY}
         - HTTPS_PROXY=${HTTPS_PROXY}
-    image: intel/lp-vlm-workload-handler:4.4.0
+    image: intel/lp-vlm-workload-handler:2026.0-rc1
     #user: "${LOCAL_UID:-1000}:${LOCAL_GID:-1000}"
     devices:
       - /dev/dri:/dev/dri
@@ -171,7 +171,7 @@ services:
 
   vlm-pipeline-runner:
     container_name: vlm-pipeline-runner    
-    image: intel/pipeline-runner-lp:4.4.0
+    image: intel/pipeline-runner-lp:2026.0-rc1
     #user: "${LOCAL_UID:-1000}:${LOCAL_GID:-1000}"
     environment:
       - VLM_WORKLOAD_ENABLED=${LP_VLM_WORKLOAD_ENABLED}
@@ -232,12 +232,8 @@ services:
       args:
         - HTTP_PROXY=${HTTP_PROXY}
         - HTTPS_PROXY=${HTTPS_PROXY}
-    image: intel/pipeline-runner-lp:4.4.0    
-    image: intel/pipeline-runner-lp:4.4.0
-    user: "${LOCAL_UID:-1000}:${LOCAL_GID:-1000}"
-    deploy:
-      mode: replicated
-      replicas: ${PIPELINE_COUNT:-1}
+    image: intel/pipeline-runner-lp:2026.0-rc1
+    #user: "${LOCAL_UID:-1000}:${LOCAL_GID:-1000}"    
     depends_on:
       model-downloader:
         condition: service_completed_successfully

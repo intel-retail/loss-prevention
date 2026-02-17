@@ -16,7 +16,7 @@ LP_APP_BASE_DIR = "/app"
 
 RESULTS_DIR = "results"
 MODELS_DIR = "models"
-LOGS_DIR = os.path.join(LP_APP_BASE_DIR, "logs")
+LOGS_DIR = os.path.join(LP_APP_BASE_DIR)
 
 MINIO_HOST = f"{LP_IP}:{MINIO_API_HOST_PORT}"
 

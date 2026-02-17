@@ -20,11 +20,13 @@ jobs:
           - name: Update Sub Module Performance-Tools
             run: make update-submodules
           - name: Download the Models
-            run: make download-models
+            run: make download-models REGISTRY=false
           - name: Build the Pipeline Runner
-            run: make build-pipeline-runner
+            run: make build-pipeline-runner REGISTRY=false
           #- name: Run the Pipeline Runner
           #  run: make run-pipeline-runner
   
+
+
 
 
