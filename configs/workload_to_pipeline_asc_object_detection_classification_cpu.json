@@ -1,0 +1,19 @@
+{
+  "workload_pipeline_map": {
+    "asc_object_detection_yolo11n_classification_effnetb0": [
+      {
+        "type": "gvadetect",
+        "model": "yolo11n",
+        "device": "CPU",
+        "precision": "INT8"
+      },
+      {
+        "type": "gvaclassify",
+        "model": "efficientnet-b0",
+        "device": "CPU",
+        "precision": "INT8"
+      }
+    ]
+
+  }
+}

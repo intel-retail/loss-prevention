@@ -89,7 +89,7 @@ The system includes an integrated RTSP server (MediaMTX) that streams video file
 > - Run with Pre-built images.
 > - Headless mode is enabled.
 > - Default workload : loss prevention(CPU) 
->   - To know more about available default and preconfigured workloads :point_right: [Workloads](#4-pre-configured-workloads)
+>   - To know more about available default and preconfigured workloads :point_right: [Workloads](https://intel-retail.github.io/documentation/use-cases/loss-prevention/getting_started.html#pre-configured-workloads)
 + __Run the application__
 
     *Headless Mode*
@@ -161,7 +161,7 @@ The application runs the following Docker containers:
 
 ## :heavy_plus_sign: Advanced Usage
 >[!IMPORTANT]
->For a comprehensive and advanced guide, :point_right: [Loss Prevention Documentation Guide](https://intel-retail.github.io/documentation/use-cases/loss-prevention/loss-prevention.html)
+>For a comprehensive and advanced guide, :point_right: [Loss Prevention Documentation Guide](https://intel-retail.github.io/documentation/use-cases/loss-prevention/getting_started.html#step-by-step-instructions)
 
 ### 1. To build the images locally and run the application:
 
@@ -204,12 +204,10 @@ The application runs the following Docker containers:
 
 ### 3. Configuration
 The application is highly configurable via JSON files in the `configs/` directory and with environment variables `CAMERA_STREAM` and `WORKLOAD_DIST`. 
-For more details, please refer [Default Workloads](https://intel-retail.github.io/documentation/use-cases/loss-prevention/getting_started.html#pre-configured-workloads)
+For more details, please refer [Pre Configured Workloads](https://intel-retail.github.io/documentation/use-cases/loss-prevention/getting_started.html#pre-configured-workloads)
 
 ### 4. Benchmark
 >By default, the configuration is set to use the Loss Prevention (CPU) workload.
->
->If you want to benchmark the application on GPU or NPU, please :point_right: [Workloads](#4-run-different-workloads)
 
 ```sh
 make benchmark
