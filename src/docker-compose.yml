@@ -89,8 +89,6 @@ services:
         - https_proxy=${https_proxy}
     image: intel/rtsp-streamer:2026.0-rc1
     restart: unless-stopped
-    ports:
-      - "${RTSP_PORT:-8554}:8554"
     environment:
       - HTTP_PROXY=${HTTP_PROXY}
       - HTTPS_PROXY=${HTTPS_PROXY}
@@ -98,7 +96,7 @@ services:
       - https_proxy=${https_proxy}
       - NO_PROXY=${NO_PROXY}
       - RTSP_PORT=${RTSP_PORT:-8554}
-      - STREAM_LOOP=${STREAM_LOOP:-false}
+      - STREAM_LOOP=${STREAM_LOOP:-true}
     volumes:
       - ${RTSP_MEDIA_DIR:-../performance-tools/sample-media}:/media:ro
     networks:
