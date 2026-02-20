@@ -21,7 +21,6 @@ export MINIO_CONSOLE_HOST_PORT=4001
 export LP_IP=$(HOST_IP)
 export LOCAL_UID=$(id -u)
 export LOCAL_GID=$(id -g)
-
 # Default values for benchmark
 PIPELINE_COUNT ?= 1
 INIT_DURATION ?= 30
@@ -37,6 +36,8 @@ BATCH_SIZE_DETECT ?= 1
 BATCH_SIZE_CLASSIFY ?= 1
 REGISTRY ?= true
 DOCKER_COMPOSE ?= docker-compose.yml
+STREAM_LOOP ?= true
+
 
 TAG ?= 2026.0-rc1
 
@@ -48,6 +49,13 @@ REGISTRY_BENCHMARK ?= intel/retail-benchmark:$(TAG)
 
 VLM_LOGS_FILE ?= $(PWD)/vlm_loss_prevention.log
 LP_VLM_WORKLOAD_ENABLED := $(shell python3 lp-vlm/src/workload_utils.py --camera-config configs/$(CAMERA_STREAM) --has-lp-vlm)
+
+# Set STREAM_LOOP based on LP_VLM_WORKLOAD_ENABLED
+ifeq ($(LP_VLM_WORKLOAD_ENABLED),1)
+	STREAM_LOOP_VALUE := false
+else
+	STREAM_LOOP_VALUE := true
+endif
 
 check-models:
 	@chmod +x check_models.sh
@@ -126,13 +134,14 @@ down-lp:
 	@echo "VLM cleanup completed"
 
 run:
+	@echo "Setting up environment for STREAM_LOOP..."
 	@mkdir -p results results/vlm-results
 	@if [ "$(REGISTRY)" = "true" ]; then \
 		echo "##############Using registry mode - fetching pipeline runner..."; \
-		LOCAL_UID=$(shell id -u) LOCAL_GID=$(shell id -g) LP_VLM_WORKLOAD_ENABLED=$(LP_VLM_WORKLOAD_ENABLED) BATCH_SIZE_DETECT=$(BATCH_SIZE_DETECT) BATCH_SIZE_CLASSIFY=$(BATCH_SIZE_CLASSIFY) docker compose -f src/$(DOCKER_COMPOSE) up -d; \
+		LOCAL_UID=$(shell id -u) LOCAL_GID=$(shell id -g) LP_VLM_WORKLOAD_ENABLED=$(LP_VLM_WORKLOAD_ENABLED) STREAM_LOOP=$(STREAM_LOOP_VALUE) BATCH_SIZE_DETECT=$(BATCH_SIZE_DETECT) BATCH_SIZE_CLASSIFY=$(BATCH_SIZE_CLASSIFY) docker compose -f src/$(DOCKER_COMPOSE) up -d; \
 	else \
 		docker compose -f src/$(DOCKER_COMPOSE) build pipeline-runner; \
-		LOCAL_UID=$(shell id -u) LOCAL_GID=$(shell id -g) LP_VLM_WORKLOAD_ENABLED=$(LP_VLM_WORKLOAD_ENABLED) BATCH_SIZE_DETECT=$(BATCH_SIZE_DETECT) BATCH_SIZE_CLASSIFY=$(BATCH_SIZE_CLASSIFY) docker compose -f src/$(DOCKER_COMPOSE) up --build -d; \
+		LOCAL_UID=$(shell id -u) LOCAL_GID=$(shell id -g) LP_VLM_WORKLOAD_ENABLED=$(LP_VLM_WORKLOAD_ENABLED) STREAM_LOOP=$(STREAM_LOOP_VALUE) BATCH_SIZE_DETECT=$(BATCH_SIZE_DETECT) BATCH_SIZE_CLASSIFY=$(BATCH_SIZE_CLASSIFY) docker compose -f src/$(DOCKER_COMPOSE) up --build -d; \
 	fi
 
 run-render-mode: validate_workload_mapping
@@ -146,15 +155,15 @@ run-render-mode: validate_workload_mapping
 	@echo "Using DISPLAY=$(DISPLAY)"
 	@echo "Using config file: configs/$(CAMERA_STREAM)"
 	@echo "Using workload config: configs/$(WORKLOAD_DIST)"
-	@xhost +local:docker	
+	@xhost +local:docker
 	@if [ "$(REGISTRY)" = "true" ]; then \
 		echo "##############Using registry mode - fetching pipeline runner..."; \
 		mkdir -p results results/vlm-results; \
-		LOCAL_UID=$(shell id -u) LOCAL_GID=$(shell id -g) RENDER_MODE=1  LP_VLM_WORKLOAD_ENABLED=$(LP_VLM_WORKLOAD_ENABLED) CAMERA_STREAM=$(CAMERA_STREAM) WORKLOAD_DIST=$(WORKLOAD_DIST) BATCH_SIZE_DETECT=$(BATCH_SIZE_DETECT) BATCH_SIZE_CLASSIFY=$(BATCH_SIZE_CLASSIFY) docker compose -f src/$(DOCKER_COMPOSE) up -d; \
+		LOCAL_UID=$(shell id -u) LOCAL_GID=$(shell id -g) RENDER_MODE=1  LP_VLM_WORKLOAD_ENABLED=$(LP_VLM_WORKLOAD_ENABLED) STREAM_LOOP=$(STREAM_LOOP_VALUE) CAMERA_STREAM=$(CAMERA_STREAM) WORKLOAD_DIST=$(WORKLOAD_DIST) BATCH_SIZE_DETECT=$(BATCH_SIZE_DETECT) BATCH_SIZE_CLASSIFY=$(BATCH_SIZE_CLASSIFY) docker compose -f src/$(DOCKER_COMPOSE) up -d; \
 	else \
 		docker compose -f src/$(DOCKER_COMPOSE) build; \
 		mkdir -p results results/vlm-results; \
-		LOCAL_UID=$(shell id -u) LOCAL_GID=$(shell id -g) RENDER_MODE=1 LP_VLM_WORKLOAD_ENABLED=$(LP_VLM_WORKLOAD_ENABLED) CAMERA_STREAM=$(CAMERA_STREAM) WORKLOAD_DIST=$(WORKLOAD_DIST) BATCH_SIZE_DETECT=$(BATCH_SIZE_DETECT) BATCH_SIZE_CLASSIFY=$(BATCH_SIZE_CLASSIFY) docker compose -f src/$(DOCKER_COMPOSE) up --build -d; \
+		LOCAL_UID=$(shell id -u) LOCAL_GID=$(shell id -g) RENDER_MODE=1 LP_VLM_WORKLOAD_ENABLED=$(LP_VLM_WORKLOAD_ENABLED) STREAM_LOOP=$(STREAM_LOOP_VALUE) CAMERA_STREAM=$(CAMERA_STREAM) WORKLOAD_DIST=$(WORKLOAD_DIST) BATCH_SIZE_DETECT=$(BATCH_SIZE_DETECT) BATCH_SIZE_CLASSIFY=$(BATCH_SIZE_CLASSIFY) docker compose -f src/$(DOCKER_COMPOSE) up --build -d; \
 	fi	
 	$(MAKE) clean-images
 
@@ -176,8 +185,8 @@ benchmark: build-benchmark download-sample-videos download-models
 	[ -f $(VLM_LOGS_FILE) ] || touch $(VLM_LOGS_FILE); \
 	cd performance-tools/benchmark-scripts && \
 	export MULTI_STREAM_MODE=1 && \
-	export STREAM_LOOP=true && \
 	export LP_VLM_WORKLOAD_ENABLED=$(LP_VLM_WORKLOAD_ENABLED) && \
+	export STREAM_LOOP=$(STREAM_LOOP_VALUE) && \
 	( \
 		python3 -m venv venv && \
 		. venv/bin/activate && \
@@ -209,7 +218,7 @@ benchmark-stream-density: build-benchmark download-sample-videos download-models
 	[ -f $(VLM_LOGS_FILE) ] || touch $(VLM_LOGS_FILE); \
 	cd performance-tools/benchmark-scripts && \
 	export MULTI_STREAM_MODE=1 && \
-	export STREAM_LOOP=true && \
+	export STREAM_LOOP=$(STREAM_LOOP_VALUE) && \
     ( \
 	python3 -m venv venv && \
 	. venv/bin/activate && \
@@ -234,8 +243,8 @@ benchmark-quickstart: download-models download-sample-videos
 	mkdir -p $$(dirname $(VLM_LOGS_FILE)); \
 	[ -f $(VLM_LOGS_FILE) ] || touch $(VLM_LOGS_FILE); \
 	cd performance-tools/benchmark-scripts && \
-	export STREAM_LOOP=true && \
 	export MULTI_STREAM_MODE=1 && \
+	export STREAM_LOOP=$(STREAM_LOOP_VALUE) && \
 	( \
 	python3 -m venv venv && \
 	. venv/bin/activate && \
