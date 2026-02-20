@@ -5,7 +5,7 @@ MEDIA_DIR=${MEDIA_DIR:-/media}
 RTSP_PORT=${RTSP_PORT:-8554}
 FFMPEG_BIN=${FFMPEG_BIN:-ffmpeg}
 MEDIAMTX_BIN=${MEDIAMTX_BIN:-/opt/rtsp-streamer/mediamtx}
-STREAM_LOOP=${STREAM_LOOP:-false}
+STREAM_LOOP=${STREAM_LOOP:-true}
 
 if [ ! -d "$MEDIA_DIR" ]; then
   echo "Media directory $MEDIA_DIR does not exist" >&2
