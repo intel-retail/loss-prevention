@@ -5,7 +5,7 @@
         "type": "gvadetect",
         "model": "yolo11n",
         "device": "CPU",
-        "precision": "INT8"
+        "precision": "FP32"
       }
     ]    
   }
