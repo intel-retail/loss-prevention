@@ -74,7 +74,7 @@ def check_rtsp_stream_exists(stream_uri: str, timeout: int = 3) -> bool:
             text=True
         )
         
-        # Check if stderr contains "Not Found" or "404"
+        #  if stderr contains "Not Found" or "404"
         if result.stderr and ('Not Found' in result.stderr or '404' in result.stderr or 'Not found' in result.stderr):
             return False
             
@@ -85,7 +85,7 @@ def check_rtsp_stream_exists(stream_uri: str, timeout: int = 3) -> bool:
         # Timeout means stream connected successfully
         return True
     except Exception as e:
-        print(f"Warning: Could not check RTSP stream {stream_uri}: {e}", file=sys.stderr)
+        print(f"Warning: Could not  RTSP stream {stream_uri}: {e}", file=sys.stderr)
         # If we can't check, assume it exists to avoid false negatives
         return True
 
@@ -476,18 +476,8 @@ def main(num_of_pipelines=1):
         # Exclude camera if it has lp_vlm workload
         if "lp_vlm" in normalized_workloads:
             print(f"Skipping camera {cam.get('camera_id', 'unknown')} with lp_vlm workload", file=sys.stderr)
-            continue
+            continue       
         
-        # Check if stream exists for RTSP sources
-        stream_uri = derive_stream_uri(cam)
-        if stream_uri and stream_uri.startswith("rtsp://"):
-            if not check_rtsp_stream_exists(stream_uri):
-                camera_id = cam.get('camera_id', 'unknown')
-                file_src = str(cam.get("fileSrc", "")).split("|")[0].strip()
-                print(f"⚠️  WARNING: Skipping camera '{camera_id}' - RTSP stream not available: {stream_uri}", file=sys.stderr)
-                print(f"    Expected video file: {file_src}", file=sys.stderr)
-                print(f"    Please ensure the video exists in the sample-media directory.", file=sys.stderr)
-                continue
         
         filtered_cameras.append(cam)
     
