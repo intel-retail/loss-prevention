@@ -22,6 +22,16 @@ RTSP_DEFAULT_HOST = os.getenv("RTSP_STREAM_HOST", "rtsp-streamer")
 RTSP_DEFAULT_PORT = os.getenv("RTSP_STREAM_PORT", "8554")
 RTSP_DEFAULT_LATENCY = os.getenv("RTSP_LATENCY", "200")
 
+# Configurable round robin count for model instance sharing
+try:
+    ROUND_ROBIN_COUNT = int(os.getenv("ROUND_ROBIN_COUNT", "4"))
+    if ROUND_ROBIN_COUNT < 1:
+        print(f"Warning: Invalid ROUND_ROBIN_COUNT value {ROUND_ROBIN_COUNT}, using default 4", file=sys.stderr)
+        ROUND_ROBIN_COUNT = 4
+except ValueError:
+    print(f"Warning: Invalid ROUND_ROBIN_COUNT value '{os.getenv('ROUND_ROBIN_COUNT')}', using default 4", file=sys.stderr)
+    ROUND_ROBIN_COUNT = 4
+
 
 def download_video_if_missing(video_name, width=None, fps=None):
     # Use default width and fps if not provided
@@ -380,8 +390,8 @@ def build_dynamic_gstlaunch_command(camera, workloads, workload_map, branch_idx=
             # Get env vars for each step's device, if present
             step_env_vars = get_env_vars_for_device(step["device"]) if "device" in step else {}
             if step["type"] == "gvadetect":
-                # Use round robin model instance sharing (cycle through 4 shared instances)
-                model_instance_id = f"detect_shared{detect_counter[0] % 4}"
+                # Use round robin model instance sharing (configurable count)
+                model_instance_id = f"detect_shared{detect_counter[0] % ROUND_ROBIN_COUNT}"
                 detect_counter[0] += 1
                 name_idx_counter[0] += 1
                 step["name_idx"] = name_idx_counter[0]
@@ -390,16 +400,16 @@ def build_dynamic_gstlaunch_command(camera, workloads, workload_map, branch_idx=
                 pipeline += f" ! {elem} ! gvatrack tracking-type=zero-term-imageless ! queue {queue_params}"
                 last_added_queue = True
             elif step["type"] == "gvaclassify":
-                # Use round robin model instance sharing (cycle through 4 shared instances)
-                model_instance_id = f"classify_shared{classify_counter[0] % 4}"
+                # Use round robin model instance sharing (configurable count)
+                model_instance_id = f"classify_shared{classify_counter[0] % ROUND_ROBIN_COUNT}"
                 classify_counter[0] += 1
                 elem, _ = build_gst_element(step)
                 elem = elem.replace("gvaclassify", f"gvaclassify model-instance-id={model_instance_id}")
                 pipeline += f" ! {elem} ! queue {queue_params}"
                 last_added_queue = True
             elif step["type"] == "gvainference":
-                # Use round robin model instance sharing (cycle through 4 shared instances)
-                model_instance_id = f"inference_shared{inference_counter[0] % 4}"
+                # Use round robin model instance sharing (configurable count)
+                model_instance_id = f"inference_shared{inference_counter[0] % ROUND_ROBIN_COUNT}"
                 inference_counter[0] += 1
                 elem, _ = build_gst_element(step)
                 elem = elem.replace("gvainference", f"gvainference model-instance-id={model_instance_id}")
