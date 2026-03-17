@@ -270,6 +270,7 @@ services:
       - PIPELINE_COUNT=${PIPELINE_COUNT:-1}
       - GST_DEBUG=GST_TRACER:7,gvafpscounter:4
       - GST_TRACERS=latency_tracer(flags=pipeline)
+      - ROUND_ROBIN_COUNT=4
     
     volumes:
       - ../models:/home/pipeline-server/models
