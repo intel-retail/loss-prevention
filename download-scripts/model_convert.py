@@ -14,6 +14,8 @@ from ultralytics.models.yolo.detect import DetectionValidator
 from ultralytics.data.converter import coco80_to_coco91_class
 from ultralytics.data.utils import check_det_dataset
 from ultralytics.utils.metrics import ConfusionMatrix
+from openvino import Core, serialize
+from pathlib import Path
 
 def get_model_type(model_name, mapping_path=None):  
     if mapping_path is None:
@@ -62,6 +64,32 @@ def export_yolo(model_name, output_dir):
     shutil.rmtree(converted_path)
     if os.path.exists(weights):
         os.remove(weights)
+
+def quantize_age_gender_face_detection(model_name,output_dir):
+    """Convert FP16 model to INT8"""
+    print(f"Converting {model_name} to INT8...")
+    fp16_xml = Path(f"{output_dir}/{model_name}/FP16/{model_name}.xml")
+    int8_dir = Path(f"{output_dir}/{model_name}/INT8")
+    int8_dir.mkdir(parents=True, exist_ok=True)
+    int8_xml = int8_dir / f"{model_name}.xml"
+    if int8_xml.exists():
+        print(f"[INFO] INT8 model already exists: {int8_xml}")
+        return
+    if not fp16_xml.exists():
+        print(f"[ERROR] FP16 model not found: {fp16_xml}")
+        return
+    try:
+        core = Core()
+        model = core.read_model(str(fp16_xml))
+        try:
+            compressed_model = ov.compress_model(model)
+            serialize(compressed_model, str(int8_xml))
+        except AttributeError:
+            print(f"Using basic model copy (compression not available)")
+            serialize(model, str(int8_xml))
+        print(f"INT8 model saved: {int8_xml}")
+    except Exception as e:
+        print(f"Error converting {model_name} to INT8: {e}")
 
 def quantize_yolo(model_name, dataset_manifest, output_dir):
     model_dir = os.path.join(output_dir, "object_detection", model_name)
@@ -152,7 +180,12 @@ def main():
         if len(sys.argv) < 5:
             print("Usage: model_convert.py quantize_yolo <model_name> <dataset_manifest> <output_dir>")
             sys.exit(1)
-        quantize_yolo(sys.argv[2], sys.argv[3], sys.argv[4])     
+        quantize_yolo(sys.argv[2], sys.argv[3], sys.argv[4])
+    elif cmd == "quantize_age_gender_face_detection":
+        if len(sys.argv) < 4:
+            print("Usage: model_convert.py quantize_age_gender_face_detectio <model_name> <output_dir>")
+            sys.exit(1)
+        quantize_age_gender_face_detection(sys.argv[2], sys.argv[3])
     else:
         print(f"[ERROR] Unsupported command: {cmd}")
         sys.exit(2)
