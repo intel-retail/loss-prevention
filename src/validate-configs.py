@@ -220,31 +220,42 @@ class ConfigValidator:
             self.add_error(f"Invalid camera configuration in {context}: expected object")
             return False
 
-        # Validate fileSrc
-        if 'fileSrc' not in camera:
-            self.add_error(f"Missing 'fileSrc' field in {context}")
+        # Validate video source: either fileSrc or streamUri must be present
+        has_file_src = 'fileSrc' in camera
+        has_stream_uri = any(key in camera for key in ('streamUri', 'stream_uri', 'rtspUri', 'rtsp_url'))
+
+        if not has_file_src and not has_stream_uri:
+            self.add_error(f"Missing video source in {context}: must have 'fileSrc' (filename|url) or 'streamUri' (rtsp://...)")
             return False
 
-        file_src = camera['fileSrc']
-        if not isinstance(file_src, str) or not file_src.strip():
-            self.add_error(f"'fileSrc' must be a non-empty string in {context}")
-            return False
+        if has_file_src:
+            file_src = camera['fileSrc']
+            if not isinstance(file_src, str) or not file_src.strip():
+                self.add_error(f"'fileSrc' must be a non-empty string in {context}")
+                return False
 
-        # Check fileSrc format: filename|url
-        if '|' not in file_src:
-            self.add_error(f"Invalid 'fileSrc' format in {context}: must be 'filename|url', got '{file_src}'")
-            return False
+            # Check fileSrc format: filename|url
+            if '|' not in file_src:
+                self.add_error(f"Invalid 'fileSrc' format in {context}: must be 'filename|url', got '{file_src}'")
+                return False
 
-        parts = file_src.split('|', 1)  # Split into exactly 2 parts
-        filename, url = parts[0].strip(), parts[1].strip()
+            parts = file_src.split('|', 1)  # Split into exactly 2 parts
+            filename, url = parts[0].strip(), parts[1].strip()
 
-        if not filename:
-            self.add_error(f"Invalid 'fileSrc' format in {context}: filename part is empty in '{file_src}'")
-            return False
+            if not filename:
+                self.add_error(f"Invalid 'fileSrc' format in {context}: filename part is empty in '{file_src}'")
+                return False
 
-        if not url:
-            self.add_error(f"Invalid 'fileSrc' format in {context}: URL part is empty in '{file_src}'")
-            return False
+            if not url:
+                self.add_error(f"Invalid 'fileSrc' format in {context}: URL part is empty in '{file_src}'")
+                return False
+
+        if has_stream_uri and not has_file_src:
+            stream_key = next(key for key in ('streamUri', 'stream_uri', 'rtspUri', 'rtsp_url') if key in camera)
+            stream_val = camera[stream_key]
+            if not isinstance(stream_val, str) or not stream_val.strip():
+                self.add_error(f"'{stream_key}' must be a non-empty string in {context}")
+                return False
 
         # Validate region_of_interest if present
         if 'region_of_interest' in camera:

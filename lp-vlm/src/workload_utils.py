@@ -102,35 +102,27 @@ def extract_video_name(fileSrc, width=None, fps=None) -> str:
 
 def derive_stream_uri(camera: dict) -> str:
     """
-    Dynamically construct RTSP stream URI from fileSrc.
-    Format: rtsp://{host}:{port}/{video_name}-{width}-{fps}-bench
-    Falls back to legacy streamUri keys if fileSrc is not available.
+    Derive the RTSP stream URI from the camera config.
+    Priority: streamUri (used as-is) > fileSrc (construct URI) > camera_id.
     """
-    # First, try to construct from fileSrc (preferred approach)
-    fileSrc = str(camera.get("fileSrc", "")).split("|")[0].strip()
-    if fileSrc:
-        # Remove .mp4 extension if present
-        base_name = fileSrc[:-4] if fileSrc.endswith('.mp4') else fileSrc
-        width = camera.get("width", 1920)
-        fps = camera.get("fps", 15)
-        stream_path = f"{base_name}-{width}-{fps}-bench"
-        return f"rtsp://{RTSP_DEFAULT_HOST}:{RTSP_DEFAULT_PORT}/{stream_path}"
-    
-    # Legacy fallback: check for explicit streamUri keys
+    # First, check for explicit streamUri — use as-is
     for key in ("streamUri", "stream_uri", "rtspUri", "rtsp_url"):
         raw = str(camera.get(key, ""))
         cleaned = raw.strip().strip('"').strip("'")
         if cleaned:
             if "://" in cleaned:
-                parsed = urlparse(cleaned)
-                scheme = parsed.scheme or "rtsp"
-                host = RTSP_DEFAULT_HOST or (parsed.hostname or "rtsp-streamer")
-                port = RTSP_DEFAULT_PORT or (str(parsed.port) if parsed.port else "8554")
-                path = parsed.path or ""
-                query = f"?{parsed.query}" if parsed.query else ""
-                return f"{scheme}://{host}:{port}{path}{query}"
+                return cleaned
             path = cleaned if cleaned.startswith("/") else f"/{cleaned}"
             return f"rtsp://{RTSP_DEFAULT_HOST}:{RTSP_DEFAULT_PORT}{path}"
+
+    # Construct from fileSrc
+    fileSrc = str(camera.get("fileSrc", "")).split("|")[0].strip()
+    if fileSrc:
+        base_name = fileSrc[:-4] if fileSrc.endswith('.mp4') else fileSrc
+        width = camera.get("width", 1920)
+        fps = camera.get("fps", 15)
+        stream_path = f"{base_name}-{width}-{fps}-bench"
+        return f"rtsp://{RTSP_DEFAULT_HOST}:{RTSP_DEFAULT_PORT}/{stream_path}"
 
     # Last resort: use camera_id
     camera_id = str(camera.get("camera_id", "")).strip()
@@ -289,7 +281,8 @@ def get_video_name_with_extension(camera_cfg_path: str = None) -> str:
     raw_src = str(cam.get("fileSrc", ""))
     file_src = raw_src.split("|", 1)[0].strip()
     if not file_src:
-        raise ValueError("[ERROR] lp_vlm camera has empty fileSrc")
+        # No fileSrc — streamUri will be used directly by the pipeline
+        return ""
 
     # Extension from original file (e.g. .mp4)
     ext = Path(file_src).suffix or ""

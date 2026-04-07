@@ -9,18 +9,6 @@ FROM bluenviron/mediamtx:1.15.6 AS mediamtx
 # ================================
 FROM alpine:3.19
 
-# ---- Proxy support (IMPORTANT for corp networks) ----
-# These will be populated at build time if present
-ARG http_proxy
-ARG https_proxy
-ARG HTTP_PROXY
-ARG HTTPS_PROXY
-
-ENV http_proxy=${http_proxy} \
-    https_proxy=${https_proxy} \
-    HTTP_PROXY=${HTTP_PROXY} \
-    HTTPS_PROXY=${HTTPS_PROXY}
-
 # ---- Use official Alpine HTTPS CDN (proxy-friendly) ----
 RUN echo "https://dl-cdn.alpinelinux.org/alpine/v3.19/main" > /etc/apk/repositories && \
     echo "https://dl-cdn.alpinelinux.org/alpine/v3.19/community" >> /etc/apk/repositories && \

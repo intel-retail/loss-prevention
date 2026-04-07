@@ -29,6 +29,13 @@ jobs:
           uses: actions/checkout@1e31de5234b9f8995739874a8ce0492dc87873e2
           with:
             ref: main
+        - name: Read VERSION
+          shell: bash
+          run: |
+            VERSION="$(cat VERSION | tr -d '\n\r' | xargs)"
+            echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+            echo "Using VERSION=$VERSION"
+            
         - name: Update Sub Module Performance-Tools
           run: make update-submodules
           
@@ -41,50 +48,49 @@ jobs:
         - name: Build Pipeline Runner image from Dockerfile
           run: |
             echo "running make build-pipeline-runner"
-            make build-pipeline-runner
+            make build-lp-images
             sudo du -sh /* 2>/dev/null | sort -rh | head -n 10
             sudo df -h
 
         - name: Run Trivy vulnerability scanner on model-downloader
-          uses: aquasecurity/trivy-action@915b19bbe73b92a6cf82a1bc12b087c9a19a5fe2
+          uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1
           with:
-            image-ref: 'model-downloader-lp:2026.0-rc1'
+            image-ref: "intel/model-downloader:${{ env.VERSION }}"
             format: 'table'
             output: 'trivy-results-modeldownloader.txt'
             severity: 'CRITICAL,HIGH'
 
         - name: Run Trivy vulnerability scanner on pipeline-runner
-          uses: aquasecurity/trivy-action@915b19bbe73b92a6cf82a1bc12b087c9a19a5fe2
+          uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1
           with:
-            image-ref: 'pipeline-runner-lp:2026.0-rc1'
+            image-ref: "intel/pipeline-runner-lp:${{ env.VERSION }}"
             format: 'table'
             output: 'trivy-results-pipelinerunner.txt'
             severity: 'CRITICAL,HIGH'
 
+        - name: Run Trivy vulnerability scanner on lp vlm workload handler
+          uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1
+          with:
+            image-ref: "intel/lp-vlm-workload-handler:${{ env.VERSION }}"
+            format: 'table'
+            output: 'trivy-results-lp-vlm-workload-handler.txt'
+            severity: 'CRITICAL,HIGH'
+            
+        - name: Run Trivy vulnerability scanner on rtsp-streamer
+          uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1
+          with:
+            image-ref: "intel/rtsp-streamer:${{ env.VERSION }}"
+            format: 'table'
+            output: 'trivy-results-lp-rtsp-streamer.txt'
+            severity: 'CRITICAL,HIGH'
+            
         - name: Upload Trivy scan results for model-downloader to GitHub Security tab
           uses: actions/upload-artifact@v4
           with:
-            name: trivy-html-modeldownloader-report
-            path: trivy-results-modeldownloader.txt
-
-        - name: Upload Trivy scan results for pipeline-runner to GitHub Security tab
-          uses: actions/upload-artifact@v4
-          with:
-            name: trivy-html-pipelinerunner-report
-            path: trivy-results-pipelinerunner.txt
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+            name: trivy-loss-prevention-report
+            path: |
+              trivy-results-modeldownloader.txt
+              trivy-results-pipelinerunner.txt
+              trivy-results-lp-vlm-workload-handler.txt
+              trivy-results-lp-rtsp-streamer.txt
 

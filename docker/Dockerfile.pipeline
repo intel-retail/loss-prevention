@@ -1,10 +1,4 @@
-FROM intel/dlstreamer:2026.0.0-ubuntu24-rc2
-
-ARG HTTP_PROXY
-ARG HTTPS_PROXY
-ARG http_proxy
-ARG https_proxy
-
+FROM intel/dlstreamer:2026.0.0-ubuntu24
 USER root
 WORKDIR /
 RUN apt-get update && apt-get install -y python3-pip

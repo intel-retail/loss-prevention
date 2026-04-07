@@ -144,7 +144,7 @@ make run-lp CAMERA_STREAM=camera_to_workload_asc_object_detection_classification
 __What to Expect__
   
 + *Visual Mode*
-  - A video window opens showing the retail video with detection overlays
+  - A video window opens showing the retail video with detection overlays.
       
     **Note: The pipeline runs until the video completes**
 

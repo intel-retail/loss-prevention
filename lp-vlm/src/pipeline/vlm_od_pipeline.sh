@@ -10,10 +10,15 @@ ORIGINAL_VIDEO_NAME="$(python3 /home/pipeline-server/lp-vlm/workload_utils.py \
   --camera-config "/home/pipeline-server/lp-vlm/configs/${CAMERA_STREAM}" \
   --extract_video_name)"
 
+STREAM_URI="$(python3 /home/pipeline-server/lp-vlm/workload_utils.py \
+  --camera-config "/home/pipeline-server/lp-vlm/configs/${CAMERA_STREAM}" \
+  --get-stream-uri)"
 
 export ORIGINAL_VIDEO_NAME
+export STREAM_URI
 
 echo "ORIGINAL_VIDEO_NAME from config:" "$ORIGINAL_VIDEO_NAME"
+echo "STREAM_URI from config:" "$STREAM_URI"
 echo "WORKLOAD_DIST from env:" $WORKLOAD_DIST
 echo "CONFIG_PATH set to:" $WORKLOAD_PIPELINE_CONFIG
 
@@ -79,8 +84,17 @@ else
   echo "⚠️  No ROI specified, processing full frame"
 fi
 
+# Determine source: use local file if fileSrc was provided, otherwise stream via URI
+if [ -n "$ORIGINAL_VIDEO_NAME" ] && [ -f "$INPUT_DIR/$ORIGINAL_VIDEO_NAME" ]; then
+  SOURCE_ELEMENT="filesrc location=$INPUT_DIR/$ORIGINAL_VIDEO_NAME"
+  echo "Using local file: $INPUT_DIR/$ORIGINAL_VIDEO_NAME"
+else
+  SOURCE_ELEMENT="urisourcebin uri=$STREAM_URI"
+  echo "Using stream URI: $STREAM_URI"
+fi
+
 time gst-launch-1.0 --verbose \
-  filesrc location=/home/pipeline-server/lp-vlm/sample-media/$ORIGINAL_VIDEO_NAME ! \
+  $SOURCE_ELEMENT ! \
   decodebin3 ! videoconvert ! videorate ! \
   video/x-raw,format=BGR,framerate=13/1 ! \
   gvadetect model-instance-id=detect1_1 name=lp-vlm batch-size=1 \

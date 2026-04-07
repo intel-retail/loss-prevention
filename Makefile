@@ -39,7 +39,7 @@ DOCKER_COMPOSE ?= docker-compose.yml
 STREAM_LOOP ?= true
 
 
-TAG ?= 2026.0-rc2
+TAG ?= 2026.0.0
 LP_TAG = $(shell cat VERSION)
 export LP_TAG
 RENDER_MODE ?=0
@@ -85,6 +85,10 @@ build-model-downloader: | validate-pipeline-config
 	@echo "Building model downloader"
 	docker build --build-arg HTTPS_PROXY=${HTTPS_PROXY} --build-arg HTTP_PROXY=${HTTP_PROXY} -t $(REGISTRY_MODEL_DOWNLOADER) -f docker/Dockerfile.downloader .
 	@echo "assets downloader completed"
+
+build-lp-images:
+	@echo "Building loss prevention images"
+	docker compose -f src/$(DOCKER_COMPOSE) build
 
 run-model-downloader:
 	@echo "Running assets downloader"
@@ -145,7 +149,6 @@ run: validate_workload_mapping download-sample-videos
 		echo "##############Using registry mode - fetching pipeline runner..."; \
 		LOCAL_UID=$(shell id -u) LOCAL_GID=$(shell id -g) LP_VLM_WORKLOAD_ENABLED=$(LP_VLM_WORKLOAD_ENABLED) STREAM_LOOP=$(STREAM_LOOP_VALUE) BATCH_SIZE_DETECT=$(BATCH_SIZE_DETECT) BATCH_SIZE_CLASSIFY=$(BATCH_SIZE_CLASSIFY) docker compose -f src/$(DOCKER_COMPOSE) up -d; \
 	else \
-		docker compose -f src/$(DOCKER_COMPOSE) build pipeline-runner; \
 		LOCAL_UID=$(shell id -u) LOCAL_GID=$(shell id -g) LP_VLM_WORKLOAD_ENABLED=$(LP_VLM_WORKLOAD_ENABLED) STREAM_LOOP=$(STREAM_LOOP_VALUE) BATCH_SIZE_DETECT=$(BATCH_SIZE_DETECT) BATCH_SIZE_CLASSIFY=$(BATCH_SIZE_CLASSIFY) docker compose -f src/$(DOCKER_COMPOSE) up --build -d; \
 	fi
 
