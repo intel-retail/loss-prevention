@@ -101,7 +101,9 @@ def extract_prompt_and_images(frame_records: Dict[str, Any], use_case: str = Non
     if use_case == "decision_agent":
         prompt = AGENT_PROMPT
     else:
-        prompt = COMMON_PROMPT
+        # Use dynamic inventory-aware prompt if provided, otherwise fall back to generic
+        dynamic_prompt = frame_records.get("dynamic_prompt")
+        prompt = dynamic_prompt if dynamic_prompt else COMMON_PROMPT
     
     images = []
     
@@ -117,7 +119,7 @@ def extract_prompt_and_images(frame_records: Dict[str, Any], use_case: str = Non
                 response = requests.get(presigned_url, timeout=30)
                 response.raise_for_status()
                 img = Image.open(BytesIO(response.content)).convert("RGB")
-                img = img.resize((512, 512))
+                img = img.resize((640, 360))
                 images.append(np.array(img))
                 logger.info(f"Successfully loaded image from {presigned_url}")
             except Exception as e:

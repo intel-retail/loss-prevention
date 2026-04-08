@@ -102,6 +102,7 @@ time gst-launch-1.0 --verbose \
     device=$DEVICE threshold=0.4 pre-process-backend=opencv \
     ie-config=CPU_THROUGHPUT_STREAMS=2 nireq=2 \
     pre-process-config=resize_type=standard ! \
+  queue ! gvatrack tracking-type=zero-term-imageless ! \
   queue ! gvametaconvert format=json ! queue ! \
   gvapython class=Publisher function=process module=/home/pipeline-server/lp-vlm/gvapython/publish.py name=publish ! \
   gvawatermark ! queue ! fakesink sync=false async=false

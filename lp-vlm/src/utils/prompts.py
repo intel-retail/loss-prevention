@@ -131,3 +131,33 @@ There may be spelling mistakes or additional prepositions from above but the ite
   - Return only a single JSON object in an array."""
 
 
+def generate_inventory_prompt(detected_label, inventory_list):
+    """Generate a dynamic VLM prompt narrowed to inventory items matching the detected label.
+
+    Args:
+        detected_label: Object label from the detection model (e.g. "bottle").
+        inventory_list: List of inventory item names.
+
+    Returns:
+        A targeted prompt string, or None if no inventory items match.
+    """
+    if not detected_label or not inventory_list:
+        return None
+    label_lower = detected_label.strip().lower()
+    matched_items = [
+        item for item in inventory_list
+        if label_lower in item.lower() or item.lower() in label_lower
+    ]
+    if not matched_items:
+        return None
+    items_list = ", ".join(matched_items)
+    return (
+        f"Which of the following items is visible in this image: {items_list}? "
+        f"Items may appear inside transparent plastic bags, containers, or packaging. "
+        f"Identify the item even if it is wrapped or partially occluded by packaging. "
+        f"Reply only with names of detected items in strict JSON format: "
+        f'[{{"item_name": "item name here"}}]. '
+        f'If no items from the list are visible, reply with [{{"item_name": "None"}}].'
+    )
+
+

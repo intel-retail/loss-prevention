@@ -12,6 +12,7 @@ import random
 import logging
 import atexit
 import traceback
+from dataclasses import dataclass, field
 from datetime import datetime
 from io import BytesIO
 from collections import defaultdict
@@ -26,7 +27,21 @@ from config import METADATA_DIR_FULL_PATH, FRAMES_DIR_FULL_PATH, BUCKET_NAME, MI
 # ============================================================================
 
 threshold_value = os.environ.get("DETECTION_THRESHOLD")
-THRESHOLD = int(threshold_value) if threshold_value else 12  # Number of frames an item must appear in before sending notification
+THRESHOLD = int(threshold_value) if threshold_value else 12  # Fallback frame-count threshold
+
+# Time-based tracking threshold (milliseconds) — preferred when gvatrack provides tracking IDs
+TRACKING_THRESHOLD_MS = int(os.environ.get("TRACKING_THRESHOLD_MS", "1500"))
+
+
+@dataclass
+class TrackedObject:
+    """Tracks a single detected object instance by its unique tracking ID."""
+    label: str
+    tracking_id: int
+    first_seen: float   # wall-clock time in milliseconds
+    last_seen: float
+    published: bool = False
+    frames: list = field(default_factory=list)
 
 # ============================================================================
 # LOGGER SETUP
@@ -133,6 +148,8 @@ class Publisher:
             # Detection tracking
             self.item_frameid_mapper = defaultdict(list)
             self.sent_items = []
+            self._tracked_objects = {}  # tracking_id -> TrackedObject
+            self._threshold_ms = TRACKING_THRESHOLD_MS
             
             # External connections
             self.minio_client = get_minio_client()
@@ -235,7 +252,8 @@ class Publisher:
     
     def _process_detections(self, metadata, frame_path):
         """
-        Process object detections and send notifications if threshold reached.
+        Process object detections using tracking IDs and time-based threshold.
+        Falls back to frame-count threshold when tracking IDs are not available.
         
         Args:
             metadata (dict): Frame metadata containing detected objects
@@ -245,30 +263,81 @@ class Publisher:
             if not metadata or len(metadata.get("objects", [])) == 0:
                 return
             
+            current_time_ms = time.time() * 1000
+            
             for obj in metadata.get("objects", []):
                 detection = obj.get("detection", {})
                 label = detection.get("label")
+                tracking_id = obj.get("id")  # unique tracking ID from gvatrack
                 
-                if label and label != "person":
+                if not label:
+                    continue
+                
+                if label == "person":
+                    self.person += 1
+                    if self.person > 5:
+                        self.sent_items.append(label)
+                    continue
+                
+                # Primary path: time-based tracking with unique IDs (when gvatrack is active)
+                if tracking_id is not None:
+                    if tracking_id not in self._tracked_objects:
+                        self._tracked_objects[tracking_id] = TrackedObject(
+                            label=label,
+                            tracking_id=tracking_id,
+                            first_seen=current_time_ms,
+                            last_seen=current_time_ms,
+                        )
+                    
+                    tracked = self._tracked_objects[tracking_id]
+                    tracked.last_seen = current_time_ms
+                    tracked.frames.append(frame_path)
+                    
+                    duration_ms = tracked.last_seen - tracked.first_seen
+                    if duration_ms >= self._threshold_ms and not tracked.published:
+                        tracked.published = True
+                        logger.info(
+                            f"Tracking ID {tracking_id} ({label}) visible for "
+                            f"{duration_ms:.0f}ms >= {self._threshold_ms}ms, sending notification"
+                        )
+                        self._send_detection_notification_tracked(tracked)
+                else:
+                    # Fallback: frame-count threshold when no tracking ID
                     logger.info(f"Items extracted from label: {self.item_frameid_mapper}")
                     self.item_frameid_mapper[label].append(frame_path)
                     
-                    if len(self.item_frameid_mapper[label]) >= THRESHOLD :
+                    if len(self.item_frameid_mapper[label]) >= THRESHOLD:
                         if len(self.sent_items) == 0 or label != self.sent_items[-1]:
                             logger.info(f"Sending Data: {self.item_frameid_mapper}")
                             self._send_detection_notification(label)
                             self.sent_items.append(label)
-                            self.person=0
+                            self.person = 0
                             del self.item_frameid_mapper[label]
                         else:
                             logger.info(f"Data already sent for {label}, skipping.")
                             del self.item_frameid_mapper[label]
-                else:
-                    self.person+= 1
-                    if self.person>5:
-                        self.sent_items.append(label)
         except Exception as e:
             logger.error(f"Error processing detections: {e}")
+            logger.error(traceback.format_exc())
+            sys.exit(1)
+    
+    def _send_detection_notification_tracked(self, tracked):
+        """Send RabbitMQ notification for a tracked object (time-based path)."""
+        try:
+            message = {
+                "data": {
+                    "item_name": tracked.label,
+                    "tracking_id": tracked.tracking_id,
+                    "frames": tracked.frames,
+                    "bucket": BUCKET_NAME
+                },
+                "msg_type": "FRAME_DATA",
+                "status": "PROCESSING",
+                "timestamp": datetime.now().isoformat()
+            }
+            self.send_message(message)
+        except Exception as e:
+            logger.error(f"Error sending tracked detection notification: {e}")
             logger.error(traceback.format_exc())
             sys.exit(1)
     
