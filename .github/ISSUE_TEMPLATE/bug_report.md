@@ -1,16 +1,26 @@
+---
+name: Bug Report
+about: Report a bug to help us improve the project
+title: "[BUG] <short description>"
+labels: bug
+type: "Bug"
+assignees: ""
+---
+
 <!--
-Welcome! 
+Welcome!
 To expedite issue processing please search open and closed issues before submitting a new one.
 Existing issues often contain information about workarounds, resolution, or progress updates.
 -->
+
 ## Version
 
 What release version was the issue found in?
 
 ## Hardware configuration
 
-List Hardware components used. 
-Ex. 
+List Hardware components used.
+Ex.
 Issue found with the following:
 - Intel® xeon Platinum 8351N with Intel® Data Center GPU Flex 140
 - 12th Gen Intel® Core™ i7 with Intel® Arc™ A770M Graphics
