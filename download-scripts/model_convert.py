@@ -65,31 +65,67 @@ def export_yolo(model_name, output_dir):
     if os.path.exists(weights):
         os.remove(weights)
 
-def quantize_age_gender_face_detection(model_name,output_dir):
-    """Convert FP16 model to INT8"""
-    print(f"Converting {model_name} to INT8...")
+def quantize_age_gender_face_detection(model_name, output_dir):
+    """Quantize FP16 model to INT8 using NNCF post-training quantization."""
+    print(f"Quantizing {model_name} to INT8...")
     fp16_xml = Path(f"{output_dir}/{model_name}/FP16/{model_name}.xml")
     int8_dir = Path(f"{output_dir}/{model_name}/INT8")
     int8_dir.mkdir(parents=True, exist_ok=True)
     int8_xml = int8_dir / f"{model_name}.xml"
+
     if int8_xml.exists():
         print(f"[INFO] INT8 model already exists: {int8_xml}")
         return
+
     if not fp16_xml.exists():
         print(f"[ERROR] FP16 model not found: {fp16_xml}")
         return
+
     try:
+        import numpy as np
+
         core = Core()
         model = core.read_model(str(fp16_xml))
-        try:
-            compressed_model = ov.compress_model(model)
-            serialize(compressed_model, str(int8_xml))
-        except AttributeError:
-            print(f"Using basic model copy (compression not available)")
-            serialize(model, str(int8_xml))
-        print(f"INT8 model saved: {int8_xml}")
+
+        # Derive the input shape from the model itself
+        input_layer = model.input(0)
+        input_shape = list(input_layer.shape)
+
+        # Replace any dynamic dimensions with sensible defaults
+        for i, dim in enumerate(input_shape):
+            if isinstance(dim, ov.Dimension) or dim == -1 or dim == 0:
+                if i == 0:
+                    input_shape[i] = 1  # batch
+                elif i == 1:
+                    input_shape[i] = 3  # channels
+                else:
+                    input_shape[i] = 224  # spatial default
+
+        print(f"[INFO] Model input shape for calibration: {input_shape}")
+
+        # Generate synthetic calibration data matching the model's expected input
+        num_calibration_samples = 300
+
+        def synthetic_data_generator():
+            for _ in range(num_calibration_samples):
+                yield {input_layer.any_name: np.random.rand(*input_shape).astype(np.float32)}
+
+        calibration_dataset = nncf.Dataset(synthetic_data_generator())
+
+        quantized_model = nncf.quantize(
+            model,
+            calibration_dataset,
+            subset_size=num_calibration_samples,
+            preset=nncf.QuantizationPreset.MIXED,
+        )
+
+        quantized_model.set_rt_info(ov.get_version(), "Runtime_version")
+        serialize(quantized_model, str(int8_xml))
+        print(f"[INFO] INT8 model saved: {int8_xml}")
+
     except Exception as e:
-        print(f"Error converting {model_name} to INT8: {e}")
+        print(f"[ERROR] Failed to quantize {model_name} to INT8: {e}")
+        raise
 
 def quantize_yolo(model_name, dataset_manifest, output_dir):
     model_dir = os.path.join(output_dir, "object_detection", model_name)
