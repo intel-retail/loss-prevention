@@ -21,6 +21,7 @@ from agent.agent import ConfigAgent
 import re
 from utils.save_results import get_presigned_url
 from utils.config import logger,INVENTORY_FILE
+from utils.prompts import generate_inventory_prompt
 from utils.rabbitmq_consumer import ODConsumer
 import traceback
 from workload_utils import get_video_name_only
@@ -198,7 +199,8 @@ def process_object_detection_results(video_file, use_case):
                 }
                 item_rec = {"item_name":item,"match":False}
                 ui_items.append(item_rec)
-                enhancer_payload = {"presigned_url": presigned_url, "use_case": use_case}
+                dynamic_prompt = generate_inventory_prompt(item, inventory_list)
+                enhancer_payload = {"presigned_url": presigned_url, "use_case": use_case, "dynamic_prompt": dynamic_prompt}
                 payload["data"] = enhancer_payload
 
                 vlm_queue.put(payload)
