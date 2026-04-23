@@ -173,6 +173,11 @@ services:
     container_name: vlm-pipeline-runner    
     image: intel/pipeline-runner-lp:${LP_TAG}
     #user: "${LOCAL_UID:-1000}:${LOCAL_GID:-1000}"
+    shm_size: '512m'
+    ulimits:
+      stack:
+        soft: 67108864
+        hard: 67108864
     environment:
       - HTTP_PROXY=${HTTP_PROXY}
       - HTTPS_PROXY=${HTTPS_PROXY}
@@ -237,7 +242,12 @@ services:
         - HTTP_PROXY=${HTTP_PROXY}
         - HTTPS_PROXY=${HTTPS_PROXY}
     image: intel/pipeline-runner-lp:${LP_TAG}
-    #user: "${LOCAL_UID:-1000}:${LOCAL_GID:-1000}"    
+    #user: "${LOCAL_UID:-1000}:${LOCAL_GID:-1000}"
+    shm_size: '512m'
+    ulimits:
+      stack:
+        soft: 67108864
+        hard: 67108864
     depends_on:
       model-downloader:
         condition: service_completed_successfully
