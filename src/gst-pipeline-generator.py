@@ -382,9 +382,11 @@ def build_dynamic_gstlaunch_command(camera, workloads, workload_map, branch_idx=
             # Get env vars for each step's device, if present
             step_env_vars = get_env_vars_for_device(step["device"]) if "device" in step else {}
             if step["type"] == "gvadetect":
-                # Use round robin model instance sharing (configurable count)
-                model_instance_id = f"detect_shared{detect_counter[0] % ROUND_ROBIN_COUNT}"
-                detect_counter[0] += 1
+                # Use round robin model instance sharing per device (configurable count)
+                step_device = step.get("device", "CPU").upper()
+                detect_counter.setdefault(step_device, 0)
+                model_instance_id = f"detect_shared_{step_device.lower()}{detect_counter[step_device] % ROUND_ROBIN_COUNT}"
+                detect_counter[step_device] += 1
                 name_idx_counter[0] += 1
                 step["name_idx"] = name_idx_counter[0]
                 elem, _ = build_gst_element(step)
@@ -392,17 +394,21 @@ def build_dynamic_gstlaunch_command(camera, workloads, workload_map, branch_idx=
                 pipeline += f" ! {elem} ! gvatrack tracking-type=zero-term-imageless ! queue {queue_params}"
                 last_added_queue = True
             elif step["type"] == "gvaclassify":
-                # Use round robin model instance sharing (configurable count)
-                model_instance_id = f"classify_shared{classify_counter[0] % ROUND_ROBIN_COUNT}"
-                classify_counter[0] += 1
+                # Use round robin model instance sharing per device (configurable count)
+                step_device = step.get("device", "CPU").upper()
+                classify_counter.setdefault(step_device, 0)
+                model_instance_id = f"classify_shared_{step_device.lower()}{classify_counter[step_device] % ROUND_ROBIN_COUNT}"
+                classify_counter[step_device] += 1
                 elem, _ = build_gst_element(step)
                 elem = elem.replace("gvaclassify", f"gvaclassify model-instance-id={model_instance_id}")
                 pipeline += f" ! {elem} ! queue {queue_params}"
                 last_added_queue = True
             elif step["type"] == "gvainference":
-                # Use round robin model instance sharing (configurable count)
-                model_instance_id = f"inference_shared{inference_counter[0] % ROUND_ROBIN_COUNT}"
-                inference_counter[0] += 1
+                # Use round robin model instance sharing per device (configurable count)
+                step_device = step.get("device", "CPU").upper()
+                inference_counter.setdefault(step_device, 0)
+                model_instance_id = f"inference_shared_{step_device.lower()}{inference_counter[step_device] % ROUND_ROBIN_COUNT}"
+                inference_counter[step_device] += 1
                 elem, _ = build_gst_element(step)
                 elem = elem.replace("gvainference", f"gvainference model-instance-id={model_instance_id}")
                 pipeline += f" ! {elem} "    
@@ -469,9 +475,9 @@ def main(num_of_pipelines=1):
     workload_map = load_json(CONFIG_WORKLOAD_TO_PIPELINE)["workload_pipeline_map"]
     pipelines = []
     model_instance_map = {}
-    detect_counter = [0]
-    classify_counter = [0]
-    inference_counter = [0]
+    detect_counter = {}  # per-device counters: {device: count}
+    classify_counter = {}  # per-device counters: {device: count}
+    inference_counter = {}  # per-device counters: {device: count}
     name_idx_counter = [0]
     
     # Filter out cameras with lp_vlm workload and validate streams
