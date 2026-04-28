@@ -11,7 +11,7 @@
         "type": "gvaclassify",
         "model": "efficientnet-b0",
         "device": "GPU",
-        "precision": "INT8"
+        "precision": "FP16-INT8"
       }
     ]
   }

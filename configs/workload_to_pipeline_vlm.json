@@ -1,6 +1,6 @@
 {
   "workload_pipeline_map": {
-     "lp_vlm": [
+    "lp_vlm": [
       {
         "type": "vlm",
         "model": "yolo11n",
@@ -9,7 +9,7 @@
         "vlm_model": "Qwen/Qwen2.5-VL-7B-Instruct",
         "vlm_device": "GPU",
         "vlm_precision": "int8"
-      }      
+      }
     ]
   }
 }
