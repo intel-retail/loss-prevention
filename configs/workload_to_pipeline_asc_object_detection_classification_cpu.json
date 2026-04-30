@@ -11,9 +11,8 @@
         "type": "gvaclassify",
         "model": "efficientnet-b0",
         "device": "CPU",
-        "precision": "FP32"
+        "precision": "FP32-INT8"
       }
     ]
-
   }
 }

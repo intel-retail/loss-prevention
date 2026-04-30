@@ -8,10 +8,10 @@ MODELS_DIR="${1:-models}"
 
 # Define required models and their paths
 declare -a REQUIRED_MODELS=(
-    "object_classification/efficientnet-b0/FP16/efficientnet-b0.bin"
-    "object_classification/efficientnet-b0/FP16/efficientnet-b0.xml"
-    "object_classification/efficientnet-b0/INT8/efficientnet-b0.bin"
-    "object_classification/efficientnet-b0/INT8/efficientnet-b0.xml"
+    "object_classification/efficientnet-b0/FP16-INT8/efficientnet-b0.bin"
+    "object_classification/efficientnet-b0/FP16-INT8/efficientnet-b0.xml"
+    "object_classification/efficientnet-b0/FP32-INT8/efficientnet-b0.bin"
+    "object_classification/efficientnet-b0/FP32-INT8/efficientnet-b0.xml"
     "object_classification/efficientnet-b0/efficientnet-b0.json"
     "object_classification/efficientnet-b0/efficientnet-b0.txt"
     "object_classification/face-reidentification-retail-0095/FP16/face-reidentification-retail-0095.bin"

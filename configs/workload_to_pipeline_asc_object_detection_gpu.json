@@ -7,6 +7,6 @@
         "device": "GPU",
         "precision": "INT8"
       }
-    ]    
+    ]
   }
 }

@@ -1,6 +1,6 @@
 {
   "workload_pipeline_map": {
-     "asc_obj_detection_age_prediction": [
+    "asc_obj_detection_age_prediction": [
       {
         "type": "gvadetect",
         "model": "yolo11n",
@@ -11,7 +11,7 @@
         "type": "gvaclassify",
         "model": "efficientnet-b0",
         "device": "CPU",
-        "precision": "FP32"
+        "precision": "FP32-INT8"
       }
     ],
     "asc_obj_detection_age_prediction_face_detection": [

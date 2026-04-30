@@ -1,9 +1,9 @@
 {
   "workload_pipeline_map": {
     "items_in_basket": [
-      {        
+      {
         "type": "gvadetect",
-        "model": "yolo11n",       
+        "model": "yolo11n",
         "device": "CPU",
         "precision": "INT8"
       },
@@ -11,21 +11,21 @@
         "type": "gvaclassify",
         "model": "efficientnet-b0",
         "device": "CPU",
-        "precision": "INT8"
+        "precision": "FP16-INT8"
       }
     ],
     "fake_scan_detection": [
-      {        
+      {
         "type": "gvadetect",
-        "model": "yolo11n",       
+        "model": "yolo11n",
         "device": "NPU",
-        "precision": "INT8" 
+        "precision": "INT8"
       },
       {
         "type": "gvaclassify",
         "model": "efficientnet-b0",
         "device": "NPU",
-        "precision": "INT8"
+        "precision": "FP16-INT8"
       }
     ],
     "multi_product_identification": [
@@ -39,7 +39,7 @@
         "type": "gvaclassify",
         "model": "efficientnet-b0",
         "device": "CPU",
-        "precision": "INT8"
+        "precision": "FP16-INT8"
       }
     ],
     "product_switching": [
@@ -53,7 +53,7 @@
         "type": "gvaclassify",
         "model": "efficientnet-b0",
         "device": "GPU",
-        "precision": "INT8"
+        "precision": "FP16-INT8"
       }
     ],
     "hidden_items": [
@@ -67,7 +67,7 @@
         "type": "gvaclassify",
         "model": "efficientnet-b0",
         "device": "GPU",
-        "precision": "INT8"
+        "precision": "FP16-INT8"
       }
     ],
     "sweet_heartening": [
@@ -89,7 +89,7 @@
         "function": "process_frame"
       }
     ],
-     "lp_vlm": [
+    "lp_vlm": [
       {
         "type": "vlm",
         "model": "yolo11n",
@@ -98,7 +98,7 @@
         "vlm_model": "Qwen/Qwen2.5-VL-7B-Instruct",
         "vlm_device": "GPU",
         "vlm_precision": "int8"
-      }      
+      }
     ]
   }
 }

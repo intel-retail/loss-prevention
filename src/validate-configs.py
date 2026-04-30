@@ -143,7 +143,7 @@ class ConfigValidator:
         # Additional validation for precision field - must be INT8, FP16, or FP32
         if 'precision' in model_config:
             precision_value = model_config['precision'].strip().upper()
-            valid_precisions = ['INT8', 'FP16', 'FP32', 'FP16-INT8']
+            valid_precisions = ['INT8', 'FP16', 'FP32', 'FP16-INT8', 'FP32-INT8']
             if precision_value not in valid_precisions:
                 self.add_error(f"Invalid precision value '{model_config['precision']}' in {context}. Supported values: {', '.join(valid_precisions)}")
                 return 0
