@@ -221,6 +221,18 @@ make run-lp REGISTRY=false
 The application is highly configurable via JSON files in the `configs/` directory and with environment variables `CAMERA_STREAM` and `WORKLOAD_DIST`. 
 For more details, please refer [Pre Configured Workloads](https://intel-retail.github.io/documentation/use-cases/loss-prevention/getting_started.html#pre-configured-workloads)
 
+#### Inference interval
+
+The `INFERENCE_INTERVAL` environment variable controls how often the detector runs inference (the `gvadetect inference-interval` property). A value of `N` runs inference on every `N`th frame and relies on the tracker for the frames in between.
+
+- Default: `3`
+- `1` — run inference on every frame (smoothest, most consistent detections; highest load)
+- `2`, `3`, ... — infer less frequently (better performance, more reliance on the tracker between frames)
+
+```sh
+make run-lp CAMERA_STREAM=camera_to_workload_asc_object_detection_classification.json WORKLOAD_DIST=workload_to_pipeline_asc_object_detection_classification_gpu.json RENDER_MODE=1 DISPLAY=:0 INFERENCE_INTERVAL=1
+```
+
 ### 4. Benchmark
 >By default, the configuration is set to use the Loss Prevention (CPU) workload.
 

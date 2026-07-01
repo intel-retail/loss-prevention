@@ -5,7 +5,7 @@
         "type": "gvadetect",
         "model": "yolo11n",
         "device": "GPU",
-        "precision": "INT8"
+        "precision": "FP16"
       },
       {
         "type": "gvaclassify",

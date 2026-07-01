@@ -227,9 +227,19 @@ def build_gst_element(cfg):
     except ValueError:
         print(f"Warning: Invalid BATCH_SIZE_CLASSIFY value, using default 1", file=sys.stderr)
         BATCH_SIZE_CLASSIFY = 1
+
+    try:
+        INFERENCE_INTERVAL = int(os.environ.get("INFERENCE_INTERVAL",
+                                                env_vars.get("INFERENCE_INTERVAL", 3)))
+        if INFERENCE_INTERVAL < 1:
+            print(f"Warning: Invalid INFERENCE_INTERVAL value {INFERENCE_INTERVAL}, using default 3", file=sys.stderr)
+            INFERENCE_INTERVAL = 3
+    except ValueError:
+        print(f"Warning: Invalid INFERENCE_INTERVAL value, using default 3", file=sys.stderr)
+        INFERENCE_INTERVAL = 3
     
     print("******************************************", file=sys.stderr)
-    print(f"DETECT {BATCH_SIZE_DETECT} - CLASSIFY {BATCH_SIZE_CLASSIFY}", file=sys.stderr)
+    print(f"DETECT {BATCH_SIZE_DETECT} - CLASSIFY {BATCH_SIZE_CLASSIFY} - INFERENCE_INTERVAL {INFERENCE_INTERVAL}", file=sys.stderr)
     print("******************************************", file=sys.stderr)
     
     CLASSIFICATION_PRE_PROCESS = env_vars.get("CLASSIFICATION_PRE_PROCESS", "")
@@ -243,7 +253,7 @@ def build_gst_element(cfg):
     if cfg["type"] == "gvadetect":
         # Always use the precision from the current step config
         model_path = download_model_if_missing(model, "gvadetect", cfg.get("precision", ""))
-        elem = f"gvadetect {name_str} batch-size={BATCH_SIZE_DETECT} inference-interval=3 scale-method=fast {inference_region} model={model_path} device={device} {PRE_PROCESS} {DETECTION_OPTIONS} {PRE_PROCESS_CONFIG}"
+        elem = f"gvadetect {name_str} batch-size={BATCH_SIZE_DETECT} inference-interval={INFERENCE_INTERVAL} scale-method=fast {inference_region} model={model_path} device={device} {PRE_PROCESS} {DETECTION_OPTIONS} {PRE_PROCESS_CONFIG}"
     elif cfg["type"] == "gvaclassify":
         # Always use the precision from the current step config
         model_path, label_path, proc_path = download_model_if_missing(model, "gvaclassify", cfg.get("precision", "")) 
@@ -438,7 +448,7 @@ def build_dynamic_gstlaunch_command(camera, workloads, workload_map, branch_idx=
             #pipeline += f"    {tee_name}. ! queue ! gvafpscounter ! fakesink sync=false async=false "
         render_mode = os.environ.get("RENDER_MODE", "0")
         if render_mode == "1":
-            pipeline += f"  ! queue {queue_params} ! gvawatermark ! {vapostproc_elem} fpsdisplaysink video-sink=autovideosink text-overlay=true signal-fps-measurements=true"
+            pipeline += f"  ! queue {queue_params} ! {vapostproc_elem} gvawatermark ! fpsdisplaysink video-sink=autovideosink sync=false text-overlay=true signal-fps-measurements=true"
         else:
             pipeline += f"  ! queue {queue_params} ! fpsdisplaysink video-sink=fakesink signal-fps-measurements=true"
         pipelines.append(pipeline)
