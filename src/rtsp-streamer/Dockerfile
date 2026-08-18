@@ -13,10 +13,13 @@ FROM alpine:3.23.4
 RUN echo "https://dl-cdn.alpinelinux.org/alpine/v3.23/main" > /etc/apk/repositories && \
     echo "https://dl-cdn.alpinelinux.org/alpine/v3.23/community" >> /etc/apk/repositories && \
     apk update --no-cache && \
+    apk upgrade --no-cache && \
     apk add --no-cache \
         ffmpeg \
         busybox-extras \
-        ca-certificates && \
+        ca-certificates \
+        "libcrypto3>=3.5.7-r0" \
+        "libssl3>=3.5.7-r0" && \
     update-ca-certificates
 
 # ---- App directory ----
