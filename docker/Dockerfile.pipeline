@@ -1,9 +1,9 @@
 FROM intel/dlstreamer:2026.2.0-ubuntu24-rc1
 USER root
 WORKDIR /
-RUN apt-get update && apt-get install -y python3-pip
-RUN pip install --break-system-packages --no-cache-dir python-dotenv
-RUN pip install --break-system-packages --ignore-installed numpy opencv-python pillow pika minio
+RUN apt-get update && apt-get install -y --only-upgrade linux-libc-dev && rm -rf /var/lib/apt/lists/*
+RUN python3 -m pip install --break-system-packages --no-cache-dir python-dotenv
+RUN python3 -m pip install --break-system-packages --ignore-installed numpy opencv-python pillow pika minio
 COPY configs/ /home/pipeline-server/configs/
 # COPY configs/workload_to_pipeline.json /home/pipeline-server/configs/workload_to_pipeline.json
 # COPY configs/camera_to_workload.json /home/pipeline-server/configs/camera_to_workload.json

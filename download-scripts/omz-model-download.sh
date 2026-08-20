@@ -18,8 +18,6 @@ http_proxy = $http_proxy
 https_proxy = $https_proxy
 no_proxy = $no_proxy
 EOF
-    git config --global http.proxy "$http_proxy"
-    git config --global https.proxy "$https_proxy"
 else
     echo "=== No proxy configured."
 fi
@@ -47,11 +45,20 @@ if [ -f "$MODEL_XML_FP16" ] ; then
 fi
 
 # ==============================
-# 3️⃣ Clone full OMZ repo
+# 3️⃣ Download and extract OMZ repo archive
 # ==============================
-echo "=== Cloning Open Model Zoo repository ..."
+echo "=== Downloading Open Model Zoo archive ..."
 rm -rf "$OMZ_DIR"
-git clone --depth 1 https://github.com/openvinotoolkit/open_model_zoo.git "$OMZ_DIR"
+mkdir -p "$OMZ_DIR"
+
+OMZ_ARCHIVE="/tmp/open_model_zoo.tar.gz"
+wget --no-check-certificate --timeout=60 --tries=3 \
+    "https://github.com/openvinotoolkit/open_model_zoo/archive/refs/heads/master.tar.gz" \
+    -O "$OMZ_ARCHIVE"
+
+tar -xzf "$OMZ_ARCHIVE" -C /tmp
+mv /tmp/open_model_zoo-master/* "$OMZ_DIR"/
+rm -rf /tmp/open_model_zoo-master "$OMZ_ARCHIVE"
 
 TOOLS_DIR="$OMZ_DIR/tools/model_tools"
 
