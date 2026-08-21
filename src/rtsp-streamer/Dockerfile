@@ -60,4 +60,3 @@ HEALTHCHECK --interval=10s --timeout=5s --retries=3 \
 
 # ---- Run ----
 ENTRYPOINT ["/opt/rtsp-streamer/start.sh"]
-    
