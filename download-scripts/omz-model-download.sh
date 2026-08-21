@@ -13,13 +13,12 @@ echo "================ Face Model Download Script ================"$PRECISION
 if [[ -n "$http_proxy" || -n "$https_proxy" ]]; then
     echo "=== Proxy detected: $http_proxy"
     cat <<EOF > /etc/wgetrc
+check_certificate = on
 use_proxy = on
 http_proxy = $http_proxy
 https_proxy = $https_proxy
 no_proxy = $no_proxy
 EOF
-    git config --global http.proxy "$http_proxy"
-    git config --global https.proxy "$https_proxy"
 else
     echo "=== No proxy configured."
 fi
@@ -47,11 +46,20 @@ if [ -f "$MODEL_XML_FP16" ] ; then
 fi
 
 # ==============================
-# 3️⃣ Clone full OMZ repo
+# 3️⃣ Download and extract OMZ repo archive
 # ==============================
-echo "=== Cloning Open Model Zoo repository ..."
+echo "=== Downloading Open Model Zoo archive ..."
 rm -rf "$OMZ_DIR"
-git clone --depth 1 https://github.com/openvinotoolkit/open_model_zoo.git "$OMZ_DIR"
+mkdir -p "$OMZ_DIR"
+
+OMZ_ARCHIVE="/tmp/open_model_zoo.tar.gz"
+wget --timeout=60 --tries=3 \
+    "https://github.com/openvinotoolkit/open_model_zoo/archive/refs/heads/master.tar.gz" \
+    -O "$OMZ_ARCHIVE"
+
+tar -xzf "$OMZ_ARCHIVE" -C /tmp
+mv /tmp/open_model_zoo-master/* "$OMZ_DIR"/
+rm -rf /tmp/open_model_zoo-master "$OMZ_ARCHIVE"
 
 TOOLS_DIR="$OMZ_DIR/tools/model_tools"
 
@@ -93,7 +101,7 @@ if [[ "$MODEL_NAME" == face-reidentification-retail-* ]] || [[ "$MODEL_NAME" == 
     if [[ -f "$MODEL_PROC_PATH" ]]; then
         echo "[INFO] Model proc JSON already exists at $MODEL_PROC_PATH, skipping download"
     else
-        if wget --no-check-certificate --timeout=30 --tries=2 "$MODEL_PROC_URL" -P "$(dirname "$MODEL_PROC_PATH")"; then
+        if wget --timeout=30 --tries=2 "$MODEL_PROC_URL" -P "$(dirname "$MODEL_PROC_PATH")"; then
             echo "[INFO] Successfully downloaded model_proc JSON for $MODEL_NAME"
         else
             echo "[WARN] Failed to download model_proc JSON from $MODEL_PROC_URL"

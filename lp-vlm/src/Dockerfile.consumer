@@ -1,51 +1,60 @@
-# Use lightweight Python base image
+FROM python:3.12-slim AS builder
+
+ARG DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get -y upgrade && apt-get install -y --no-install-recommends \
+    build-essential \
+    git \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY ./requirements.txt /app/
+RUN pip install --upgrade pip setuptools wheel && \
+    pip install --no-cache-dir -r requirements.txt
+
+
 FROM python:3.12-slim
 
-# -----------------------------------------
-# Install OpenCV system dependencies
-# -----------------------------------------
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    git curl ffmpeg \
-    libgl1 libglib2.0-0 libsm6 libxrender1 libxext6\
- && rm -rf /var/lib/apt/lists/*  
-# Set working directory inside container
-WORKDIR /app
-  
-# -----------------------------------------
-# Install Python dependencies
-# -----------------------------------------
-COPY ./requirements.txt /app/
-RUN pip install --no-cache-dir -r requirements.txt
-
-
-
+ARG DEBIAN_FRONTEND=noninteractive
 ARG INSTALL_DRIVER_VERSION="25.31.34666"
 ARG USER_ID=1000
 ARG USER_GROUP_ID=1000
 
+RUN apt-get update && apt-get -y upgrade && apt-get install -y --no-install-recommends \
+    bash \
+    ca-certificates \
+    libgl1 \
+    libglib2.0-0 \
+    libsm6 \
+    libxrender1 \
+    libxext6 \
+    libnuma1 \
+    ocl-icd-libopencl1 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
+
+# Remove bundled third-party SBOM JSONs that can produce stale transitive findings in Trivy.
+RUN find /usr/local/lib/python3.12/site-packages -type f \
+    \( -path '*/sboms/*.json' -o -name 'bom.cdx.json' \) -delete
+
 RUN groupadd -g ${USER_GROUP_ID} appuser && useradd -m -s /bin/bash -u ${USER_ID} -g ${USER_GROUP_ID} appuser
 
-RUN apt-get update -y && apt-get install -y --no-install-recommends --fix-missing \
-    curl \
-    && rm -rf /var/lib/apt/lists/* 
-
 COPY ./scripts/install_ubuntu_gpu_drivers.sh /tmp/install_gpu_drivers.sh
-RUN chmod +x /tmp/install_gpu_drivers.sh
-RUN /tmp/install_gpu_drivers.sh
+RUN apt-get update && apt-get install -y --no-install-recommends curl && \
+    chmod +x /tmp/install_gpu_drivers.sh && /tmp/install_gpu_drivers.sh && \
+    apt-get purge -y --auto-remove curl && \
+    apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /root/.cache
 
-RUN apt-get clean && rm -rf /tmp/install_gpu_drivers.sh && rm -rf /var/lib/apt/lists/* && rm -rf /tmp/* && rm -rf /root/.cachetmp/*
-
-
-# -----------------------------------------
-# Copy project files
-# -----------------------------------------
 COPY ./utils /app/utils
 COPY ./config /app/config
 COPY ./agent /app/agent
 COPY ./main.py /app/
+COPY ./workload_utils.py /app/
 
-# -----------------------------------------
-# Run consumer
-# -----------------------------------------
 CMD ["python", "main.py"]
