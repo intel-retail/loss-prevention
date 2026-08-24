@@ -1,4 +1,4 @@
-FROM intel/dlstreamer:2026.2.0-ubuntu24-rc1
+FROM intel/dlstreamer:2026.2.0-ubuntu24-rc2
 USER root
 WORKDIR /
 RUN apt-get update && apt-get install -y python3-pip
