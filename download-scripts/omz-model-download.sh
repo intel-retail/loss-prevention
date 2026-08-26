@@ -52,14 +52,17 @@ echo "=== Downloading Open Model Zoo archive ..."
 rm -rf "$OMZ_DIR"
 mkdir -p "$OMZ_DIR"
 
+# NOTE: Pinning to a specific release tag (e.g. refs/tags/2024.6.0) is recommended
+# for reproducibility. Using refs/heads/master may pull breaking changes silently.
 OMZ_ARCHIVE="/tmp/open_model_zoo.tar.gz"
 wget --timeout=60 --tries=3 \
     "https://github.com/openvinotoolkit/open_model_zoo/archive/refs/heads/master.tar.gz" \
     -O "$OMZ_ARCHIVE"
 
-tar -xzf "$OMZ_ARCHIVE" -C /tmp
-mv /tmp/open_model_zoo-master/* "$OMZ_DIR"/
-rm -rf /tmp/open_model_zoo-master "$OMZ_ARCHIVE"
+# --strip-components=1 removes the top-level directory (e.g. open_model_zoo-master)
+# so the archive contents land directly in $OMZ_DIR, regardless of branch/tag naming.
+tar -xzf "$OMZ_ARCHIVE" --strip-components=1 -C "$OMZ_DIR"
+rm -f "$OMZ_ARCHIVE"
 
 TOOLS_DIR="$OMZ_DIR/tools/model_tools"
 

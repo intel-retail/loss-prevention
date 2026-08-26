@@ -7,7 +7,13 @@ RUN apk add --no-cache git ca-certificates
 RUN update-ca-certificates
 RUN git clone --depth 1 --branch v1.20.0 https://github.com/bluenviron/mediamtx.git /src/mediamtx
 RUN printf 'v1.20.0\n' > /src/mediamtx/internal/core/VERSION
+# Intentional stub: HLS player UI (hls.min.js) is not used in this deployment.
+# The file must exist for `go build` to succeed (it is embedded via go:embed),
+# but HLS playback will not be available at runtime — only RTSP/WebRTC streams are served.
 RUN : > /src/mediamtx/internal/servers/hls/hls.min.js
+# Intentional stub: rpicamera source is not supported on this platform (x86/Intel).
+# Empty directories satisfy the go:embed directive so the binary can be compiled
+# without the Raspberry Pi camera native libraries.
 RUN mkdir -p /src/mediamtx/internal/staticsources/rpicamera/mtxrpicam_32 /src/mediamtx/internal/staticsources/rpicamera/mtxrpicam_64
 RUN cd /src/mediamtx && /usr/local/go/bin/go build -buildvcs=false -trimpath -ldflags='-s -w' -o /out/mediamtx ./
 
