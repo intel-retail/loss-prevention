@@ -13,8 +13,8 @@ FROM alpine:3.23.4
 RUN echo "https://dl-cdn.alpinelinux.org/alpine/v3.23/main" > /etc/apk/repositories && \
     echo "https://dl-cdn.alpinelinux.org/alpine/v3.23/community" >> /etc/apk/repositories && \
     apk update --no-cache && \
-    apk upgrade --no-cache openssl && \
     apk add --no-cache \
+        openssl \
         ffmpeg \
         busybox-extras \
         ca-certificates && \
