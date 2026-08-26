@@ -1,7 +1,7 @@
 # ================================
 # Stage 1: grab MediaMTX binaries
 # ================================
-FROM bluenviron/mediamtx:1.18.2 AS mediamtx
+FROM bluenviron/mediamtx:1.20.0 AS mediamtx
 
 
 # ================================
@@ -14,6 +14,7 @@ RUN echo "https://dl-cdn.alpinelinux.org/alpine/v3.23/main" > /etc/apk/repositor
     echo "https://dl-cdn.alpinelinux.org/alpine/v3.23/community" >> /etc/apk/repositories && \
     apk update --no-cache && \
     apk add --no-cache \
+        openssl \
         ffmpeg \
         busybox-extras \
         ca-certificates && \
