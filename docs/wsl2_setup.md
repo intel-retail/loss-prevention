@@ -39,6 +39,43 @@ Getting these mixed up is the single most common early mistake.
 
 ---
 
+## Values you must change for your site
+
+Most URLs in this guide are public upstream endpoints and are identical on every
+machine. A small number are **site-specific** and are the most likely reason the guide
+fails somewhere else. Every occurrence below is marked with a ⚙️ note.
+
+| Placeholder used here | What it is | How to find yours |
+|---|---|---|
+| `proxy-iind.intel.com` | Proxy hostname — `iind` is Intel **India**; other sites differ | `netsh winhttp show proxy` (Windows), `echo $HTTP_PROXY` (Ubuntu) |
+| `911` / `912` | Proxy port | Test both, keep the one returning `200` (see 1b) |
+| `.intel.com`, `10.0.0.0/8` | `NO_PROXY` internal domain and network range | Your own internal DNS suffix and RFC1918 ranges |
+| `autoproxy.iglb.intel.com/wpad.dat` | PAC file | `echo $WSL_PAC_URL` (Ubuntu) |
+| `C:\Users\<YourName>` | Windows profile path | Use `$env:USERPROFILE`, which resolves itself |
+
+**Discover everything at once.** In **PowerShell**:
+
+```powershell
+netsh winhttp show proxy
+Get-ItemProperty "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings" |
+  Select-Object ProxyServer, AutoConfigURL
+```
+
+In **Ubuntu**, once a distro exists:
+
+```bash
+echo "$HTTP_PROXY"
+echo "$WSL_PAC_URL"
+```
+
+These are **constant everywhere** — never edit them: `api.github.com`,
+`download.docker.com`, `archive.ubuntu.com`, `github.com/intel-retail/loss-prevention`,
+`openvino/ubuntu24_dev`. The service names `rabbitmq`, `minio-service`,
+`rtsp-streamer`, `ovms-vlm` and `model-downloader` in every `NO_PROXY` are Docker
+Compose service names from `src/docker-compose.yml` and must be kept as-is.
+
+---
+
 ## 1. Elevation and virtualization
 
 WSL2 is a lightweight virtual machine. Getting it installed means satisfying three
@@ -97,13 +134,26 @@ If it still reports `Direct access (no proxy server)`, set it explicitly:
 netsh winhttp set proxy proxy-server="http=proxy-iind.intel.com:911;https=proxy-iind.intel.com:911" bypass-list="*.intel.com;localhost;127.0.0.1;<local>"
 ```
 
+> ⚙️ **Site-specific.** Replace `proxy-iind.intel.com:911` and the bypass list with your
+> own. Find them with:
+>
+> ```powershell
+> Get-ItemProperty "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings" |
+>   Select-Object ProxyServer, AutoConfigURL
+> ```
+>
+> If only `AutoConfigURL` is set, open that PAC URL in a browser and read the proxy host
+> out of the JavaScript.
+
 Check the proxy actually reaches the download host before going further:
 
 ```powershell
 curl.exe -sS -o NUL -w "%{http_code}`n" -x http://proxy-iind.intel.com:911 https://github.com
+curl.exe -sS -o NUL -w "%{http_code}`n" -x http://proxy-iind.intel.com:912 https://github.com
 ```
 
-Want `200`. A `403` means that proxy port refuses the destination — try `912`.
+Want `200`. Use whichever port returns it. A `403` means that port refuses the
+destination.
 
 ### 1c. Check firmware virtualization
 
@@ -153,6 +203,12 @@ msiexec /i "$env:TEMP\wsl.msi" /qn /norestart
 
 The length check matters: expect roughly 100–150 MB. A few kilobytes means you downloaded
 the proxy's block page rather than the installer.
+
+> ⚙️ **Site-specific.** The two `-x http://proxy-iind.intel.com:911` flags — use the port
+> you confirmed in 1b. The `api.github.com` URL is universal, and the MSI URL is
+> deliberately *not* hardcoded: the API query resolves the current version's
+> `browser_download_url`, so it stays correct as WSL releases change. Do not replace it
+> with a literal filename.
 
 > `winget install --id Microsoft.WSL` is a third option. It uses yet another HTTP stack
 > and sometimes succeeds where both others fail.
@@ -300,6 +356,24 @@ autoProxy=true
 firewall=true
 ```
 
+> ⚙️ **Machine-specific path.** Rather than typing your username, let PowerShell resolve
+> it — this writes the same file on any machine:
+>
+> ```powershell
+> @"
+> [wsl2]
+> networkingMode=mirrored
+> dnsTunneling=true
+> autoProxy=true
+> firewall=true
+> "@ | Set-Content -Path "$env:USERPROFILE\.wslconfig" -Encoding ASCII
+>
+> Get-Content "$env:USERPROFILE\.wslconfig"
+> ```
+>
+> On a remote machine this must be the profile of the account **running WSL**, not the
+> one you connect from.
+
 **PowerShell** — apply:
 
 ```powershell
@@ -347,6 +421,17 @@ going direct.
 > Find your proxy URL from `echo $HTTP_PROXY`, or from the PAC file WSL exposes as
 > `$WSL_PAC_URL`. On the Intel India network it is `http://proxy-iind.intel.com:912`.
 
+> ⚙️ **Site-specific.** The `NO_PROXY` list above mixes two kinds of entry. Change
+> `.intel.com` and `10.0.0.0/8` to your own internal domain and network ranges. **Keep**
+> `rabbitmq`, `minio-service`, `rtsp-streamer`, `ovms-vlm` and `model-downloader` — those
+> are Compose service names from `src/docker-compose.yml`, identical on every machine,
+> and routing them through a proxy breaks inter-container traffic.
+>
+> ```bash
+> echo "$HTTP_PROXY"
+> echo "$WSL_PAC_URL"
+> ```
+
 ### 3c. apt — its own config file
 
 **`apt` does not read shell environment variables.** It needs its own file. This is
@@ -358,6 +443,19 @@ Acquire::http::Proxy "http://proxy-iind.intel.com:912";
 Acquire::https::Proxy "http://proxy-iind.intel.com:912";
 EOF
 ```
+
+> ⚙️ **Site-specific.** Substitute your own proxy. Because the heredoc is quoted
+> (`<<'EOF'`), `$HTTP_PROXY` would be written literally rather than expanded — so if you
+> want it filled in from the environment, drop the quotes:
+>
+> ```bash
+> sudo tee /etc/apt/apt.conf.d/95proxies > /dev/null <<EOF
+> Acquire::http::Proxy "$HTTP_PROXY";
+> Acquire::https::Proxy "$HTTPS_PROXY";
+> EOF
+> ```
+>
+> Always `cat` the file afterwards to confirm real values landed, not empty strings.
 
 ### 3d. Force IPv4
 
@@ -554,6 +652,10 @@ sudo systemctl daemon-reload
 sudo systemctl restart docker
 ```
 
+> ⚙️ **Site-specific.** Replace the proxy host and the `.intel.com` entry with your own;
+> keep the Compose service names. Confirm the values you are about to write first with
+> `echo "$HTTP_PROXY"`.
+
 Verify:
 
 ```bash
@@ -597,6 +699,14 @@ cat > ~/.docker/config.json <<'EOF'
 EOF
 ```
 
+> ⚙️ **Site-specific.** Same substitution as step 7 — proxy host, port and `.intel.com`.
+> This file is JSON, so a trailing comma or an unescaped value breaks every `docker`
+> command, not just builds. Validate it after writing:
+>
+> ```bash
+> jq . ~/.docker/config.json
+> ```
+
 ---
 
 ## 9. Memory and CPU tuning
@@ -618,6 +728,12 @@ firewall=true
 ```
 
 > `localhostForwarding` is unnecessary when `networkingMode=mirrored` is set.
+
+> ⚙️ **Machine-specific.** The path again — use `$env:USERPROFILE\.wslconfig`. The
+> `memory`, `processors` and `swap` values must suit *your* hardware: check with
+> `Get-CimInstance Win32_ComputerSystem | Select TotalPhysicalMemory` and
+> `$env:NUMBER_OF_PROCESSORS`, then leave headroom for Windows — roughly 75% of RAM and
+> total cores is a safe ceiling.
 
 **PowerShell:**
 
