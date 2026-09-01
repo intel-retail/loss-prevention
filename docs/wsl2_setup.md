@@ -10,7 +10,7 @@ sequence — particularly the proxy configuration, which must come before any do
 
 ## Contents
 
-1. [BIOS virtualization](#1-bios-virtualization)
+1. [Elevation and virtualization](#1-elevation-and-virtualization)
 2. [Install WSL2 and Ubuntu 24.04](#2-install-wsl2-and-ubuntu-2404)
 3. [Proxy configuration](#3-proxy-configuration)
 4. [Base packages](#4-base-packages)
@@ -39,34 +39,135 @@ Getting these mixed up is the single most common early mistake.
 
 ---
 
-## 1. BIOS virtualization
+## 1. Elevation and virtualization
 
-WSL2 is a lightweight virtual machine, so hardware virtualization must be enabled.
+WSL2 is a lightweight virtual machine. Getting it installed means satisfying three
+independent requirements, in this order:
 
-**PowerShell** — check whether a hypervisor is already active:
+| Layer | What it is | How to enable | Reboot |
+|---|---|---|---|
+| **VT-x** | CPU feature, a firmware setting | BIOS/UEFI **only** | Yes, into BIOS |
+| **Windows features** | `VirtualMachinePlatform`, `Microsoft-Windows-Subsystem-Linux` | `dism` or `wsl --install` | Yes, normal reboot |
+| **WSL package** | the `wsl.exe` runtime itself | `wsl --install` download, or the MSI | No |
+
+These are **not** alternatives. `dism` cannot switch on VT-x, and enabling the Windows
+features while VT-x is off leaves you with a WSL that installs cleanly and then refuses
+to boot a distro.
+
+### 1a. Open an elevated PowerShell
+
+Everything in this section fails with `Error: 740 — Elevated permissions are required`
+from a normal shell.
+
+Start menu → type `powershell` → right-click **Windows PowerShell** → **Run as
+administrator**. Or from an existing window:
+
+```powershell
+Start-Process powershell -Verb RunAs
+```
+
+Confirm it worked:
+
+```powershell
+whoami /groups | findstr /i "High Mandatory"
+```
+
+Must print a line containing `High Mandatory Level`. Nothing printed means the window is
+not elevated.
+
+> **Remote machines:** an SSH session (MobaXterm, OpenSSH) **cannot elevate** — UAC needs
+> an interactive desktop to draw the consent dialog, and there is no CLI workaround. Use
+> **RDP**, which creates a real interactive session and supports UAC normally. If the
+> account is not listed by `net localgroup Administrators`, stop here.
+
+### 1b. Point WinHTTP at the proxy
+
+An elevated shell uses the **machine's** WinHTTP proxy configuration, not your browser's,
+and by default that is empty. Skip this on a corporate network and the WSL downloader
+fails with `The certificate authority is invalid or incorrect`:
+
+```powershell
+netsh winhttp import proxy source=ie
+netsh winhttp show proxy
+```
+
+If it still reports `Direct access (no proxy server)`, set it explicitly:
+
+```powershell
+netsh winhttp set proxy proxy-server="http=proxy-iind.intel.com:911;https=proxy-iind.intel.com:911" bypass-list="*.intel.com;localhost;127.0.0.1;<local>"
+```
+
+Check the proxy actually reaches the download host before going further:
+
+```powershell
+curl.exe -sS -o NUL -w "%{http_code}`n" -x http://proxy-iind.intel.com:911 https://github.com
+```
+
+Want `200`. A `403` means that proxy port refuses the destination — try `912`.
+
+### 1c. Check firmware virtualization
 
 ```powershell
 systeminfo | findstr /i "Hyper-V"
 ```
 
-Expected:
+| Output | Meaning | Action |
+|---|---|---|
+| `A hypervisor has been detected.` | VT-x is on and a hypervisor is running | Continue to 1d |
+| A list ending `Virtualization Enabled In Firmware: No` | VT-x is off | Reboot into BIOS/UEFI, enable *Intel Virtualization Technology (VT-x)*, then return here |
 
-```text
-Hyper-V Requirements:   A hypervisor has been detected.
-                        Features required for Hyper-V will not be displayed.
-```
+Only a BIOS change fixes the second case. No Windows command can.
 
-That message means virtualization is **already on**. If instead you see a list of
-requirements with `No` values, reboot into BIOS/UEFI and enable
-*Intel Virtualization Technology (VT-x)*.
+### 1d. Enable the Windows features and install the WSL package
 
-Enable the Windows feature:
+One command normally does both:
 
 ```powershell
 wsl.exe --install --no-distribution
 ```
 
-Reboot, then confirm:
+On a corporate network this often fails at the **download** half with
+`The certificate authority is invalid or incorrect` or `Forbidden (403)`. The WSL
+downloader performs its own strict certificate validation and rejects the TLS-inspected
+chain, even when the corporate CA is trusted machine-wide. Retrying will not help.
+
+Split the two jobs instead. DISM enables the features and needs no network:
+
+```powershell
+dism.exe /online /enable-feature /featurename:Microsoft-Windows-Subsystem-Linux /all /norestart
+dism.exe /online /enable-feature /featurename:VirtualMachinePlatform /all /norestart
+```
+
+Then fetch the package with `curl.exe`, which ships with Windows and validates against
+the Windows certificate store — the same store your browser uses, so the inspected chain
+is accepted:
+
+```powershell
+$json = curl.exe -sS -x http://proxy-iind.intel.com:911 https://api.github.com/repos/microsoft/WSL/releases/latest | ConvertFrom-Json
+$url  = ($json.assets | Where-Object { $_.name -like '*x64.msi' }).browser_download_url
+$url
+curl.exe -L -x http://proxy-iind.intel.com:911 -o "$env:TEMP\wsl.msi" $url
+(Get-Item "$env:TEMP\wsl.msi").Length
+msiexec /i "$env:TEMP\wsl.msi" /qn /norestart
+```
+
+The length check matters: expect roughly 100–150 MB. A few kilobytes means you downloaded
+the proxy's block page rather than the installer.
+
+> `winget install --id Microsoft.WSL` is a third option. It uses yet another HTTP stack
+> and sometimes succeeds where both others fail.
+
+### 1e. Reboot
+
+The feature changes do not take effect until you do:
+
+```powershell
+shutdown /r /t 0
+```
+
+### 1f. Verify
+
+In an **elevated** shell (this query also needs it):
 
 ```powershell
 dism /online /get-featureinfo /featurename:VirtualMachinePlatform
@@ -74,23 +175,41 @@ dism /online /get-featureinfo /featurename:VirtualMachinePlatform
 
 Expected: `State : Enabled`.
 
-Finally, ask WSL itself whether the platform is usable:
+Then ask WSL itself:
 
 ```powershell
+wsl --version
 wsl --status
 ```
 
-Expected output on a working machine:
+| `wsl --status` output | Meaning | Action |
+|---|---|---|
+| `Default Version: 2` | Step 1 complete | Go to step 2 |
+| `The Windows Subsystem for Linux is not installed` | The 1d download half did not land | Install the MSI |
+| `WSL2 is unable to start since virtualization is not enabled on this machine` | The **package** is installed but the **Windows features** are not | Run the command below, then reboot |
+| `WSL2 is not supported with your current machine configuration` | VT-x is off in firmware | Back to 1c, BIOS |
+
+The third row is the common one after installing via MSI. `wsl.exe` is now present and
+reporting on its own environment. Its full message is:
 
 ```text
-Default Distribution: Ubuntu-24.04
-Default Version: 2
+WSL1 is not supported with your current machine configuration.
+Please enable the "Windows Subsystem for Linux" optional component to use WSL1.
+WSL2 is unable to start since virtualization is not enabled on this machine.
+Please ensure the "Virtual Machine Platform" optional component is enabled and
+virtualization is turned on in your computer's firmware settings.
 ```
 
-If virtualization is still disabled, this command reports it explicitly — for example
-`WSL2 is not supported with your current machine configuration` or a prompt to enable
-the *Virtual Machine Platform* optional component. That message is the clearest
-confirmation that step 1 is incomplete; go back to BIOS before continuing.
+Because the package is already local, this command no longer needs to download anything —
+it only flips the two optional components, so it succeeds even on a network where 1d
+failed:
+
+```powershell
+wsl.exe --install --no-distribution
+shutdown /r /t 0
+```
+
+Re-run `wsl --status` after the reboot. It should now report `Default Version: 2`.
 
 ---
 
