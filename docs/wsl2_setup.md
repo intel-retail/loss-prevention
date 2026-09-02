@@ -617,20 +617,21 @@ Group membership is only read at login. **PowerShell:**
 wsl --shutdown
 ```
 
-Reopen Ubuntu and verify:
+Reopen Ubuntu and confirm the group and the service. These are local checks and need no
+network:
 
 ```bash
 id -nG | tr ' ' '\n' | grep docker
-docker run hello-world
-docker compose version
-docker buildx version
+systemctl is-active docker
 ```
 
-`docker compose version` must report **v2.x** — the Makefile uses `docker compose`
-(space, not hyphen) throughout.
+Expect `docker` and `active`. If the group is missing, the shutdown did not take effect.
 
 > Do not work around permission errors with `sudo docker`. Running as root creates
 > root-owned files in `models/` and `results/`, which breaks later steps.
+
+The full end-to-end check comes at the end of step 8 — `docker run hello-world` has to
+pull an image, which cannot work until the daemon proxy is configured.
 
 ---
 
@@ -706,6 +707,24 @@ EOF
 > ```bash
 > jq . ~/.docker/config.json
 > ```
+
+### Verify Docker end to end
+
+Only now can Docker actually reach a registry. Run these in order:
+
+```bash
+id -nG | tr ' ' '\n' | grep docker
+docker run hello-world
+docker compose version
+docker buildx version
+```
+
+`docker run hello-world` is the real test — it pulls from Docker Hub, so it exercises the
+daemon proxy from step 7. A hang or `TLS handshake timeout` means that drop-in is wrong
+or did not load; re-check `docker info | grep -i proxy`.
+
+`docker compose version` must report **v2.x** — the Makefile uses `docker compose`
+(space, not hyphen) throughout.
 
 ---
 
