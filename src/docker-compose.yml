@@ -102,7 +102,7 @@ services:
       - my_network
 
   ovms-vlm:
-    image: ${OVMS_IMAGE:-openvino/model_server:2026.2.1-gpu}
+    image: ${OVMS_IMAGE:-openvino/model_server:2026.3.1-gpu}
     container_name: ovms-vlm
     group_add:
       - video
@@ -122,12 +122,31 @@ services:
       - ${OVMS_CACHE_DIR:-../models/ovms-cache}:/tmp/ov_cache
     ports:
       - "${OVMS_HOST_PORT:-8002}:8000"
-    command: >
-      --config_path /models/config.json --rest_port 8000
+    # Non-VLM workloads (e.g. ASC) never download an OVMS model, so
+    # /models/config.json does not exist. Idle in that case, otherwise services
+    # depending on this one with `condition: service_healthy` abort the whole
+    # `docker compose up`. When VLM *is* enabled a missing config is a real
+    # failure, so fail fast rather than idling silently.
+    entrypoint: [ "/bin/sh", "-c" ]
+    command:
+      - |
+        if [ "$${VLM_WORKLOAD_ENABLED}" != "1" ]; then
+          echo "[INFO] VLM workload not enabled for this run - OVMS idling"
+          exec tail -f /dev/null
+        fi
+        if [ ! -f /models/config.json ]; then
+          echo "[ERROR] VLM workload enabled but /models/config.json not found - exiting"
+          exit 1
+        fi
+        # Replicated from the upstream image entrypoint, which this override replaces.
+        if [ -d /ovms/share/espeak-ng-data ]; then
+          export ESPEAK_DATA_PATH=/ovms/share/espeak-ng-data
+        fi
+        exec /ovms/bin/ovms --config_path /models/config.json --rest_port 8000
     devices:
       - /dev/dri:/dev/dri
     healthcheck:
-      test: [ "CMD-SHELL", "curl -sf http://localhost:8000/v1/config | grep -q AVAILABLE" ]
+      test: [ "CMD-SHELL", "if [ \"$${VLM_WORKLOAD_ENABLED}\" != \"1\" ]; then exit 0; fi; [ -f /models/config.json ] || exit 1; curl -sf http://localhost:8000/v1/config | grep -q AVAILABLE" ]
       interval: 10s
       timeout: 10s
       retries: 100
