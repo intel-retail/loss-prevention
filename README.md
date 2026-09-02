@@ -43,7 +43,7 @@ The conversation we want: *“Here’s a real workload. Run it. Compare it. Let�
 
 ## Use cases in this repo
 
-The workloads **build on each other** — start with a basic self-checkout, add a concurrent age-verification pipeline for a real-world lane, then the loss-prevention scenarios themselves, and finally an LVLM enhancement. Each layer adds compute, so the progression is also a **hardware-sizing** story (see use-case density). Each is selected by a `CAMERA_STREAM + WORKLOAD_DIST` config pair (CPU / iGPU / NPU / hetero variants in `configs/`).
+The workloads **build on each other** — start with a basic self-checkout, add a concurrent age-verification pipeline for a real-world lane, then the loss-prevention scenarios themselves, and finally an LVLM enhancement. Each layer adds compute, so the progression is also a **hardware-sizing** story (see use-case density). Each is selected by a `CAMERA_STREAM + WORKLOAD_DIST` config pair in `configs/`, with CPU / iGPU / NPU / hetero variants where available ([matrix](#per-use-case-walkthroughs)).
 
 ### 1 · Foundation — Automated Self-Checkout (basic SCO) *migrated from the EOL ASC repo)*
 
@@ -76,7 +76,7 @@ Push item-recognition accuracy beyond traditional CV with a **local Large Vision
 ## Scope & related repositories
   This repo covers loss prevention **at the self-checkout / point of sale** — built on the Automated Self-Checkout foundation above. **Store-wide** loss prevention is a   separate effort in the Intel Retail AI Suite: - **Store-wide** loss prevention — suspicious-activity / behavioral analysis, person-of-interest re-identification &       alerting → [`intel-retail/storewide-loss-prevention.`](https://github.com/intel-retail/storewide-loss-prevention) ⚙️ *(confirm scope split with BU)* - Other suite      use cases: [Order Accuracy](https://github.com/intel-retail/order-accuracy) · [Voice-Enabled Interactions](https://github.com/intel-retail/voice-enabled-interactions) · [Digital Signage](https://github.com/intel-retail/digital-signage).
 
-> Each use case in *this* repo is selected by a `CAMERA_STREAM` + `WORKLOAD_DIST` config pair, with **CPU / iGPU / NPU / hetero** variants (`configs/`).
+> Each use case in *this* repo is selected by a `CAMERA_STREAM` + `WORKLOAD_DIST` config pair (`configs/`). Device variants — **CPU / iGPU / NPU / hetero** — vary by use case; see the [matrix](#per-use-case-walkthroughs).
 
 ## What to expect when you run it
 - **Visual mode** (`RENDER_MODE=1 DISPLAY=:0`) opens a video window with detection overlays/alerts; the pipeline runs until the video completes. **Headless mode** runs the same pipeline for servers and automated benchmarking.
@@ -125,7 +125,18 @@ make down-lp                              # stop the application
 First run downloads videos, models, and images (several minutes). By default `make run-lp` pulls **pre-built images,** runs **headless**, and uses the **Loss Prevention (CPU)** workload — add `REGISTRY=false` to build images locally instead (see [Advanced](#advanced-usage)).
 
 ## Per-use-case walkthroughs
-Each use case supports three actions — **run** it, **benchmark** a fixed load, and measure **stream density** — listed below in the same order they’re introduced above. Pick the device variant (`_cpu` / `_gpu`/ `_npu`) that matches your **target resource for the workload.** ⚙️ *Commands below extend today’s run-only examples to benchmark + density; engineering to validate exact flags/targets.*
+Each use case supports three actions — **run** it, **benchmark** a fixed load, and measure **stream density** — listed below in the same order they’re introduced above. The device target is selected by the `WORKLOAD_DIST` config, but **not every use case ships every device variant** — check the matrix below before swapping a suffix. ⚙️ *Commands below extend today’s run-only examples to benchmark + density; engineering to validate exact flags/targets.*
+
+| Use case | `WORKLOAD_DIST` variants available |
+|---|---|
+| ASC — object detection | `_cpu` · `_gpu` · `_npu` |
+| ASC — object detection + classification | `_cpu` · `_gpu` · `_npu` · `_hetero` |
+| ASC — age verification | `_cpu` · `_gpu` · `_npu` · `_hetero` |
+| ASC — combined lane (`asc_hetero`) | none — single `workload_to_pipeline_asc_hetero.json` |
+| Loss Prevention (core, 6-camera) | `_cpu` · `_gpu` · `_gpu-npu` · `_hetero` (no `_npu`) |
+| LVLM-enhanced | none — single `workload_to_pipeline_vlm.json`; devices are set inside the JSON (`device`, `vlm_device`) |
+
+Run `ls configs/workload_to_pipeline_*` to confirm what your checkout provides. Passing a variant that doesn't exist fails fast — `make run-lp` validates the pair first and reports `Configuration file not found: configs/<name>.json`.
 
 > **View results for any benchmark/density run:** `make consolidate-metrics` → `cat benchmark/metrics.csv,` and `make plot-metrics `→ utilization chart. *(Docs elsewhere say* `make consolidate/make plot;` *the repo targets are* `consolidate-metrics/plot-metrics` — ⚙️ *to reconcile.*)
 >For Advanced Benchmark settings, :point_right: [Benchmarking Guide](https://intel-retail.github.io/documentation/use-cases/loss-prevention/performance.html)
@@ -233,7 +244,7 @@ make run-lp DISPLAY=:0 REGISTRY=false RENDER_MODE=1
 make run-lp REGISTRY=false
 ```
 ### Configuration & user-defined workloads
-- Workloads are driven by JSON in `configs/` plus the `CAMERA_STREAM` / `WORKLOAD_DIST` env vars (CPU/GPU/NPU/hetero variants). You can also **define your own** — map cameras to custom pipelines by editing `camera_to_workload_*.json` (which cameras run which workloads) and `workload_to_pipeline_*.json` (each workload’s *pipeline* — a sequence of GStreamer elements + models, e.g. `gvadetect` / `gvaclassify`, on a chosen device). See the [Documentation Guide](#https://intel-retail.github.io/documentation/use-cases/loss-prevention/getting_started.html) for pre-configured workloads and [User-Defined Workloads](#https://intel-retail.github.io/documentation/use-cases/loss-prevention/advanced.html#user-defined-workloads) for the full definitions.
+- Workloads are driven by JSON in `configs/` plus the `CAMERA_STREAM` / `WORKLOAD_DIST` env vars (CPU/GPU/NPU/hetero variants, [availability varies by use case](#per-use-case-walkthroughs)). You can also **define your own** — map cameras to custom pipelines by editing `camera_to_workload_*.json` (which cameras run which workloads) and `workload_to_pipeline_*.json` (each workload’s *pipeline* — a sequence of GStreamer elements + models, e.g. `gvadetect` / `gvaclassify`, on a chosen device). See the [Documentation Guide](#https://intel-retail.github.io/documentation/use-cases/loss-prevention/getting_started.html) for pre-configured workloads and [User-Defined Workloads](#https://intel-retail.github.io/documentation/use-cases/loss-prevention/advanced.html#user-defined-workloads) for the full definitions.
 
 - Inference interval
 
