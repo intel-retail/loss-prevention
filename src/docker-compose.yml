@@ -102,7 +102,7 @@ services:
       - my_network
 
   ovms-vlm:
-    image: ${OVMS_IMAGE:-openvino/model_server:2026.2.1-gpu}
+    image: ${OVMS_IMAGE:-openvino/model_server:2026.3.1-gpu}
     container_name: ovms-vlm
     group_add:
       - video
@@ -132,6 +132,10 @@ services:
         if [ "$${VLM_WORKLOAD_ENABLED}" != "1" ] || [ ! -f /models/config.json ]; then
           echo "[INFO] VLM workload not enabled for this run - OVMS idling (no model config)"
           exec tail -f /dev/null
+        fi
+        # Replicated from the upstream image entrypoint, which this override replaces.
+        if [ -d /ovms/share/espeak-ng-data ]; then
+          export ESPEAK_DATA_PATH=/ovms/share/espeak-ng-data
         fi
         exec /ovms/bin/ovms --config_path /models/config.json --rest_port 8000
     devices:
