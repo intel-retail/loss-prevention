@@ -306,6 +306,7 @@ services:
     image: intel/pipeline-runner-lp:${LP_TAG}
     #user: "${LOCAL_UID:-1000}:${LOCAL_GID:-1000}"
     shm_size: '512m'
+    ipc: host
     ulimits:
       stack:
         soft: 67108864
