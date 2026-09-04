@@ -1,11 +1,11 @@
-# Loss Prevention — transparent benchmarking for real-world retail AI on Intel® hardware
+# Loss Prevention: transparent benchmarking for real-world retail AI on Intel® hardware
 > Part of the **Intel® Retail AI Suite**: open-source, runnable AI workloads that let you measure real performance on Intel hardware and decide whether it fits your deployment.
 
 > [!WARNING]
 >  The **main** branch  is work-in-progress and not guaranteed stable. For the latest stable release :point_right: [Releases](https://github.com/intel-retail/loss-prevention/releases)
 
->[!IMPORTANT]
->**Migrating from Automated Self-Checkout (ASC)?** The `automated-self-checkout` repo is **End-of-Life (deprecated by August 2026)** — its pipelines and all future updates, issues, and contributions moved here. The ASC use cases (object detection, object-detection + classification, age verification) run in this repo: see [Use cases](#1--foundation--automated-self-checkout-basic-sco-migrated-from-the-eol-asc-repo) and [Walkthroughs](#1--foundation--automated-self-checkout-basic-sco-migrated-from-the-eol-asc-repo).
+> [!IMPORTANT]
+> **Migrating from Automated Self-Checkout (ASC)?** The `automated-self-checkout` repo is **End-of-Life (retiring end of September 2026)**. Its pipelines and all future updates, issues, and contributions moved here. The ASC use cases (object detection, object-detection + classification, age verification) run in this repo: see [Use cases](#use-cases-in-this-repo) and [Walkthroughs](#per-use-case-walkthroughs).
 
 # Table of Contents
 1. [Why this exists / what it is](#why-this-exists--what-it-is)
@@ -21,13 +21,13 @@
 
 # Why this exists / what it is
 
-We build these workloads to demonstrate real-world retail scenarios and to **measure their performance on different Intel hardware platforms.** They’re released as open source so partners can read the code and the metrics instrumentation, **run the benchmarks themselves to reproduce the numbers we publish,** or swap in their own models, pipelines, and business logic and see exactly how performance changes. These are **open-source reference pipelines built on Intel® hardware and software, GStreamer, and OpenVINO™** — running scalable, real-time object detection and classification at the edge.
+We build these workloads to demonstrate real-world retail scenarios and to **measure their performance on different Intel hardware platforms.** They’re released as open source so partners can read the code and the metrics instrumentation, **run the benchmarks themselves to reproduce the numbers we publish,** or swap in their own models, pipelines, and business logic and see exactly how performance changes. These are **open-source reference pipelines built on Intel® hardware and software, GStreamer, and OpenVINO™**, running real-time object detection and classification at the edge.
 
-It answers one question: **“How do I know if Intel’s hardware will actually perform for *my* workload?”** — so it’s a **hardware-sizing tool**, not a production starting point.
+It answers one question: **“How do I know if Intel’s hardware will actually perform for *my* workload?”** So it’s a **hardware-sizing tool**, not a production starting point.
 <table>
   <tr>
     <td><b>Transparent</b></td>
-    <td>Full source + metrics instrumentation. <i>A window into how we did it — not a starting point for your production code.</i></td>
+    <td>Full source + metrics instrumentation. <i>A window into how we did it, not a starting point for your production code.</i></td>
   </tr>
    <tr>
     <td><b>Representative</b></td>
@@ -39,24 +39,29 @@ It answers one question: **“How do I know if Intel’s hardware will actually 
   </tr>
 </table>
 
-The conversation we want: *“Here’s a real workload. Run it. Compare it. Let’s talk about what you’re actually seeing”* — not a TOPS spec sheet.
+The conversation we want: *“Here’s a real workload. Run it. Compare it. Let’s talk about what you’re actually seeing”*, not a TOPS spec sheet.
 
 ## Use cases in this repo
 
-The workloads **build on each other** — start with a basic self-checkout, add a concurrent age-verification pipeline for a real-world lane, then the loss-prevention scenarios themselves, and finally an LVLM enhancement. Each layer adds compute, so the progression is also a **hardware-sizing** story (see use-case density). Each is selected by a `CAMERA_STREAM + WORKLOAD_DIST` config pair in `configs/`, with CPU / iGPU / NPU / hetero variants where available ([matrix](#per-use-case-walkthroughs)).
+The workloads **build on each other**. Start with a basic self-checkout, add a concurrent age-verification pipeline for a real-world lane, then the loss-prevention scenarios themselves, and finally an LVLM enhancement. Each layer adds compute, so the progression is also a **hardware-sizing** story (see use-case density). Each is selected by a `CAMERA_STREAM + WORKLOAD_DIST` config pair in `configs/`, with CPU / iGPU / NPU / hetero variants where available ([matrix](#per-use-case-walkthroughs)).
 
-### 1 · Foundation — Automated Self-Checkout (basic SCO) *migrated from the EOL ASC repo)*
+### 1 · Self-checkout
+*The base everything else builds on. Migrated from the EOL ASC repo.*
 
-The **simplest workload, and the base everything else builds on:** a self-checkout vision pipeline that identifies products as they’re scanned. - **Object Detection** — detect/identify scanned products (`asc_object_detection`). - **Object Detection + Classification** — richer item ID: detect *and* classify, e.g. YOLO11n + EfficientNet-B0 (`asc_object_detection_classification`).
+A self-checkout vision pipeline that identifies products as they’re scanned. YOLO11n detects the item, EfficientNet-B0 classifies it (`asc_object_detection_classification`).
 
-*Business takeaway*: the entry point — can this Intel box run a basic self-checkout lane at the frame rate it needs? Everything below adds load on top of this.
+*Business takeaway*: the entry point. Can this Intel box run a basic self-checkout lane at the frame rate it needs? Everything below adds load on top of this.
 
-### 2 · + Age Verification (a real-world lane: parallel pipelines)
-Add a **second, customer-facing pipeline** so the *same lane* can clear **age-restricted purchases** (alcohol, tobacco) without a staff override — a realistic shopping lane now runs **multiple pipelines concurrently**. A prebuilt config ships for exactly this: `asc_hetero` runs object detection, classification, **age prediction** and face detection across four cameras, deliberately spread over the **iGPU and NPU** — a full lane’s worth of pipelines distributed across the box’s accelerators (see the [walkthrough](#per-use-case-walkthroughs)). This is the **multi-pipeline-per-lane** step, and the reason to run the **benchmark + density** tests here is to see how that concurrency — and the iGPU/NPU split — drives hardware sizing.
+### 2 · Self-checkout + age verification
+*Builds on 1. Adds a parallel face pipeline for a real lane.*
+Add a **second, customer-facing pipeline** so the *same lane* can clear **age-restricted purchases** (alcohol, tobacco) without a staff override. A realistic lane now runs **two pipelines at once**: one camera scanning products (yolo11n then efficientnet-b0), one camera watching the customer (face detection then age and gender). That is the **multi-pipeline-per-lane** step.
 
-*Business takeaway*: shows whether a box can run a **complete lane** — scanning plus the age-verification pipeline for unattended alcohol/tobacco sales — at the frame rates the lane requires.
+It ships in four placements, selected by the `WORKLOAD_DIST` you pass: everything on the iGPU, everything on the CPU, everything on the NPU, or **split across the iGPU and NPU** with one stage of each pipeline on each accelerator. Running the density test on the iGPU-only and the split versions and comparing them is how you see what accelerator placement is worth on your hardware (see the [walkthrough](#per-use-case-walkthroughs)).
 
-### 3 · + Loss Prevention scenarios (the core)
+*Business takeaway*: shows whether a box can run a **complete lane** (scanning plus the age-verification pipeline for unattended alcohol/tobacco sales) at the frame rates the lane requires.
+
+### 3 · Loss prevention
+*Builds on 1. Six-camera lane, one shrink scenario per camera.*
 Now layer the **actual loss-prevention scenarios** on top. *As a retail operator, I want to detect common loss scenarios at the lane so that I can reduce shrink without adding staff.* The default workload models a single lane as **six cameras**, each running a scenario detector:
 
 | Camera | Scenario detector | Camera | Scenario detector |
@@ -67,29 +72,33 @@ Now layer the **actual loss-prevention scenarios** on top. *As a retail operator
 
 Run with `make run-lp`. (*This 6-camera lane is the concrete example of use-case density.*)
 
-### 4 · + LVLM enhancement (GenAI at the edge) *(epic #62)*
-Push item-recognition accuracy beyond traditional CV with a **local Large Vision-Language Model**, invoked by an agent *only when CV is too generic or uncertain* — no custom training (`vlm`). E.g. “bottle” → “Heinz Ketchup 32 oz”, seasonal/regional packaging, produce varieties, partially obscured or bulk-bagged items, age-restricted variants with changed packaging.
+### 4 · Loss prevention with an LVLM
+*Builds on 3. Adds a vision-language model at the edge.*
+Push item-recognition accuracy beyond traditional CV with a **local Large Vision-Language Model**, invoked by an agent *only when CV is too generic or uncertain*, with no custom training (`vlm`). E.g. “bottle” → “Heinz Ketchup 32 oz”, seasonal/regional packaging, produce varieties, partially obscured or bulk-bagged items, age-restricted variants with changed packaging.
 
-*Business takeaway*: fewer false positives (less customer friction, fewer staff interventions), better real-loss capture, and adaptability to new/seasonal/regional products **without a retraining cycle.** It’s the suite’s **GenAI-at-the-edge** workload — surfacing the metrics that matter for LLM/LVLM sizing (**TTFT, token throughput**, CPU/GPU/NPU utilization). Runs entirely locally, no cloud dependency.
+*Business takeaway*: fewer false positives (less customer friction, fewer staff interventions), better real-loss capture, and adaptability to new/seasonal/regional products **without a retraining cycle.** It’s the suite’s **GenAI-at-the-edge** workload, and it reports the metrics that matter for LLM/LVLM sizing (**TTFT, token throughput**, CPU/GPU/NPU utilization). Runs entirely locally, no cloud dependency.
 
 
 ## Scope & related repositories
-  This repo covers loss prevention **at the self-checkout / point of sale** — built on the Automated Self-Checkout foundation above. **Store-wide** loss prevention is a   separate effort in the Intel Retail AI Suite: - **Store-wide** loss prevention — suspicious-activity / behavioral analysis, person-of-interest re-identification &       alerting → [`intel-retail/storewide-loss-prevention.`](https://github.com/intel-retail/storewide-loss-prevention) ⚙️ *(confirm scope split with BU)* - Other suite      use cases: [Order Accuracy](https://github.com/intel-retail/order-accuracy) · [Voice-Enabled Interactions](https://github.com/intel-retail/voice-enabled-interactions) · [Digital Signage](https://github.com/intel-retail/digital-signage).
+This repo covers loss prevention at the self-checkout and point of sale, built on the Automated Self-Checkout foundation above. Store-wide loss prevention is a separate effort in the Intel Retail AI Suite:
+
+- **Store-wide loss prevention**: suspicious-activity and behavioural analysis, person-of-interest re-identification and alerting. See [`intel-retail/storewide-loss-prevention`](https://github.com/intel-retail/storewide-loss-prevention).
+- **Other suite use cases**: [Order Accuracy](https://github.com/intel-retail/order-accuracy), [Voice-Enabled Interactions](https://github.com/intel-retail/voice-enabled-interactions), and [Digital Signage](https://github.com/intel-retail/digital-signage).
 
 > Each use case in *this* repo is selected by a `CAMERA_STREAM` + `WORKLOAD_DIST` config pair (`configs/`). Device variants — **CPU / iGPU / NPU / hetero** — vary by use case; see the [matrix](#per-use-case-walkthroughs).
 
 ## What to expect when you run it
 - **Visual mode** (`RENDER_MODE=1 DISPLAY=:0`) opens a video window with detection overlays/alerts; the pipeline runs until the video completes. **Headless mode** runs the same pipeline for servers and automated benchmarking.
-- These are **off-the-shelf, non-fine-tuned models** — *expected* misclassifications under real-world conditions are part of an authentic evaluation, not defects to hide. The goal is a faithful performance picture, not a flawless demo.
+- These are **off-the-shelf, non-fine-tuned models**: *expected* misclassifications under real-world conditions are part of an authentic evaluation, not defects to hide. The goal is a faithful performance picture, not a flawless demo.
 - For a 15 fps source, a healthy stream holds **~15 fps per stream**; throughput, latency, and utilization vary by platform and configuration (see §4).
 - Output files (visual + headless): `results/pipeline_stream*.log` (per-stream FPS) and `results/gst-launch_*.log` (full GStreamer output). First run downloads videos, models, and images, so it takes a while.
 
 ## How to think about performance & stream density
 The metrics that matter: **FPS, end-to-end latency, CPU/GPU/NPU utilization, power, and stream density** (for GenAI/LVLM use cases also **TTFT** and **token throughput**).
 
-- **Stream density = the most concurrent streams a box sustains at a target FPS.** Because an LP lane is **multi-camera** (six cameras at potentially different frame-rate needs), density is best read as **use-case instances**f — “how many shopping lanes with this use case running per box” — judging **each camera against its own FPS target** (use-case density, not a raw stream count).
-- **Reading the result:** a stream cannot sustain more than its source FPS — any per-stream reading **above** the source rate is a measurement artifact (catch-up burst), not real throughput.
-- **How we measure it:** we ramp the number of streams, let each step settle, then read the sustained per-stream FPS against the target to find the most streams that hold it. This method has **known limitations** (a short measurement window can misread under noise) and we’re **actively improving it** toward a more robust steady-state measurement. ⚙️ *engineering: align on the final method.*
+- **Stream density = the most concurrent streams a box sustains at a target FPS.** Because an LP lane is **multi-camera** (six cameras at potentially different frame-rate needs), density is best read as **use-case instances**: “how many shopping lanes with this use case running per box”, judging **each camera against its own FPS target** (use-case density, not a raw stream count).
+- **Reading the result:** a stream cannot sustain more than its source FPS, so any per-stream reading **above** the source rate is a measurement artifact rather than real throughput. Two things cause it. The counter tallies whole frames inside a fixed window, and the window boundary does not line up with frame arrivals, so a window catches one frame more or fewer than expected. On a 15 fps source that shows up as readings of 14, 15 and 16 on a stream whose average is exactly 15, and it happens on a perfectly healthy stream. Under load a second cause appears: a pipeline that has fallen behind processes its buffered frames in a burst as it recovers. That is real work, but it is not a rate the pipeline can hold.
+- **How we measure it:** we ramp the number of streams, let each step settle, then read the sustained per-stream FPS against the target to find the most streams that hold it. This method has **known limitations** (a short measurement window can misread under noise) and we’re **actively improving it** toward a steadier measurement.
 
 ## Prerequisites
 
@@ -122,74 +131,109 @@ make run-lp                               # headless
 make down-lp                              # stop the application
 ```
 
-First run downloads videos, models, and images (several minutes). By default `make run-lp` pulls **pre-built images,** runs **headless**, and uses the **Loss Prevention (CPU)** workload — add `REGISTRY=false` to build images locally instead (see [Advanced](#advanced-usage)).
+First run downloads videos, models, and images (several minutes). By default `make run-lp` pulls **pre-built images,** runs **headless**, and uses the **Loss Prevention (CPU)** workload. Add `REGISTRY=false` to build images locally instead (see [Advanced](#advanced-usage)).
 
 ## Per-use-case walkthroughs
-Each use case supports three actions — **run** it, **benchmark** a fixed load, and measure **stream density** — listed below in the same order they’re introduced above. The device target is selected by the `WORKLOAD_DIST` config, but **not every use case ships every device variant** — check the matrix below before swapping a suffix. ⚙️ *Commands below extend today’s run-only examples to benchmark + density; engineering to validate exact flags/targets.*
+Each use case supports three actions: **run** it, **benchmark** a fixed load, and measure **stream density**. They are listed below in the same order they’re introduced above. The device target is selected by the `WORKLOAD_DIST` config, but **not every use case ships every device variant**, so check the matrix below before swapping a suffix.
 
 | Use case | `WORKLOAD_DIST` variants available |
 |---|---|
 | ASC — object detection | `_cpu` · `_gpu` · `_npu` |
 | ASC — object detection + classification | `_cpu` · `_gpu` · `_npu` · `_hetero` |
 | ASC — age verification | `_cpu` · `_gpu` · `_npu` · `_hetero` |
-| ASC — combined lane (`asc_hetero`) | none — single `workload_to_pipeline_asc_hetero.json` |
 | Loss Prevention (core, 6-camera) | `_cpu` · `_gpu` · `_gpu-npu` · `_hetero` (no `_npu`) |
 | LVLM-enhanced | none — single `workload_to_pipeline_vlm.json`; devices are set inside the JSON (`device`, `vlm_device`) |
 
 Run `ls configs/workload_to_pipeline_*` to confirm what your checkout provides. Passing a variant that doesn't exist fails fast — `make run-lp` validates the pair first and reports `Configuration file not found: configs/<name>.json`.
 
-> **View results for any benchmark/density run:** `make consolidate-metrics` → `cat benchmark/metrics.csv,` and `make plot-metrics `→ utilization chart. *(Docs elsewhere say* `make consolidate/make plot;` *the repo targets are* `consolidate-metrics/plot-metrics` — ⚙️ *to reconcile.*)
+> **View results for any benchmark/density run:** `make consolidate-metrics` → `cat benchmark/metrics.csv` and `make plot-metrics` → utilization chart.
 >For Advanced Benchmark settings, :point_right: [Benchmarking Guide](https://intel-retail.github.io/documentation/use-cases/loss-prevention/performance.html)
 
-#### 1 · ASC — basic self-checkout (the foundation)
+#### 1 · Self-checkout
+
+**Run it, detection + classification on the iGPU**
 ```sh
-# Object Detection + Classification (iGPU)
-make run-lp CAMERA_STREAM=camera_to_workload_asc_object_detection_classification.json \
-            WORKLOAD_DIST=workload_to_pipeline_asc_object_detection_classification_gpu.json \
-            RENDER_MODE=1 DISPLAY=:0
-# Object Detection only (CPU)
-make run-lp CAMERA_STREAM=camera_to_workload_asc_object_detection.json \
-            WORKLOAD_DIST=workload_to_pipeline_asc_object_detection_cpu.json
-# benchmark + density (CPU)
-make benchmark-stream-density CAMERA_STREAM=camera_to_workload_asc_object_detection.json \
-            WORKLOAD_DIST=workload_to_pipeline_asc_object_detection_cpu.json
-# benchmark results
-make consolidate-metrics && cat benchmark/metrics.csv
-```
-#### 2. ASC — real-world lane: scanning + age verification (parallel)
-```sh
-# Age Verification on its own (iGPU)
-make run-lp CAMERA_STREAM=camera_to_workload_asc_age_verification.json \
-            WORKLOAD_DIST=workload_to_pipeline_asc_age_verification_gpu.json
-# benchmark + density
-make benchmark-stream-density CAMERA_STREAM=camera_to_workload_asc_age_verification.json \
-            WORKLOAD_DIST=workload_to_pipeline_asc_age_verification_gpu.json
-# Combined lane: detection + classification + age prediction + face detection, spread across iGPU + NPU
-make run-lp CAMERA_STREAM=camera_to_workload_asc_hetero.json \
-            WORKLOAD_DIST=workload_to_pipeline_asc_hetero.json
-# benchmark + density
-make benchmark-stream-density CAMERA_STREAM=camera_to_workload_asc_hetero.json \
-            WORKLOAD_DIST=workload_to_pipeline_asc_hetero.json
-# benchmark results
-make consolidate-metrics && cat benchmark/metrics.csv
-```
-#### 3. Loss Prevention (the core — default 6-camera lane)
-```sh
-RENDER_MODE=1 DISPLAY=:0 make run-lp                 # run (visual)
-make benchmark                                       # fixed-load benchmark
-make benchmark-stream-density                        # max sustainable lanes  ⚙️
-make consolidate-metrics && cat benchmark/metrics.csv # benchmark resutls
+make run-lp CAMERA_STREAM=camera_to_workload_asc_object_detection_classification.json WORKLOAD_DIST=workload_to_pipeline_asc_object_detection_classification_gpu.json RENDER_MODE=1 DISPLAY=:0
 ```
 
-#### 4 · LVLM-enhanced workload
+**Measure its stream density**
+```sh
+make benchmark-stream-density CAMERA_STREAM=camera_to_workload_asc_object_detection_classification.json WORKLOAD_DIST=workload_to_pipeline_asc_object_detection_classification_gpu.json
+```
+
+**See the results**
+```sh
+make consolidate-metrics && cat benchmark/metrics.csv
+```
+
+#### 2 · Self-checkout + age verification
+
+**Run scanning and age verification together, both on the iGPU.** Two cameras: one scanning products, one doing face detection and age prediction.
+```sh
+make run-lp CAMERA_STREAM=camera_to_workload_asc_age_verification.json WORKLOAD_DIST=workload_to_pipeline_asc_age_verification_gpu.json
+```
+
+**Measure the use-case density of that lane** (how many of these lanes the box sustains)
+```sh
+make benchmark-stream-density CAMERA_STREAM=camera_to_workload_asc_age_verification.json WORKLOAD_DIST=workload_to_pipeline_asc_age_verification_gpu.json
+```
+
+**Run the same lane with the work split across the iGPU and NPU.** Same two cameras and same models, but each pipeline now puts one stage on the iGPU and the other on the NPU, so you can see what the split costs or buys.
+```sh
+make run-lp CAMERA_STREAM=camera_to_workload_asc_age_verification.json WORKLOAD_DIST=workload_to_pipeline_asc_age_verification_hetero.json
+```
+
+**Measure the use-case density of the split lane**
+```sh
+make benchmark-stream-density CAMERA_STREAM=camera_to_workload_asc_age_verification.json WORKLOAD_DIST=workload_to_pipeline_asc_age_verification_hetero.json
+```
+
+**See the results**
+```sh
+make consolidate-metrics && cat benchmark/metrics.csv
+```
+
+#### 3 · Loss prevention
+
+The default six-camera lane. No config pair needed.
+
+**Run it, with video output**
+```sh
+RENDER_MODE=1 DISPLAY=:0 make run-lp
+```
+
+**Benchmark a fixed load**
+```sh
+make benchmark
+```
+
+**Measure the maximum sustainable lanes**
+```sh
+make benchmark-stream-density
+```
+
+**See the results**
+```sh
+make consolidate-metrics && cat benchmark/metrics.csv
+```
+
+#### 4 · Loss prevention with an LVLM
+
+**Set the credentials it needs**
 ```sh
 export MINIO_ROOT_USER=<...> MINIO_ROOT_PASSWORD=<...>
 export RABBITMQ_USER=<...> RABBITMQ_PASSWORD=<...>
-export GATED_MODEL=true HUGGINGFACE_TOKEN=<...>      # gated model access
+export GATED_MODEL=true HUGGINGFACE_TOKEN=<...>
+```
 
+**Run it**
+```sh
 make run-lp CAMERA_STREAM=camera_to_workload_vlm.json STREAM_LOOP=false
+```
 
-make benchmark CAMERA_STREAM=camera_to_workload_vlm.json WORKLOAD_DIST=workload_to_pipeline_vlm.json        
+**Benchmark it**
+```sh
+make benchmark CAMERA_STREAM=camera_to_workload_vlm.json WORKLOAD_DIST=workload_to_pipeline_vlm.json
 ```
 
 
@@ -204,13 +248,13 @@ __What to Expect__
 + *Visual and Headless Mode*
    - Verify that these output files are created and contain data:     
      - `<loss-prevention-workspace>/results/pipeline_stream*.log`: per-stream FPS metrics (one value per line)
-     - `<oss-prevention-workspace>/results/gst-launch_*.log`: full GStreamer logs
+     - `<loss-prevention-workspace>/results/gst-launch_*.log`: full GStreamer logs
               
    - Expected result:
       - Files exist with content
       - Files are non-empty
      
-If a run failse, see [TroubleShooting](https://intel-retail.github.io/documentation/use-cases/loss-prevention/getting_started.html#troubleshooting)
+If a run fails, see [TroubleShooting](https://intel-retail.github.io/documentation/use-cases/loss-prevention/getting_started.html#troubleshooting)
 
 
 __Stop the application__
@@ -244,15 +288,15 @@ make run-lp DISPLAY=:0 REGISTRY=false RENDER_MODE=1
 make run-lp REGISTRY=false
 ```
 ### Configuration & user-defined workloads
-- Workloads are driven by JSON in `configs/` plus the `CAMERA_STREAM` / `WORKLOAD_DIST` env vars (CPU/GPU/NPU/hetero variants, [availability varies by use case](#per-use-case-walkthroughs)). You can also **define your own** — map cameras to custom pipelines by editing `camera_to_workload_*.json` (which cameras run which workloads) and `workload_to_pipeline_*.json` (each workload’s *pipeline* — a sequence of GStreamer elements + models, e.g. `gvadetect` / `gvaclassify`, on a chosen device). See the [Documentation Guide](https://intel-retail.github.io/documentation/use-cases/loss-prevention/getting_started.html) for pre-configured workloads and [User-Defined Workloads](https://intel-retail.github.io/documentation/use-cases/loss-prevention/advanced.html#user-defined-workloads) for the full definitions.
+- Workloads are configured by JSON in `configs/` plus the `CAMERA_STREAM` / `WORKLOAD_DIST` env vars (CPU/GPU/NPU/hetero variants, [availability varies by use case](#per-use-case-walkthroughs)). You can also **define your own**: map cameras to custom pipelines by editing `camera_to_workload_*.json` (which cameras run which workloads) and `workload_to_pipeline_*.json` (each workload’s *pipeline*, a sequence of GStreamer elements + models, e.g. `gvadetect` / `gvaclassify`, on a chosen device). See the [Documentation Guide](https://intel-retail.github.io/documentation/use-cases/loss-prevention/getting_started.html) for pre-configured workloads and [User-Defined Workloads](https://intel-retail.github.io/documentation/use-cases/loss-prevention/advanced.html#user-defined-workloads) for the full definitions.
 
 - Inference interval
 
    The `INFERENCE_INTERVAL` environment variable controls how often the detector runs        inference (the `gvadetect inference-interval` property). A value of `N` runs inference    on every `N`th frame and relies on the tracker for the frames in between.
 
     - Default: `3`
-    - `1` — run inference on every frame (smoothest, most consistent detections; highest load)
-    - `2`, `3`, ... — infer less frequently (better performance, more reliance on the tracker between frames)
+    - `1`: run inference on every frame (smoothest, most consistent detections; highest load)
+    - `2`, `3`, and up: infer less frequently (better performance, more reliance on the tracker between frames)
 
 ```sh
 make run-lp CAMERA_STREAM=camera_to_workload_asc_object_detection_classification.json WORKLOAD_DIST=workload_to_pipeline_asc_object_detection_classification_gpu.json RENDER_MODE=1 DISPLAY=:0 INFERENCE_INTERVAL=1
@@ -267,19 +311,19 @@ An integrated **MediaMTX** RTSP server (`rtsp-streamer` container) streams the s
 
 #### How it works
 
-1. **RTSP server container** (`rtsp-streamer`) — auto-starts MediaMTX on port **8554**; streams every `.mp4` in `performance-tools/sample-media/;` each video becomes an RTSP stream at `rtsp://rtsp-streamer:8554/<video-name>.`
+1. **RTSP server container** (`rtsp-streamer`): auto-starts MediaMTX on port **8554**; streams every `.mp4` in `performance-tools/sample-media/;` each video becomes an RTSP stream at `rtsp://rtsp-streamer:8554/<video-name>.`
 
-2. **Pipeline consumption** — GStreamer pipelines connect via the rtspsrc element, with TCP transport, configurable latency, and automatic retry/timeout handling.
+2. **Pipeline consumption**: GStreamer pipelines connect via the rtspsrc element, with TCP transport, configurable latency, and automatic retry/timeout handling.
 
-3. Stream naming convention — e.g. video `items-in-basket-32658421-1080-15-bench.mp4` → stream `rtsp://rtsp-streamer:8554/items-in-basket-32658421-1080-15-bench.`
+3. Stream naming convention: e.g. video `items-in-basket-32658421-1080-15-bench.mp4` → stream `rtsp://rtsp-streamer:8554/items-in-basket-32658421-1080-15-bench.`
 
 #### RTSP server features
 
-- **Loop playback** — videos restart automatically when finished
-- **TCP transport** — reliable streaming over corporate networks
-- **Low latency** — 200 ms default for real-time processing
-- **Multiple streams** — supports concurrent camera streams
-- **Proxy support** — works through corporate HTTP/HTTPS proxies
+- **Loop playback**: videos restart automatically when finished
+- **TCP transport**: reliable streaming over corporate networks
+- **Low latency**: 200 ms default for real-time processing
+- **Multiple streams**: supports concurrent camera streams
+- **Proxy support**: works through corporate HTTP/HTTPS proxies
 
 ### Docker Services
 
@@ -298,26 +342,26 @@ All services run on `my_network` bridge network for DNS resolution;use `rtsp-str
 
 ## Project Structure
 
-- `configs/` — Configuration files (camera/workload mapping, pipeline mapping)
-- `docker/` — Dockerfiles for downloader and pipeline containers
-- `docs/` — Documentation (HLD, LLD, system design)
-- `download-scripts/` — Scripts for downloading models and videos
-- `src/` — Main source code and pipeline runner scripts
-- `src/rtsp-streamer/` — RTSP server container (MediaMTX + FFmpeg)
-- `src/gst-pipeline-generator.py` — Dynamic GStreamer pipeline generator
-- `src/docker-compose.yml` — Multi-container orchestration
-- `performance-tools/sample-media/` — Video files for RTSP streaming
-- `Makefile` — Build automation and workflow commands
+- `configs/`: Configuration files (camera/workload mapping, pipeline mapping)
+- `docker/`: Dockerfiles for downloader and pipeline containers
+- `docs/`: Documentation (HLD, LLD, system design)
+- `download-scripts/`: Scripts for downloading models and videos
+- `src/`: Main source code and pipeline runner scripts
+- `src/rtsp-streamer/`: RTSP server container (MediaMTX + FFmpeg)
+- `src/gst-pipeline-generator.py`: Dynamic GStreamer pipeline generator
+- `src/docker-compose.yml`: Multi-container orchestration
+- `performance-tools/sample-media/`: Video files for RTSP streaming
+- `Makefile`: Build automation and workflow commands
 
 
    
 ## Useful Information
 
 + __Make Commands__
-    - `make validate-all-configs` — Validate all configuration files
-    - `make clean-images` — Remove dangling Docker images
-    - `make clean-containers` — Remove stopped containers
-    - `make clean-all` — Remove all unused Docker resources
+    - `make validate-all-configs`: Validate all configuration files
+    - `make clean-images`: Remove dangling Docker images
+    - `make clean-containers`: Remove stopped containers
+    - `make clean-all`: Remove all unused Docker resources
  + __Known Issues__
     - On EMT OS, containers built on Alpine base images (e.g., MinIO) may report as *unhealthy* despite the service functioning normally.
       Docker health checks are failing with OCI runtime errors, preventing proper container orchestration and monitoring. 
