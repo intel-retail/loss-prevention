@@ -98,12 +98,16 @@ if [ "${VLM_WORKLOAD_ENABLED}" = "0" ]; then
     # Set GStreamer tracing environment
     export GST_DEBUG="${GST_DEBUG:-GST_TRACER:7}"
     export GST_TRACERS="${GST_TRACERS:-latency(flags=pipeline)}"
-    export GST_VAAPI_INIT_DRM_DEVICE=/dev/dri/renderD128
+    if [[ -e /dev/dri/renderD128 ]]; then
+        export GST_VAAPI_INIT_DRM_DEVICE=/dev/dri/renderD128
+    else
+        unset GST_VAAPI_INIT_DRM_DEVICE
+    fi
 
     echo "Running with tracing enabled:"
     echo "GST_DEBUG=$GST_DEBUG"
     echo "GST_TRACERS=$GST_TRACERS"
-    echo "GST_VAAPI_INIT_DRM_DEVICE=$GST_VAAPI_INIT_DRM_DEVICE"
+    echo "GST_VAAPI_INIT_DRM_DEVICE=${GST_VAAPI_INIT_DRM_DEVICE:-not set}"
 
     # -----------------------------
     # Run pipeline and capture FPS

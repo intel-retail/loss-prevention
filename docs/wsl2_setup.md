@@ -817,9 +817,9 @@ WSL2=true
 ```
 
 `WSL2=true` selects `src/docker-compose.wsl2.yml` instead of the native
-`src/docker-compose.yml`. The WSL2 Compose file removes native Linux `/dev/dri` device
-mappings. This is required because WSL2 uses `/dev/dxg` for GPU access and is also
-correct for CPU workloads, which require neither device.
+`src/docker-compose.yml`. The WSL2 Compose file replaces native Linux `/dev/dri`
+device mappings with WSL2's `/dev/dxg` and mounts the WSL graphics libraries. CPU
+workloads remain CPU workloads because the device is selected by the workload JSON.
 
 ---
 
@@ -867,23 +867,26 @@ If `/dev/dxg` is missing, stop here and update the Windows graphics driver.
 ```bash
 docker run --rm \
   --device=/dev/dxg \
-  -v /usr/lib/wsl/lib:/usr/lib/wsl/lib \
-  -e LD_LIBRARY_PATH=/usr/lib/wsl/lib \
-  openvino/ubuntu24_dev:latest \
-  python3 -c "import openvino as ov; print(ov.Core().available_devices)"
+  -v /usr/lib/wsl/lib:/usr/lib/wsl/lib:ro \
+  intel/dlstreamer:2026.2.0-ubuntu24-rc3 \
+  bash -lc '. /opt/intel/openvino/setupvars.sh 2>/dev/null || true; \
+    export LD_LIBRARY_PATH=/usr/lib/wsl/lib:/usr/lib/openvino-2026.2.0:$LD_LIBRARY_PATH; \
+    python3 -c "import openvino as ov; print(ov.Core().available_devices)"'
 ```
 
 **Want:** `['CPU', 'GPU']`
 
-If only `['CPU']` appears, inspect what the runtime can actually see:
+If only `['CPU']` appears, do not run GPU workloads. Inspect the plugin and driver
+runtime with:
 
 ```bash
 docker run --rm \
   --device=/dev/dxg \
-  -v /usr/lib/wsl/lib:/usr/lib/wsl/lib \
-  -e LD_LIBRARY_PATH=/usr/lib/wsl/lib \
-  openvino/ubuntu24_dev:latest \
-  bash -c "ls /usr/lib/wsl/lib/ && clinfo -l 2>&1 | head"
+  -v /usr/lib/wsl/lib:/usr/lib/wsl/lib:ro \
+  intel/dlstreamer:2026.2.0-ubuntu24-rc3 \
+  bash -lc 'export LD_LIBRARY_PATH=/usr/lib/wsl/lib:/usr/lib/openvino-2026.2.0; \
+    ldd /usr/lib/openvino-2026.2.0/libopenvino_intel_gpu_plugin.so | grep "not found" || true; \
+    python3 -c "import openvino as ov; print(ov.Core().available_devices)"'
 ```
 
 ### 11c. NPU
