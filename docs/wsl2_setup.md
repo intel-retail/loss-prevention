@@ -808,12 +808,18 @@ git submodule status
 
 The Makefile reads an optional `.env` file. Proxy variables do **not** need to go here —
 `make` already imports them from your shell environment. Use `.env` only for values that
-should not be global, such as secrets:
+should not be global, such as secrets and WSL2 host configuration:
 
 ```bash
 # .env  (do not commit)
 HUGGINGFACE_TOKEN=hf_xxxxxxxx
+WSL2=true
 ```
+
+`WSL2=true` selects `src/docker-compose.wsl2.yml` instead of the native
+`src/docker-compose.yml`. The WSL2 Compose file removes native Linux `/dev/dri` device
+mappings. This is required because WSL2 uses `/dev/dxg` for GPU access and is also
+correct for CPU workloads, which require neither device.
 
 ---
 

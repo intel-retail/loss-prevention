@@ -1,0 +1,9 @@
+include:
+  - path: docker-compose.yml
+
+services:
+  ovms-vlm:
+    devices: !reset []
+
+  lp-vlm-workload-handler:
+    devices: !reset []
