@@ -10,7 +10,7 @@ services:
       - /usr/lib/wsl/drivers:/usr/lib/wsl/drivers:ro
       - /etc/OpenCL:/etc/OpenCL:ro
     environment:
-      LD_LIBRARY_PATH: /usr/lib/wsl/lib:/ovms/lib
+      LD_LIBRARY_PATH: /usr/lib/wsl/lib:/usr/lib/wsl/drivers:/ovms/lib
 
   lp-vlm-workload-handler:
     devices: !reset
@@ -20,7 +20,7 @@ services:
       - /usr/lib/wsl/drivers:/usr/lib/wsl/drivers:ro
       - /etc/OpenCL:/etc/OpenCL:ro
     environment:
-      LD_LIBRARY_PATH: /usr/lib/wsl/lib:/opt/intel/openvino/runtime/lib/intel64
+      LD_LIBRARY_PATH: /usr/lib/wsl/lib:/usr/lib/wsl/drivers:/opt/intel/openvino/runtime/lib/intel64
 
   lp-pipeline-runner:
     devices:
