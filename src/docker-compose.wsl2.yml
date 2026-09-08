@@ -7,6 +7,8 @@ services:
       - /dev/dxg:/dev/dxg
     volumes:
       - /usr/lib/wsl/lib:/usr/lib/wsl/lib:ro
+      - /usr/lib/wsl/drivers:/usr/lib/wsl/drivers:ro
+      - /etc/OpenCL:/etc/OpenCL:ro
     environment:
       LD_LIBRARY_PATH: /usr/lib/wsl/lib:/ovms/lib
 
@@ -15,6 +17,8 @@ services:
       - /dev/dxg:/dev/dxg
     volumes:
       - /usr/lib/wsl/lib:/usr/lib/wsl/lib:ro
+      - /usr/lib/wsl/drivers:/usr/lib/wsl/drivers:ro
+      - /etc/OpenCL:/etc/OpenCL:ro
     environment:
       LD_LIBRARY_PATH: /usr/lib/wsl/lib:/opt/intel/openvino/runtime/lib/intel64
 
@@ -23,5 +27,7 @@ services:
       - /dev/dxg:/dev/dxg
     volumes:
       - /usr/lib/wsl/lib:/usr/lib/wsl/lib:ro
+      - /usr/lib/wsl/drivers:/usr/lib/wsl/drivers:ro
+      - /etc/OpenCL:/etc/OpenCL:ro
     environment:
       VIDEO_SINK: ximagesink

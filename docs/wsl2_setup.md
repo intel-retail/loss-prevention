@@ -819,8 +819,9 @@ WSL2=true
 
 `WSL2=true` selects `src/docker-compose.wsl2.yml` instead of the native
 `src/docker-compose.yml`. The WSL2 Compose file replaces native Linux `/dev/dri`
-device mappings with WSL2's `/dev/dxg` and mounts the WSL graphics libraries. CPU
-workloads remain CPU workloads because the device is selected by the workload JSON.
+device mappings with WSL2's `/dev/dxg` and mounts the WSL graphics libraries,
+driver helper libraries, and OpenCL ICD configuration. CPU workloads remain CPU
+workloads because the device is selected by the workload JSON.
 
 ---
 
@@ -848,6 +849,8 @@ Intel graphics driver, then `wsl --shutdown`.
 ```bash
 ls -l /dev/dxg
 ls -l /usr/lib/wsl/lib/
+ls -l /usr/lib/wsl/drivers/
+find /etc/OpenCL -maxdepth 2 -type f -print
 ls /dev/dri 2>&1
 ls /dev/accel 2>&1
 ```
@@ -858,6 +861,8 @@ Expected results:
 |---|---|---|
 | `/dev/dxg` | **exists** | the WSL GPU device — replaces `/dev/dri` |
 | `/usr/lib/wsl/lib/` | populated | `libd3d12.so`, `libd3d12core.so`, `libdxcore.so` plus Intel compute libraries |
+| `/usr/lib/wsl/drivers/` | populated | WSL GPU driver helpers such as `libwsl_compute_helper.so` |
+| `/etc/OpenCL/` | populated | OpenCL ICD files used to discover the GPU |
 | `/dev/dri` | **absent** | expected; this is why the compose device mappings need changing |
 | `/dev/accel` | likely absent | the NPU finding |
 
@@ -869,6 +874,8 @@ If `/dev/dxg` is missing, stop here and update the Windows graphics driver.
 docker run --rm \
   --device=/dev/dxg \
   -v /usr/lib/wsl/lib:/usr/lib/wsl/lib:ro \
+  -v /usr/lib/wsl/drivers:/usr/lib/wsl/drivers:ro \
+  -v /etc/OpenCL:/etc/OpenCL:ro \
   intel/dlstreamer:2026.2.0-ubuntu24-rc3 \
   bash -lc '. /opt/intel/openvino/setupvars.sh 2>/dev/null || true; \
     export LD_LIBRARY_PATH=/usr/lib/wsl/lib:/usr/lib/openvino-2026.2.0:$LD_LIBRARY_PATH; \
@@ -884,6 +891,8 @@ runtime with:
 docker run --rm \
   --device=/dev/dxg \
   -v /usr/lib/wsl/lib:/usr/lib/wsl/lib:ro \
+  -v /usr/lib/wsl/drivers:/usr/lib/wsl/drivers:ro \
+  -v /etc/OpenCL:/etc/OpenCL:ro \
   intel/dlstreamer:2026.2.0-ubuntu24-rc3 \
   bash -lc 'export LD_LIBRARY_PATH=/usr/lib/wsl/lib:/usr/lib/openvino-2026.2.0; \
     ldd /usr/lib/openvino-2026.2.0/libopenvino_intel_gpu_plugin.so | grep "not found" || true; \
