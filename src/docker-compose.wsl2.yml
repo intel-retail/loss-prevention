@@ -9,8 +9,9 @@ services:
       - /usr/lib/wsl/lib:/usr/lib/wsl/lib:ro
       - /usr/lib/wsl/drivers:/usr/lib/wsl/drivers:ro
       - /etc/OpenCL:/etc/OpenCL:ro
+      - /usr/lib/x86_64-linux-gnu/intel-opencl:/usr/lib/x86_64-linux-gnu/intel-opencl:ro
     environment:
-      LD_LIBRARY_PATH: /usr/lib/wsl/lib:/usr/lib/wsl/drivers:/ovms/lib
+      LD_LIBRARY_PATH: /usr/lib/wsl/lib:/usr/lib/wsl/drivers:/usr/lib/x86_64-linux-gnu/intel-opencl:/ovms/lib
 
   lp-vlm-workload-handler:
     devices: !reset
