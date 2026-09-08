@@ -23,3 +23,5 @@ services:
       - /dev/dxg:/dev/dxg
     volumes:
       - /usr/lib/wsl/lib:/usr/lib/wsl/lib:ro
+    environment:
+      VIDEO_SINK: ximagesink

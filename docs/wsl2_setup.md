@@ -938,4 +938,43 @@ make check-device-env
 # 5. Sample videos - small download, fast feedback
 make download-sample-videos
 ```
+
+### Optional: render mode
+
+WSLg can display the annotated stream for CPU workloads. `xhost` is provided by
+`x11-xserver-utils`, which is installed in step 4. Confirm that WSLg set a display:
+
+```bash
+echo "$DISPLAY"
+xhost +local:docker
+```
+
+Run the CPU object-detection workload with rendering enabled:
+
+```bash
+RENDER_MODE=1 DISPLAY=:0 make run-lp \
+  CAMERA_STREAM=camera_to_workload_asc_object_detection.json \
+  WORKLOAD_DIST=workload_to_pipeline_asc_object_detection_cpu.json
+```
+
+When testing a change to `src/gst-pipeline-generator.py`, use `REGISTRY=false` so
+Docker rebuilds `lp-pipeline-runner` from the current checkout. The registry image does
+not contain uncommitted or newly pulled local source changes:
+
+```bash
+make down-lp
+
+REGISTRY=false RENDER_MODE=1 DISPLAY=:0 make run-lp \
+  CAMERA_STREAM=camera_to_workload_asc_object_detection.json \
+  WORKLOAD_DIST=workload_to_pipeline_asc_object_detection_cpu.json
+```
+
+For the WSLg display path, the generated pipeline must include `videoconvert` before
+the automatic video sink. Verify it in the running container:
+
+```bash
+docker compose -f src/docker-compose.wsl2.yml exec lp-pipeline-runner \
+  grep -n 'gvawatermark.*videoconvert.*autovideosink' \
+  /home/pipeline-server/pipelines/pipeline.sh
+```
 ---
