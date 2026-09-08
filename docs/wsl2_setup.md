@@ -511,7 +511,7 @@ Steps 7 and 8 come later because those paths do not exist until Docker is instal
 sudo apt install -y \
   build-essential make git curl wget unzip \
   jq python3 python3-pip python3-venv \
-  ca-certificates gnupg lsb-release
+  ca-certificates gnupg lsb-release x11-xserver-utils
 ```
 
 | Package | Used by |
@@ -521,6 +521,7 @@ sudo apt install -y \
 | `python3` + `venv` | `download-video.py`, config validators, benchmark scripts |
 | `curl` / `wget` | model and video downloads |
 | `git` | the repo and the `performance-tools` submodule |
+| `x11-xserver-utils` | `xhost`, required by `make run-render-mode` for X11 display access |
 
 Verify:
 

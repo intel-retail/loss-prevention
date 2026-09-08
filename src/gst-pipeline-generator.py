@@ -449,7 +449,7 @@ def build_dynamic_gstlaunch_command(camera, workloads, workload_map, branch_idx=
             #pipeline += f"    {tee_name}. ! queue ! gvafpscounter ! fakesink sync=false async=false "
         render_mode = os.environ.get("RENDER_MODE", "0")
         if render_mode == "1":
-            pipeline += f"  ! queue {queue_params} ! {vapostproc_elem} gvawatermark ! fpsdisplaysink video-sink=autovideosink sync=false text-overlay=true signal-fps-measurements=true"
+            pipeline += f"  ! queue {queue_params} ! {vapostproc_elem} gvawatermark ! videoconvert ! fpsdisplaysink video-sink=autovideosink sync=false text-overlay=true signal-fps-measurements=true"
         else:
             pipeline += f"  ! queue {queue_params} ! fpsdisplaysink video-sink=fakesink signal-fps-measurements=true"
         pipelines.append(pipeline)
