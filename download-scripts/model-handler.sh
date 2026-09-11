@@ -43,7 +43,7 @@ elif [[ "$MODEL_NAME" == Qwen* ]]; then
         echo "[ERROR] Missing required script: $SCRIPT_BASE_PATH/setup_ovms_vlm_model.sh" >&2
         exit 1
     fi
-elif [[ "$MODEL_NAME" == face-reidentification-retail-* ]] || [[ "$MODEL_NAME" == age-gender-recognition-retail-* ]] && [[ "$PRECISION" == "FP16" ]]; then
+elif [[ "$MODEL_NAME" == face-reidentification-retail-* || "$MODEL_NAME" == age-gender-recognition-retail-* ]] && [[ "$PRECISION" == "FP16" || "$PRECISION" == "FP32" ]]; then
     echo "[INFO] ###### Downloading face model: $MODEL_NAME ($PRECISION)"
     "$SCRIPT_BASE_PATH/omz-model-download.sh" "$MODEL_NAME" "$MODELS_PATH/object_classification" "$PRECISION"
 elif [[ "$MODEL_NAME" == age-gender-recognition-retail-* ]] && [[ "$PRECISION" == "INT8" ]]; then
@@ -59,7 +59,7 @@ elif [[ "$MODEL_NAME" == age-gender-recognition-retail-* ]] && [[ "$PRECISION" =
 elif [[ "$MODEL_NAME" == efficientnet* ]]; then
     echo "[INFO] ###### Downloading classification model: $MODEL_NAME ($PRECISION)"
     python3 "$SCRIPT_BASE_PATH/effnetb0_download.py" "$MODEL_NAME" "$MODELS_PATH"
-elif [[ "$MODEL_NAME" == face-detection-retail-* ]] && [[ "$PRECISION" == "FP16" ]]; then
+elif [[ "$MODEL_NAME" == face-detection-retail-* ]] && [[ "$PRECISION" == "FP16" || "$PRECISION" == "FP32" ]]; then
     echo "[INFO] ###### Downloading detection model: $MODEL_NAME ($PRECISION)"
    "$SCRIPT_BASE_PATH/omz-model-download.sh" "$MODEL_NAME" "$MODELS_PATH/object_detection" "$PRECISION"
 elif [[ "$MODEL_NAME" == face-detection-retail-* ]] && [[ "$PRECISION" == "INT8" ]]; then
