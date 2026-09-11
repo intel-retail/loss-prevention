@@ -817,7 +817,7 @@ HUGGINGFACE_TOKEN=hf_xxxxxxxx
 WSL2=true
 ```
 
-`WSL2=true` selects `src/docker-compose.wsl2.yml` instead of the native
+`WSL2=true` selects `src/docker-compose-wsl2.yml` instead of the native
 `src/docker-compose.yml`. The WSL2 Compose file replaces native Linux `/dev/dri`
 device mappings with WSL2's `/dev/dxg` and mounts the WSL graphics libraries,
 driver helper libraries, and OpenCL ICD configuration. CPU workloads remain CPU
@@ -982,7 +982,7 @@ For the WSLg display path, the generated pipeline must include `videoconvert` be
 the automatic video sink. Verify it in the running container:
 
 ```bash
-docker compose -f src/docker-compose.wsl2.yml exec lp-pipeline-runner \
+docker compose -f src/docker-compose-wsl2.yml exec lp-pipeline-runner \
   grep -n 'gvawatermark.*videoconvert.*autovideosink' \
   /home/pipeline-server/pipelines/pipeline.sh
 ```

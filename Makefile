@@ -56,9 +56,10 @@ INFERENCE_INTERVAL ?= 3
 REGISTRY ?= true
 DOCKER_COMPOSE ?= docker-compose.yml
 STREAM_LOOP ?= true
-WSL2 ?= false
-ifeq ($(filter true 1 yes,$(WSL2)),true)
-DOCKER_COMPOSE := docker-compose.wsl2.yml
+WSL2 ?= $(if $(shell uname -r | grep -i microsoft),true,false)
+export WSL2
+ifeq ($(WSL2),true)
+DOCKER_COMPOSE := docker-compose-wsl2.yml
 endif
 
 # OVMS and VLM defaults
