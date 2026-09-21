@@ -273,7 +273,9 @@ fetch-benchmark:
 
 build-benchmark:
 	@echo "Building benchmark Docker image..."$(REGISTRY)
-	@if [ "$(REGISTRY)" = "true" ]; then \
+	@if [ "$(WSL2)" = "true" ]; then \
+		echo "WSL2: using Windows host metrics; no collector image required"; \
+	elif [ "$(REGISTRY)" = "true" ]; then \
 		$(MAKE) fetch-benchmark; \
 	else \
 		cd performance-tools && $(MAKE) build-benchmark-docker; \
@@ -350,7 +352,7 @@ benchmark-quickstart: download-models download-sample-videos
 	python3 -m venv venv && \
 	. venv/bin/activate && \
 	pip3 install -r requirements.txt && \
-	python3 benchmark.py --compose_file ../../src/$(DOCKER_COMPOSE) --pipelines $(PIPELINE_COUNT) --results_dir $(RESULTS_DIR) $$(if [ "$(REGISTRY)" = "true" ]; then echo "--benchmark_type=reg"; fi); \
+		python3 benchmark.py --compose_file ../../src/$(DOCKER_COMPOSE) --pipelines $(PIPELINE_COUNT) --results_dir $(RESULTS_DIR) $$(if [ "$(REGISTRY)" = "true" ]; then echo "--benchmark_type=reg"; fi); \
 	deactivate \
 	)
 	$(MAKE) consolidate-metrics
