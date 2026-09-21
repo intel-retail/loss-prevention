@@ -3,6 +3,13 @@
 This guide takes a clean Windows 11 machine to a working Loss Prevention environment
 under WSL2. It is written for someone who has never used WSL before.
 
+Before `make benchmark`, also complete the [hardware metrics prerequisites](wsl_hardware_metrics.md).
+Windows GPU counters, optional GPU power sensors, and native Windows PCM need
+separate host-side setup. Collection then starts and stops automatically with
+the benchmark; no separate collector command is needed during a run. See
+[WSL benchmark metrics](wsl2_benchmark.md) for outputs and limitations. The
+project flag is `WSL2=true`, not `WSL=true`.
+
 Follow the steps **in order**. Several of them fail in confusing ways if done out of
 sequence — particularly the proxy configuration, which must come before any download.
 
@@ -677,8 +684,11 @@ environment. It does not inherit your shell's proxy settings.
 The Makefile and compose file already pass `HTTP_PROXY`/`HTTPS_PROXY` as build args for
 the project's own images, but coverage has gaps:
 
-- `make build-benchmark` delegates to the `performance-tools` submodule's Makefile,
-  which is outside this repo's proxy plumbing
+- With `WSL2=false REGISTRY=false`, `make build-benchmark` delegates to the
+  `performance-tools` submodule's Makefile, which is outside this repo's proxy
+  plumbing. With `WSL2=true`, it instead checks Windows `python.exe` and installs
+  its Python dependencies; Windows Python needs its own working network/proxy
+  configuration. Docker proxy settings do not configure Windows pip.
 - Only `rtsp-streamer` passes the lowercase `http_proxy`/`https_proxy` variants;
   `curl` reads lowercase `http_proxy` **only**, so `RUN curl http://...` in the other
   images would bypass the proxy
