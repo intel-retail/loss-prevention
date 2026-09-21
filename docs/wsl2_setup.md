@@ -987,3 +987,85 @@ docker compose -f src/docker-compose-wsl2.yml exec lp-pipeline-runner \
   /home/pipeline-server/pipelines/pipeline.sh
 ```
 ---
+
+## Troubleshooting
+
+### MinIO restarts after the image update: backend write permission denied
+
+After switching from the previous MinIO image to the Chainguard image, an existing
+data volume may still be owned by the previous container user. `make run-lp` can
+then fail with `dependency failed to start: container src-minio-service-1 is unhealthy`.
+The MinIO logs identify this case with:
+
+```text
+Error: unable to rename (/data/.minio.sys/tmp -> /data/.minio.sys/tmp-old/...) file access denied
+FATAL Unable to initialize backend: Unable to write to the backend
+```
+
+This is a storage-permissions failure, not a `/dev/tcp` health-check failure. MinIO
+exits because it cannot write to `/data`, and its restart policy restarts the
+container. Changing the health check will not fix that startup error. The same
+issue can occur on native Linux; it depends on volume ownership, not WSL2 detection.
+
+Run the following commands in **Ubuntu**, on the affected machine. The examples
+use the default container name `src-minio-service-1` and volume `src_minio_data`.
+If your Compose project uses another name, substitute the actual names.
+
+1. Confirm the error, the mounted volume, and the image's runtime UID/GID:
+
+  ```bash
+  docker logs --tail 100 src-minio-service-1
+  docker inspect src-minio-service-1 --format 'User={{.Config.User}} Mounts={{json .Mounts}}'
+  MINIO_IMAGE=$(docker inspect src-minio-service-1 --format '{{.Image}}')
+  docker run --rm --network none --entrypoint /bin/sh "$MINIO_IMAGE" -c 'id'
+  ```
+
+  For the pinned Chainguard image, the verified values are `User=65532`,
+  `uid=65532(nonroot) gid=65532(nonroot)`, and the named volume mounted at `/data`
+  is `src_minio_data` with `RW=true`. The temporary container used for `id` does
+  not mount your data. Do not use the repair command unchanged if these values
+  differ; use the actual volume name and the UID/GID that the service runs as.
+
+2. Stop MinIO before modifying its storage. Back up the volume first if it
+  contains important data:
+
+  ```bash
+  docker stop src-minio-service-1
+  ```
+
+3. Repair ownership and owner permissions without deleting stored data:
+
+  ```bash
+  docker run --rm --user 0:0 --network none \
+    --mount type=volume,source=src_minio_data,target=/data \
+    alpine:3.22 \
+    sh -c 'chown -R 65532:65532 /data && chmod -R u+rwX /data'
+  ```
+
+  Docker may need to pull `alpine:3.22`; its daemon proxy must already be
+  configured. Root is used only in this temporary repair container. MinIO
+  continues to run as non-root. Stop here if the repair command fails.
+
+4. Start MinIO and inspect recent startup logs:
+
+  ```bash
+  docker start src-minio-service-1
+  docker logs --since 1m --tail 50 src-minio-service-1
+  ```
+
+  Allow approximately 30 seconds for the health check, then inspect its result:
+
+  ```bash
+  docker inspect src-minio-service-1 --format '{{json .State.Health}}'
+  ```
+
+  Once it reports `healthy`, rerun your original `make run-lp` command to start
+  the services that were blocked by MinIO. If it remains unhealthy, inspect the
+  new server logs and health-check output before making further changes.
+
+This is a **one-time repair for the affected volume**, not a step required on every
+run. Ownership persists across container restarts, recreation, and normal Compose
+`down`/`up` operations. Restored data with different ownership or a future runtime
+UID change may require another migration. Keep the current health check unchanged;
+do not use `down -v`, delete the volume, apply `chmod 777`, or permanently run MinIO
+as root to resolve this error.

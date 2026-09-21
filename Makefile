@@ -275,6 +275,8 @@ build-benchmark:
 	@echo "Building benchmark Docker image..."$(REGISTRY)
 	@if [ "$(WSL2)" = "true" ]; then \
 		echo "WSL2: using Windows host metrics; no collector image required"; \
+		python.exe --version || { echo "ERROR: Install Windows Python and make it available as python.exe in WSL PATH (not the Microsoft Store shortcut)."; exit 1; }; \
+		python.exe -m pip install psutil pywin32; \
 	elif [ "$(REGISTRY)" = "true" ]; then \
 		$(MAKE) fetch-benchmark; \
 	else \
@@ -337,7 +339,9 @@ benchmark-stream-density: build-benchmark download-sample-videos download-models
 	)
 	
 benchmark-quickstart: download-models download-sample-videos
-	@if [ "$(REGISTRY)" = "true" ]; then \
+	@if [ "$(WSL2)" = "true" ]; then \
+		$(MAKE) build-benchmark; \
+	elif [ "$(REGISTRY)" = "true" ]; then \
 		echo "Using registry mode - skipping benchmark container build..."; \
 	else \
 		echo "Building benchmark container locally..."; \
