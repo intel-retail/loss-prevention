@@ -208,6 +208,7 @@ check-device-env:
 	@echo "[INFO] Environment configuration valid"
 
 run-lp: validate_workload_mapping update-submodules download-sample-videos
+	@echo "[INFO] WSL2=$(WSL2) | DOCKER_COMPOSE=$(DOCKER_COMPOSE)"
 	@echo "Running loss prevention pipeline"
 	@LOG_FILE="vlm_loss_prevention.log"; \
 	mkdir -p $$(dirname $$LOG_FILE); \
