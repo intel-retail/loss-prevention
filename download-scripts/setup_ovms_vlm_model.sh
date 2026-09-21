@@ -22,6 +22,11 @@ if ! echo "${CACHE_SIZE}" | grep -qE '^[0-9]+$'; then
 fi
 TARGET_PATH="${OVMS_MODELS_DIR}/${MODEL_NAME}"
 
+declare -A SUPPORTED_MODEL_SOURCES=(
+    ["openbmb/MiniCPM-V-4_5"]="openbmb/MiniCPM-V-4_5"
+    ["openbmb/MiniCPM-V-4_5-int4"]="openbmb/MiniCPM-V-4_5"
+)
+
 validate_model_xml() {
     local model_path="$1"
     local found_valid=0
@@ -138,6 +143,11 @@ resolve_ov_source_model() {
         return 0
     fi
 
+    if [[ -n "${SUPPORTED_MODEL_SOURCES[$name]+x}" ]]; then
+        echo "${SUPPORTED_MODEL_SOURCES[$name]}"
+        return 0
+    fi
+
     if [[ "${name}" == OpenVINO/* ]]; then
         echo "${name}"
         return 0
@@ -153,6 +163,75 @@ resolve_ov_source_model() {
             return 1
             ;;
     esac
+}
+
+source_model_requires_export() {
+    local source_model="$1"
+
+    [[ "${source_model}" != OpenVINO/* ]]
+}
+
+setup_python_env() {
+    local export_base_url
+    export_base_url="https://raw.githubusercontent.com/openvinotoolkit/model_server/refs/heads/releases/2026/1/demos/common/export_models"
+
+    if [[ ! -f "${SCRIPT_DIR}/export_model.py" ]]; then
+        curl -fsSL "${export_base_url}/export_model.py" -o "${SCRIPT_DIR}/export_model.py"
+    fi
+
+    if [[ ! -f "${SCRIPT_DIR}/export_requirements.txt" ]]; then
+        curl -fsSL "${export_base_url}/requirements.txt" -o "${SCRIPT_DIR}/export_requirements.txt"
+    fi
+
+    if [[ ! -d "${SCRIPT_DIR}/venv" || ! -f "${SCRIPT_DIR}/venv/bin/pip" ]]; then
+        python3 -m venv "${SCRIPT_DIR}/venv" --clear
+    fi
+
+    # shellcheck disable=SC1091
+    source "${SCRIPT_DIR}/venv/bin/activate"
+
+    pip install -q --upgrade pip
+    pip install -q -r "${SCRIPT_DIR}/export_requirements.txt"
+}
+
+export_model_from_source() {
+    local source_model="$1"
+    local precision_lc
+    local export_log
+    local export_status
+    local target_device_args=()
+
+    precision_lc=$(echo "${PRECISION}" | tr '[:upper:]' '[:lower:]')
+    export_log=$(mktemp)
+
+    if [[ "${TARGET_DEVICE}" != "CPU" ]]; then
+        target_device_args=(--target_device "${TARGET_DEVICE}")
+    fi
+
+    python "${SCRIPT_DIR}/export_model.py" text_generation \
+        --source_model "${source_model}" \
+        --weight-format "${precision_lc}" \
+        --pipeline_type VLM_CB \
+        "${target_device_args[@]}" \
+        --cache_size "${CACHE_SIZE}" \
+        --max_num_seqs 4 \
+        --max_num_batched_tokens 8192 \
+        --enable_prefix_caching True \
+        --config_file_path "${OVMS_MODELS_DIR}/config.json" \
+        --model_repository_path "${OVMS_MODELS_DIR}" \
+        --model_name "${MODEL_NAME}" 2>&1 | tee "${export_log}"
+    export_status="${PIPESTATUS[0]}"
+
+    if [[ "${export_status}" -ne 0 ]]; then
+        if grep -qiE "gated repo|access to model .* is restricted|401 client error|please log in" "${export_log}"; then
+            echo "[ERROR] Model download/export requires Hugging Face authentication or a different source model." >&2
+            echo "[ERROR] For openbmb/MiniCPM-V-4_5-int4, use the full-precision source openbmb/MiniCPM-V-4_5." >&2
+        fi
+        rm -f "${export_log}"
+        return 1
+    fi
+
+    rm -f "${export_log}"
 }
 
 download_ov_model_snapshot() {
@@ -176,7 +255,6 @@ snapshot_download(
     repo_id=source_model,
     local_dir=target_path,
     token=token,
-    local_dir_use_symlinks=False,
 )
 PY
 }
@@ -232,17 +310,24 @@ export_model() {
     local source_model
     source_model=$(resolve_ov_source_model "${MODEL_NAME}" "${PRECISION}")
 
-    if [[ ! -d "${TARGET_PATH}" || -z "$(ls -A "${TARGET_PATH}" 2>/dev/null || true)" ]]; then
+    if source_model_requires_export "${source_model}"; then
+        echo "[INFO] Exporting OVMS model from source: ${source_model}"
         check_memory_for_export
-        mkdir -p "${TARGET_PATH}"
-        export OV_SOURCE_MODEL_TO_DOWNLOAD="${source_model}"
-        export OV_TARGET_PATH="${TARGET_PATH}"
-        download_ov_model_snapshot "${source_model}" "${TARGET_PATH}"
+        setup_python_env
+        export_model_from_source "${source_model}"
     else
-        echo "[INFO] OV model directory already has content at ${TARGET_PATH}, skipping snapshot download"
-    fi
+        if [[ ! -d "${TARGET_PATH}" || -z "$(ls -A "${TARGET_PATH}" 2>/dev/null || true)" ]]; then
+            check_memory_for_export
+            mkdir -p "${TARGET_PATH}"
+            export OV_SOURCE_MODEL_TO_DOWNLOAD="${source_model}"
+            export OV_TARGET_PATH="${TARGET_PATH}"
+            download_ov_model_snapshot "${source_model}" "${TARGET_PATH}"
+        else
+            echo "[INFO] OV model directory already has content at ${TARGET_PATH}, skipping snapshot download"
+        fi
 
-    generate_graph_pbtxt "${TARGET_PATH}/graph.pbtxt" "${TARGET_DEVICE}" "${CACHE_SIZE}"
+        generate_graph_pbtxt "${TARGET_PATH}/graph.pbtxt" "${TARGET_DEVICE}" "${CACHE_SIZE}"
+    fi
 }
 
 generate_ovms_config() {

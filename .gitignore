@@ -11,4 +11,8 @@ lp-vlm/src/agent/__pycache__/*
 lp-vlm/src/__pycache__/*
 lp-vlm/lp-vlm.env
 vlm_loss_prevention.log
+download-scripts/venv/
 download-scripts/ovms-export-venv/
+download-scripts/export_requirements.txt
+download-scripts/__pycache__/*
+download-scripts/export_model.py

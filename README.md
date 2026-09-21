@@ -79,6 +79,7 @@ Push item-recognition accuracy beyond traditional CV with a **local Large Vision
 *Business takeaway*: fewer false positives (less customer friction, fewer staff interventions), better real-loss capture, and adaptability to new/seasonal/regional products **without a retraining cycle.** It’s the suite’s **GenAI-at-the-edge** workload, and it reports the metrics that matter for LLM/LVLM sizing (**TTFT, token throughput**, CPU/GPU/NPU utilization). Runs entirely locally, no cloud dependency.
 
 
+
 ## Scope & related repositories
 This repo covers loss prevention at the self-checkout and point of sale, built on the Automated Self-Checkout foundation above. Store-wide loss prevention is a separate effort in the Intel Retail AI Suite:
 
@@ -217,7 +218,7 @@ make benchmark-stream-density
 make consolidate-metrics && cat benchmark/metrics.csv
 ```
 
-#### 4 · Loss prevention with an LVLM
+#### 4 · Run Loss prevention with the VLM Workload With Qwen Model (Default)
 
 **Set the credentials it needs**
 ```sh
@@ -236,6 +237,45 @@ make run-lp CAMERA_STREAM=camera_to_workload_vlm.json STREAM_LOOP=false
 make benchmark CAMERA_STREAM=camera_to_workload_vlm.json WORKLOAD_DIST=workload_to_pipeline_vlm.json
 ```
 
+#### 4 · Run Loss prevention with the VLM Workload With MINICPM Model
+
+Set the credentials needed by the VLM workflow before you run it:
+
+```bash
+export MINIO_ROOT_USER=<...> MINIO_ROOT_PASSWORD=<...>
+export RABBITMQ_USER=<...> RABBITMQ_PASSWORD=<...>
+export GATED_MODEL=true HUGGINGFACE_TOKEN=<...>
+```
+
+Use the dedicated VLM camera and workload configs:
+
+Edit the existing VLM config files:
+
+- `configs/workload_to_pipeline_vlm.json`
+
+Update the VLM entry to:
+
+- `vlm_model`: `openbmb/MiniCPM-V-4_5`
+- `vlm_precision`: `int4`
+
+```bash
+make download-models \ 
+  WORKLOAD_DIST=workload_to_pipeline_vlm.json
+
+
+make run-lp \
+  CAMERA_STREAM=camera_to_workload_vlm.json \
+  WORKLOAD_DIST=workload_to_pipeline_vlm.json \
+  OVMS_MODEL_NAME='openbmb/MiniCPM-V-4_5-int4'
+```
+
+Benchmark the same VLM workload after the service is up:
+
+```bash
+make benchmark \
+  CAMERA_STREAM=camera_to_workload_vlm.json \
+  WORKLOAD_DIST=workload_to_pipeline_vlm.json
+```
 
 __What to Expect__
   

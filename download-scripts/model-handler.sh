@@ -24,14 +24,35 @@ if [[ "$MODEL_NAME" == yolo* ]]; then
     python3 "$SCRIPT_BASE_PATH/model_convert.py" export_yolo "$MODEL_NAME" "$MODELS_PATH"
 
     quant_dataset="$MODELS_PATH/datasets/coco128.yaml"
+    quant_dataset_root="$MODELS_PATH/datasets/coco128"
+    quant_dataset_images="$quant_dataset_root/images/train2017"
+
+    fetch_url() {
+        local url="$1"
+        local out="$2"
+        wget -4 --no-check-certificate --tries=10 --waitretry=5 \
+            --retry-connrefused --timeout=60 -O "$out" "$url" && return 0
+        echo "[WARN] wget failed for $url; falling back to curl"
+        curl -4 -fL -k --retry 10 --retry-delay 5 --retry-all-errors \
+            --connect-timeout 30 -o "$out" "$url"
+    }
+
     if [ ! -f "$quant_dataset" ]; then
         mkdir -p "$(dirname "$quant_dataset")"
-        wget --no-check-certificate --timeout=30 --tries=2 \
+        fetch_url \
             "https://raw.githubusercontent.com/ultralytics/ultralytics/v8.1.0/ultralytics/cfg/datasets/coco128.yaml" \
-            -O "$quant_dataset"
+            "$quant_dataset"
     fi
+
+    if [ ! -d "$quant_dataset_images" ]; then
+        coco128_zip="$MODELS_PATH/datasets/coco128.zip"
+        fetch_url "https://ultralytics.com/assets/coco128.zip" "$coco128_zip"
+        unzip -q -o "$coco128_zip" -d "$MODELS_PATH/datasets"
+        rm -f "$coco128_zip"
+    fi
+
     python3 "$SCRIPT_BASE_PATH/model_convert.py" quantize_yolo "$MODEL_NAME" "$quant_dataset" "$MODELS_PATH"
-elif [[ "$MODEL_NAME" == Qwen* ]]; then
+elif [[ "$MODEL_NAME" == Qwen* ]] || [[ "$MODEL_NAME" == openbmb/* ]]; then
     echo "[INFO] ###### Downloading VLM model: $MODEL_NAME ($PRECISION)"    
     OVMS_MODEL_DIR="$MODELS_PATH/ovms-model/$MODEL_NAME"
     if ovms_model_ready "$MODEL_NAME"; then
