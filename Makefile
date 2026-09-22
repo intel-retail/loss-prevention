@@ -58,7 +58,7 @@ DOCKER_COMPOSE ?= docker-compose.yml
 STREAM_LOOP ?= true
 WSL2 ?= $(if $(shell uname -r | grep -i microsoft),true,false)
 export WSL2
-WINDOWS_PYTHON ?= python.exe
+WINDOWS_PYTHON ?= /mnt/c/Users/intel/AppData/Local/Programs/Python/Python311/python.exe
 export WINDOWS_PYTHON
 ifeq ($(WSL2),true)
 DOCKER_COMPOSE := docker-compose-wsl2.yml
@@ -277,7 +277,8 @@ build-benchmark:
 	@echo "Building benchmark Docker image..."$(REGISTRY)
 	@if [ "$(WSL2)" = "true" ]; then \
 		echo "WSL2: using Windows host metrics; no collector image required"; \
-		python3 performance-tools/benchmark-scripts/windows_metrics.py --install-dependencies; \
+		"$(WINDOWS_PYTHON)" -c 'import os; assert os.name == "nt", "Windows Python is required"' || { echo "ERROR: Set WINDOWS_PYTHON in Makefile or .env to the Windows python.exe executable using its WSL path."; exit 1; }; \
+		"$(WINDOWS_PYTHON)" -m pip install psutil pywin32; \
 	elif [ "$(REGISTRY)" = "true" ]; then \
 		$(MAKE) fetch-benchmark; \
 	else \
