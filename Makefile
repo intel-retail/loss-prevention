@@ -156,6 +156,12 @@ download-sample-videos: | validate-camera-config
 	python3 download-scripts/download-video.py --camera-config configs/$(CAMERA_STREAM) --format-script performance-tools/benchmark-scripts/format_avc_mp4.sh
 
 update-submodules:
+	@if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then \
+		echo "[ERROR] This folder is not a git clone, so the performance-tools submodule can't be fetched."; \
+		echo "[ERROR] Release zip/tar.gz downloads don't include it. Clone the release tag instead:"; \
+		echo "[ERROR]   git clone -b <tag> --single-branch --recurse-submodules https://github.com/intel-retail/loss-prevention"; \
+		exit 1; \
+	fi
 	@echo "Cloning performance tool repositories"
 	git submodule deinit -f .
 	git submodule update --init --recursive
