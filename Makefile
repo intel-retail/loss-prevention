@@ -60,6 +60,14 @@ WSL2 ?= $(if $(shell uname -r | grep -i microsoft),true,false)
 export WSL2
 WINDOWS_PYTHON ?= /mnt/c/Users/intel/AppData/Local/Programs/Python/Python311/python.exe
 export WINDOWS_PYTHON
+WINDOWS_PCM_EXE ?= C:\Program Files\PCM\pcm.exe
+export WINDOWS_PCM_EXE
+WINDOWS_LHM_DLL ?= C:\Program Files\LibreHardwareMonitor\LibreHardwareMonitorLib.dll
+export WINDOWS_LHM_DLL
+WINDOWS_GPU_POWER_SENSOR ?= /gpu-intel-integrated/%5C%5C%3F%5CPCI%23VEN_8086%26DEV_7D51%26SUBSYS_88FE1043%26REV_03%233%2611583659%260%2610%23%7B1ca05180-a699-450a-9a0c-de4fbe3ddd89%7D/power/0
+export WINDOWS_GPU_POWER_SENSOR
+WINDOWS_GPU_POWER_ADAPTER ?= luid_0x00000000_0x0000b457_phys_0
+export WINDOWS_GPU_POWER_ADAPTER
 ifeq ($(WSL2),true)
 DOCKER_COMPOSE := docker-compose-wsl2.yml
 endif

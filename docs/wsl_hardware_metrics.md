@@ -17,6 +17,8 @@ No source edits should be needed on another supported host. Installed executable
 | CPU package power and DRAM bandwidth | Native Intel PCM, supported Intel CPU/counters, working driver and permissions | `NA` |
 | NPU | No collector required; intentional WSL reporting default | `0.00` |
 
+Unavailable measurements remain `NA` in `windows_metrics.json` for diagnostics, but their rows are omitted from the consolidated WSL `metrics.csv`. Valid zeros, including the NPU default `0.00`, are retained. Native Linux CSV behavior is unchanged.
+
 GPU activity uses Windows counterparts of CCS/RCS/VCS/VECS/Copy, not identical Intel hardware counters. Processes are summed per physical engine; the busiest engine in each category is used, including the busiest decode/encode engine for Video. Measurements are host-wide and include unrelated Windows applications. Valid zero activity is distinct from an unavailable measurement.
 
 ## 1. Windows Host
@@ -31,15 +33,105 @@ Get-CimInstance Win32_VideoController | Select-Object Name, DriverVersion, PNPDe
 
 The target distribution must use WSL version 2. Use an up-to-date vendor-supported Windows GPU driver appropriate for the workload. Installing a Linux display driver inside WSL does not add Windows power sensors. Keep the already-working Docker/WSL GPU setup unchanged.
 
-Install 64-bit Windows CPython (Python 3.11 is a reasonable starting point for Python.NET compatibility). Make `python.exe` accessible from WSL; do not rely on the Microsoft Store execution alias. In WSL, verify that it is actually Windows Python:
+### Step 1: Install Windows Python
 
-```bash
-python.exe -c "import os, sys; print(sys.executable, os.name); assert os.name == 'nt'"
-python.exe -m pip install pywin32
-python.exe -c "import win32pdh; print('PDH import OK')"
+Install 64-bit Windows CPython, not just Python inside WSL. Python 3.11 is a reasonable starting point for the optional Python.NET integration. In **Windows PowerShell**, install it with Windows Package Manager:
+
+```powershell
+winget install --exact --id Python.Python.3.11 --source winget
 ```
 
-The current `make build-benchmark WSL2=true` also invokes `python.exe` and installs `psutil pywin32`. Therefore `python.exe` must be available even if `WINDOWS_PYTHON` selects a different interpreter for the collector. Install collector dependencies into the selected interpreter. Optional power dependencies are not installed automatically.
+If `winget` is unavailable, use an approved Windows Python installer from [python.org](https://www.python.org/downloads/windows/) or your organization's software portal. Include pip and the Python launcher in the installation. Follow organizational requirements for supported Python versions and updates.
+
+Close and reopen PowerShell after installation. If Python is already installed, continue with the next step to verify it.
+
+### Step 2: Find the Installed python.exe
+
+In **Windows PowerShell**, run:
+
+```powershell
+py -3.11 -c "import sys; print(sys.executable)"
+```
+
+For example, the output might be:
+
+```text
+C:\Users\intel\AppData\Local\Programs\Python\Python311\python.exe
+```
+
+Use the path printed on your machine; the username and installation directory may differ. If the launcher is unavailable but `python` works, run:
+
+```powershell
+python -c "import sys; print(sys.executable)"
+```
+
+If this opens the Microsoft Store or reports that Python was not found, return to Step 1. The Store execution alias is not a usable Python installation.
+
+### Step 3: Set WINDOWS_PYTHON
+
+Switch to your **WSL terminal**. Convert the Windows path from Step 2 to a WSL path:
+
+```bash
+wslpath -u 'C:\Users\intel\AppData\Local\Programs\Python\Python311\python.exe'
+```
+
+For this example, the result is `/mnt/c/Users/intel/AppData/Local/Programs/Python/Python311/python.exe`. Set the shell variable to your converted path, keeping the quotes if it contains spaces:
+
+```bash
+export WINDOWS_PYTHON="/mnt/c/Users/intel/AppData/Local/Programs/Python/Python311/python.exe"
+"$WINDOWS_PYTHON" -c "import os, sys; print(sys.executable, os.name); assert os.name == 'nt'"
+```
+
+The verification must print the installed executable and `nt`. Stop and correct the path if it fails.
+
+For future Make invocations, set the same path in the root Makefile's existing assignment:
+
+```makefile
+WINDOWS_PYTHON ?= /mnt/c/Users/intel/AppData/Local/Programs/Python/Python311/python.exe
+```
+
+Alternatively, put `WINDOWS_PYTHON = /mnt/c/.../python.exe` with your full path in the root `.env` to keep machine-specific configuration out of the Makefile. Make assignments do not need surrounding quotes, even for paths containing spaces. Keep the existing `export WINDOWS_PYTHON` in the Makefile.
+
+Make's export only affects its child processes; it does not set variables in your parent terminal. The shell `export` above is needed for manual commands in this guide and must be repeated in a new terminal. The collector uses the configured executable directly, with no interpreter discovery or launcher fallback. Use a WSL executable path or an executable name on WSL's `PATH`, not a Windows drive path or launcher arguments.
+
+### Step 4: Configure Windows Pip's Proxy
+
+If your network requires a proxy, find the existing settings in your **WSL terminal**:
+
+```bash
+printenv | grep -iE '^(http_proxy|https_proxy|all_proxy)='
+```
+
+Use the actual HTTP/HTTPS proxy URL reported for your network. For example, a value of `https_proxy=http://proxy.company.com:8080` identifies host `proxy.company.com` and port `8080`. Replace the placeholder below before running:
+
+```bash
+"$WINDOWS_PYTHON" -m pip config --user set global.proxy "http://YOUR_PROXY_HOST:PORT"
+```
+
+This writes Windows pip's user configuration, normally `%APPDATA%\pip\pip.ini`. It is a one-time setting for that Windows user and interpreter configuration; no proxy command needs to be added to the Makefile. Docker and Linux pip proxy settings do not necessarily configure Windows pip. The proxy must be reachable from Windows, not only from WSL.
+
+If no proxy is listed, check **Windows Settings > Network & internet > Proxy**, or ask IT for the approved proxy endpoint or Python package mirror. A PAC setup-script URL is not a proxy endpoint that pip can use directly. Do not guess a proxy, and do not store proxy credentials in shell history or repository files. Skip proxy configuration when your network permits direct access.
+
+### Step 5: Install Dependencies and Verify
+
+In the same **WSL terminal**, install packages into Windows Python:
+
+```bash
+"$WINDOWS_PYTHON" -m pip install --timeout 60 psutil pywin32
+"$WINDOWS_PYTHON" -c "import psutil, win32pdh; print('Windows dependencies OK')"
+```
+
+After both commands succeed, run from the loss-prevention repository root:
+
+```bash
+make build-benchmark WSL2=true
+```
+
+In WSL mode, this target verifies the configured Windows interpreter and installs `psutil pywin32`, using Windows pip's saved proxy configuration. It does not locate or install Python itself. Optional power dependencies are not installed automatically.
+
+Saving proxy configuration does not prove connectivity. If installation fails, inspect the error for proxy connection, authentication, or certificate failures. Connection timeouts can lead to misleading "No matching distribution found" messages. For certificate failures, use your organization's approved CA configuration rather than disabling TLS verification.
+
+### Verify GPU Counters
 
 For an English Windows installation, inspect counters in PowerShell while a GPU workload is active:
 
@@ -55,13 +147,13 @@ From the repository root in WSL:
 
 ```bash
 uname -r
-command -v python.exe wslpath
+command -v wslpath
 python3 --version
 python3 -m venv --help
 docker info
 docker compose version
 mkdir -p benchmark
-python.exe -c "import os, sys; p=sys.argv[1]; print(p); assert os.path.isdir(p); assert os.access(p, os.W_OK)" "$(wslpath -w "$PWD/benchmark")"
+"$WINDOWS_PYTHON" -c "import os, sys; p=sys.argv[1]; print(p); assert os.path.isdir(p); assert os.access(p, os.W_OK)" "$(wslpath -w "$PWD/benchmark")"
 ```
 
 Windows interoperability must be enabled. The Windows process must be able to read the helper through its `wslpath -w` path and write the results directory, including when it is a `\\wsl.localhost\...` share. Linux `sudo` does not grant Windows Administrator privileges. If required by a telemetry driver, start Windows Terminal as Administrator and enter the WSL distribution from there; verify access in that context. Do not disable Windows security features to force an unsupported driver to load.
@@ -96,8 +188,8 @@ Use the [official Libre Hardware Monitor release](https://github.com/LibreHardwa
 Install Python.NET into the Windows interpreter used by the collector:
 
 ```bash
-python.exe -m pip install pythonnet
-python.exe -c "import clr; print('Python.NET import OK')"
+"$WINDOWS_PYTHON" -m pip install pythonnet
+"$WINDOWS_PYTHON" -c "import clr; print('Python.NET import OK')"
 export WINDOWS_LHM_DLL='C:\Tools\LibreHardwareMonitor\LibreHardwareMonitorLib.dll'
 ```
 
@@ -107,7 +199,7 @@ One-time sensor discovery, from the repository root in WSL:
 
 ```bash
 mkdir -p benchmark
-python.exe "$(wslpath -w "$PWD/performance-tools/benchmark-scripts/windows_metrics.py")" \
+"$WINDOWS_PYTHON" "$(wslpath -w "$PWD/performance-tools/benchmark-scripts/windows_metrics.py")" \
   --output-dir "$(wslpath -w "$PWD/benchmark")" \
   --lhm-dll "$WINDOWS_LHM_DLL" --list-gpu-power-sensors
 ```

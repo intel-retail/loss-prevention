@@ -18,8 +18,16 @@ Install Python 3 on Windows and install the host dependencies in PowerShell:
 python -m pip install psutil pywin32
 ```
 
-From WSL, verify that `python.exe` starts that same Windows Python. The Windows
-Python installation must be available on WSL's `PATH`.
+Set `WINDOWS_PYTHON` in the root Makefile to your Windows interpreter's WSL
+executable path, for example:
+
+```makefile
+WINDOWS_PYTHON ?= /mnt/c/Users/intel/AppData/Local/Programs/Python/Python311/python.exe
+```
+
+The collector and dependency setup use that executable directly. There is no
+automatic discovery or launcher fallback. The default `python.exe` requires a
+real installation on WSL's `PATH`, not the Microsoft Store placeholder.
 Windows Python must be able to read the repository through its `wslpath -w`
 path. Linux virtualenv dependencies are still installed by the Make targets.
 
@@ -28,7 +36,8 @@ graphics driver. PDH queries use English names through `AddEnglishCounter`.
 Package power and DRAM bandwidth require supported native Windows PCM and its
 driver. Optional GPU watts require Python.NET, Libre Hardware Monitor, and an
 explicit GPU power sensor/adapter selection. CPU package watts are never used
-as GPU watts. Missing hardware measurements are reported as `NA`.
+as GPU watts. Missing hardware measurements remain `NA` in `windows_metrics.json`
+and are omitted from the consolidated WSL `metrics.csv`.
 
 ## Commands
 
@@ -91,7 +100,8 @@ not match Task Manager indices or Linux DRM card numbers. A configured
 GPU-power adapter is assigned `GPU_1`. Verify sensor/adapter association on
 each host, especially after reboot or driver changes.
 
-Unavailable measurements are `NA`, not zero. Valid zero readings are retained.
+Unavailable measurements are `NA` in the diagnostic JSON, not zero. Their rows
+are omitted from the WSL CSV. Valid zero readings, including NPU `0.00`, are retained.
 The WSL consolidator ignores old Linux NPU, PCM, power/bandwidth, qmassa, and
 XPUM inputs to avoid stale hardware results. Native Linux parsing is unchanged.
 
@@ -112,7 +122,7 @@ automatic best-iteration selection. The density algorithm is unchanged.
 Collector failures are warned about and do not interrupt benchmark execution.
 The existing Makefile prerequisite step can still fail if Windows Python or
 dependency installation is unavailable. Inspect `windows_metrics.log` and
-`windows_pcm.log` when hardware rows remain `NA`.
+`windows_pcm.log` when hardware rows are missing from the CSV or remain `NA` in the JSON.
 
 ## Validation
 

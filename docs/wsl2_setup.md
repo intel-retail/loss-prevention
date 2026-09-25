@@ -686,7 +686,8 @@ the project's own images, but coverage has gaps:
 
 - With `WSL2=false REGISTRY=false`, `make build-benchmark` delegates to the
   `performance-tools` submodule's Makefile, which is outside this repo's proxy
-  plumbing. With `WSL2=true`, it instead checks Windows `python.exe` and installs
+  plumbing. With `WSL2=true`, it instead uses the Windows Python executable
+  configured by `WINDOWS_PYTHON` in the root Makefile and installs
   its Python dependencies; Windows Python needs its own working network/proxy
   configuration. Docker proxy settings do not configure Windows pip.
 - Only `rtsp-streamer` passes the lowercase `http_proxy`/`https_proxy` variants;
