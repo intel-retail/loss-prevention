@@ -7,11 +7,26 @@
 
 ## Commit message guidelines
 
-Every commit and every squash-merge title in this repository follows the
+The **pull-request title** in this repository must follow the
 [Conventional Commits](https://www.conventionalcommits.org/) standard. This keeps
-`git log` readable like a changelog, lets us auto-generate release notes from
-`feat` and `fix` commits, and lets a reviewer understand a change before opening
+`git log` on `main` readable like a changelog, lets us auto-generate release notes
+from `feat` and `fix` PRs, and lets a reviewer understand a change before opening
 the diff.
+
+### How PRs land on `main` (squash-merge)
+
+This repository merges pull requests using **Squash and merge** only — "Merge
+commit" and "Rebase and merge" are disabled. Each PR becomes exactly **one**
+commit on `main`, and that commit's message is the **PR title**. As a result:
+
+- Only the **PR title** has to follow Conventional Commits — a CI check
+  (`amannn/action-semantic-pull-request`) enforces this and blocks the merge if
+  the title is malformed. Bot PRs are skipped by label.
+- Your individual, in-progress commits on the branch are **not** required to
+  follow the format — clean up as you like; they are squashed away on merge. A
+  `Merge branch 'main' into …` commit on your branch is fine for the same reason.
+- Set the PR title (not GitHub's default "Update `<file>`") to the message you
+  want to appear in `main`'s history.
 
 ### Format
 
@@ -23,7 +38,7 @@ the diff.
 <optional footer — BREAKING CHANGE / issue refs / Signed-off-by>
 ```
 
-- The **header** (`<type>(<scope>): <subject>`) is mandatory and must be ≤ 72 characters.
+- The **header** (`<type>(<scope>): <subject>`) is mandatory and must be ≤ 72 characters. For a PR, this is the **PR title**.
 - Use the **imperative mood**: "add", "fix", "drop" — not "added" / "fixes".
 - Do **not** use GitHub's default "Update `<file>`" title. The file list already shows which files changed; the message must say *what* and *why*.
 
@@ -70,6 +85,12 @@ sign-off automatically with:
 ```bash
 git commit -s -m "fix(stream-density): drop unused fail threshold"
 ```
+
+Sign-off is enforced by the [DCO app](https://github.com/apps/dco), which checks
+every commit in the PR for a `Signed-off-by` line whose email matches the commit
+author. Because sign-off is checked per commit — not on the squashed title — use
+a real name and email (`git config user.name` / `user.email`), not a shared
+machine account.
 
 ### Examples
 

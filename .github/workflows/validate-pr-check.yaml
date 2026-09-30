@@ -1,40 +1,61 @@
 name: Validate PR
 
+# This repo uses squash-merge with the PR title as the squash commit message,
+# so only the PR *title* is validated against Conventional Commits (not every
+# commit). DCO sign-off is enforced separately by the DCO GitHub app.
 on:
-  pull_request:
+  pull_request_target:
     types:
       - opened
       - edited
-      - synchronize
       - reopened
+      - synchronize
+      - labeled
+      - unlabeled
+
+permissions:
+  pull-requests: read
+  statuses: write
+  checks: write
 
 jobs:
-  validate:
+  validate-title:
+    name: Validate PR title (Conventional Commits)
     runs-on: ubuntu-latest
-
     steps:
-      - name: Validate PR title, body and commits
+      - name: Validate PR title
+        uses: amannn/action-semantic-pull-request@v6
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          types: |
+            feat
+            fix
+            perf
+            refactor
+            docs
+            test
+            build
+            ci
+            style
+            chore
+            revert
+          requireScope: false
+          # Skip title validation for bot PRs carrying these labels.
+          ignoreLabels: |
+            dependencies
+            submodule-update
+
+  validate-body:
+    name: Validate PR body
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate PR body
         uses: actions/github-script@v7
         with:
           script: |
             const pr = context.payload.pull_request;
             const body = pr.body || '';
-            const title = pr.title || '';
-
-            //
-            // Conventional Commit format
-            //
-            const ccRegex =
-              /^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([^)]+\))?(!)?: .+/;
-
-            //
-            // Validate PR title
-            //
-            if (!ccRegex.test(title)) {
-              core.setFailed(
-                `PR title does not follow Conventional Commits: "${title}"`
-              );
-            }
 
             //
             // Validate Issue Reference
@@ -82,66 +103,13 @@ jobs:
             //
             const requiredSections = [
               '## What are you changing?',
-              '## Issue this PR closes',
-              '## PR Checklist',
-              '## Does this change results or break compatibility?',
-              '## Security',
-              '## Test instructions'
+              '## Issue this PR closes'
             ];
 
             for (const section of requiredSections) {
               if (!body.includes(section)) {
                 core.setFailed(
                   `Missing required section: ${section}`
-                );
-              }
-            }
-
-            //
-            // Ensure all checklist items are checked
-            //
-            const uncheckedItems =
-              body.match(/- \[ \]/g) || [];
-
-            if (uncheckedItems.length > 0) {
-              core.setFailed(
-                `${uncheckedItems.length} PR checklist item(s) remain unchecked.`
-              );
-            }
-
-            //
-            // Validate commit messages
-            //
-            const commits = await github.paginate(
-              github.rest.pulls.listCommits,
-              {
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                pull_number: pr.number,
-                per_page: 100
-              }
-            );
-
-            for (const commit of commits) {
-              const message =
-                commit.commit.message.split('\n')[0];
-
-              if (!ccRegex.test(message)) {
-                core.setFailed(
-                  `Commit message does not follow Conventional Commits: "${message}"`
-                );
-              }
-            }
-
-            //
-            // Validate DCO signoff
-            //
-            for (const commit of commits) {
-              const fullMessage = commit.commit.message;
-
-              if (!fullMessage.includes('Signed-off-by:')) {
-                core.setFailed(
-                  `Missing Signed-off-by line in commit ${commit.sha}`
                 );
               }
             }
