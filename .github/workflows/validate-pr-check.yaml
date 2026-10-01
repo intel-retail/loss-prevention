@@ -56,6 +56,15 @@ jobs:
           script: |
             const pr = context.payload.pull_request;
             const body = pr.body || '';
+            const botLabels = new Set(['dependencies', 'submodule-update']);
+            const labels = (pr.labels || []).map(label => label.name.toLowerCase());
+            const isBotPR =
+              pr.user?.type === 'Bot' ||
+              labels.some(label => botLabels.has(label));
+
+            if (isBotPR) {
+              console.log('Skipping PR body validation for bot PR.');
+            } else {
 
             //
             // Validate Issue Reference
@@ -112,6 +121,7 @@ jobs:
                   `Missing required section: ${section}`
                 );
               }
+            }
             }
 
             console.log('All PR validation checks passed.');
