@@ -104,7 +104,9 @@ The metrics that matter: **FPS, end-to-end latency, CPU/GPU/NPU utilization, pow
 ## Prerequisites
 
 - Ubuntu 24.04 or newer (Linux recommended), Desktop edition (or Server + GUI).
-- [Docker](https://docs.docker.com/engine/install/)
+- Docker:
+    - [Docker Engine](https://docs.docker.com/engine/install/ubuntu/) with the Docker Compose v2 plugin: either Docker's apt repository (`docker-ce` and `docker-compose-plugin`), or Ubuntu's `docker.io` plus `docker-compose-v2`. Check: `docker compose version`
+    - Your user in the `docker` group: `sudo usermod -aG docker $USER`, then log out and back in. Check: `docker ps` works without `sudo`
 - [Make](https://www.gnu.org/software/make/) (`sudo apt install make`)
 - **Python 3** (`sudo apt install python3`) - required for video download and validation scripts
 - Intel hardware (CPU, iGPU, dGPU, NPU) + drivers:
@@ -121,7 +123,7 @@ The metrics that matter: **FPS, end-to-end latency, CPU/GPU/NPU utilization, pow
     export RTSP_STREAM_HOST=rtsp-streamer  # Hostname of RTSP server
     export RTSP_STREAM_PORT=8554           # RTSP port
     export RTSP_MEDIA_DIR=../performance-tools/sample-media  # Video source directory
-    export STREAM_LOOP=false               # Set to 'true' to loop video streams indefinitely
+    export STREAM_LOOP=false               # Default is true (videos loop until make down-lp); set false to play each video once
     ```
 ## QuickStart
 ```sh
@@ -403,6 +405,10 @@ All services run on `my_network` bridge network for DNS resolution;use `rtsp-str
     - `make clean-containers`: Remove stopped containers
     - `make clean-all`: Remove all unused Docker resources
  + __Known Issues__
+    - `unknown shorthand flag: 'f' in -f` from `make run-lp`: the Docker Compose v2 plugin is missing. See [Prerequisites](#prerequisites).
+    - `permission denied while trying to connect to the docker API`: your user isn't in the `docker` group yet, or you haven't logged in again since adding it. See [Prerequisites](#prerequisites).
+    - `make run-lp` exits early at `mkdir -p results results/vlm-results`: `results/` is owned by root from an earlier container run. Fix with `sudo chown -R $USER results`. Tracked in #362.
+    - Each `make run-lp` downloads the sample videos again, because `update-submodules` resets `performance-tools`. Tracked in #362.
     - On EMT OS, containers built on Alpine base images (e.g., MinIO) may report as *unhealthy* despite the service functioning normally.
       Docker health checks are failing with OCI runtime errors, preventing proper container orchestration and monitoring. 
 
