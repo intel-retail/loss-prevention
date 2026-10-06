@@ -92,14 +92,14 @@ This repo covers loss prevention at the self-checkout and point of sale, built o
 - **Visual mode** (`RENDER_MODE=1 DISPLAY=:0`) opens a video window with detection overlays/alerts; the pipeline runs until the video completes. **Headless mode** runs the same pipeline for servers and automated benchmarking.
 - These are **off-the-shelf, non-fine-tuned models**: *expected* misclassifications under real-world conditions are part of an authentic evaluation, not defects to hide. The goal is a faithful performance picture, not a flawless demo.
 - For a 15 fps source, a healthy stream holds **~15 fps per stream**; throughput, latency, and utilization vary by platform and configuration (see §4).
-- Output files (visual + headless): `results/pipeline_stream*.log` (per-stream FPS) and `results/gst-launch_*.log` (full GStreamer output). First run downloads videos, models, and images, so it takes a while.
+- Output files (visual + headless): `results/pipeline_stream*.log` (per-stream `fps,duration_seconds` samples) and `results/gst-launch_*.log` (full GStreamer output). First run downloads videos, models, and images, so it takes a while.
 
 ## How to think about performance & stream density
 The metrics that matter: **FPS, end-to-end latency, CPU/GPU/NPU utilization, power, and stream density** (for GenAI/LVLM use cases also **TTFT** and **token throughput**).
 
 - **Stream density = the most concurrent streams a box sustains at a target FPS.** Because an LP lane is **multi-camera** (six cameras at potentially different frame-rate needs), density is best read as **use-case instances**: “how many shopping lanes with this use case running per box”, judging **each camera against its own FPS target** (use-case density, not a raw stream count).
-- **Reading the result:** a stream cannot sustain more than its source FPS, so any per-stream reading **above** the source rate is a measurement artifact rather than real throughput. Two things cause it. The counter tallies whole frames inside a fixed window, and the window boundary does not line up with frame arrivals, so a window catches one frame more or fewer than expected. On a 15 fps source that shows up as readings of 14, 15 and 16 on a stream whose average is exactly 15, and it happens on a perfectly healthy stream. Under load a second cause appears: a pipeline that has fallen behind processes its buffered frames in a burst as it recovers. That is real work, but it is not a rate the pipeline can hold.
-- **How we measure it:** we ramp the number of streams, let each step settle, then read the sustained per-stream FPS against the target to find the most streams that hold it. `INIT_DURATION` controls the **settle time**:how long the pipelines run before any FPS samples are taken at each density step, so warm-up effects (model load, buffering, autoscaling) are excluded from the measurement. Its default is **10 seconds** (`INIT_DURATION ?= 10` in the `Makefile`). `MEASUREMENT_WINDOW_SECONDS` then controls how long FPS samples are collected for each density step. Its default is **100 seconds**, and each step adds a lane after one passing window. The final count is confirmed by two passing windows in a row, and a lane is only given up after two failing windows in a row. Each window is evaluated independently; windows are not combined into one longer window. A longer settle time gives the pipelines more time to stabilize before measuring, and a longer window can reduce short-term measurement noise, but both increase the total benchmark duration. The resolved settle time is also printed in the stream-density result summary. For example:
+- **Reading the result:** a stream cannot sustain more than its source FPS, so any per-stream reading **above** the source rate is a measurement artifact rather than real throughput. Two things cause it. The counter tallies whole frames inside roughly one-second sampling intervals, and the interval boundary does not line up with frame arrivals, so an interval catches one frame more or fewer than expected. On a 15 fps source that shows up as readings of 14, 15 and 16 on a stream whose average is exactly 15, and it happens on a perfectly healthy stream. Under load a second cause appears: a pipeline that has fallen behind processes its buffered frames in a burst as it recovers. That is real work, but it is not a rate the pipeline can hold.
+- **How we measure it:** we ramp the number of streams, let each step complete its warmup period, then read the sustained per-stream FPS against the target to find the most streams that hold it. `INIT_DURATION` controls the **warmup period**: how long the pipelines run before any FPS samples are taken at each density step, so warm-up effects (model load, buffering, autoscaling) are excluded from the measurement. Its default is **10 seconds** (`INIT_DURATION ?= 10` in the `Makefile`). `MEASUREMENT_WINDOW_SECONDS` controls the **minimum measurement interval** for FPS samples at each density step. Its default is **100 seconds**, and each step adds a lane after one passing measurement interval. The measured FPS used for pass/fail is the sum of each sample's FPS times its reported duration, divided by the sum of those durations. The result shows that same measured FPS alongside p10 and p90 of the same FPS samples. These rates are estimates because the counter rounds FPS and duration. Every interval requires at least **100 valid samples from each pipeline log**; if needed, collection extends by up to one additional configured interval. If the sample floor is still unmet, the interval is reported as **inconclusive** and is not used for a pass/fail decision. The final count is confirmed by the run acceptance criterion (two consecutive passes), and a lane is only given up after two consecutive failing measurement intervals. Each measurement interval is evaluated independently; intervals are not combined into one longer interval. A longer warmup period gives the pipelines more time to stabilize before measuring, and a longer measurement interval can reduce short-term measurement noise, but both increase the total benchmark duration. The resolved warmup period is also printed in the stream-density result summary. For example:
 
   ```sh
   make benchmark-stream-density \
@@ -114,7 +114,7 @@ The stream-density benchmark resolves the effective target FPS for each camera u
 1. `TARGET_FPS` environment variable, when explicitly supplied. This overrides the camera configuration for every stream.
 2. Per-camera `targetFps` in the selected `camera_to_workload_*.json` file. This is the explicit benchmark target for that camera.
 3. Per-camera `fps` in the camera configuration. This is used as the fallback target when `targetFps` is not present or is not a positive value.
-4. The default target FPS, currently `14.95`, when neither camera field provides a positive value.
+4. The default target FPS, currently `15`, when neither camera field provides a positive value.
 
 `TARGET_FPS` is an environment/command-line override, while `targetFps` and `fps` are JSON fields. The resolved target value and its source are recorded in `stream_density.log` so the benchmark result can be audited.
 
@@ -304,7 +304,7 @@ __What to Expect__
 
 + *Visual and Headless Mode*
    - Verify that these output files are created and contain data:     
-     - `<loss-prevention-workspace>/results/pipeline_stream*.log`: per-stream FPS metrics (one value per line)
+    - `<loss-prevention-workspace>/results/pipeline_stream*.log`: per-stream `fps,duration_seconds` samples (one CSV row per counter interval)
      - `<loss-prevention-workspace>/results/gst-launch_*.log`: full GStreamer logs
               
    - Expected result:
@@ -353,8 +353,8 @@ These settings control which configurations are benchmarked and how the stream-d
 |---|---|---|
 | `CAMERA_STREAM` | Camera/workload configuration | `camera_to_workload.json` |
 | `WORKLOAD_DIST` | Workload-to-pipeline configuration | `workload_to_pipeline.json` |
-| `INIT_DURATION` | Settle time before FPS measurement begins at each density step | `10` seconds |
-| `MEASUREMENT_WINDOW_SECONDS` | FPS collection duration per window | `100` seconds |
+| `INIT_DURATION` | Warmup period before FPS measurement begins at each density step | `10` seconds |
+| `MEASUREMENT_WINDOW_SECONDS` | Minimum FPS collection duration per interval; may extend by up to one additional configured interval to collect 100 samples per pipeline log | `100` seconds |
 | `DENSITY_INCREMENT` | Pipelines added during scaling | `1` |
 | `TARGET_FPS` | Explicit override for all streams | unset |
 | `targetFps` (JSON field) | Per-camera target in `camera_to_workload_*.json` | Per configuration |
