@@ -3,7 +3,7 @@ include:
 
 services:
   ovms-vlm:
-    devices: !reset
+    devices: !override
       - /dev/dxg:/dev/dxg
     volumes:
       - /usr/lib/wsl/lib:/usr/lib/wsl/lib:ro
@@ -14,7 +14,7 @@ services:
       LD_LIBRARY_PATH: /usr/lib/wsl/lib:/usr/lib/wsl/drivers:/usr/lib/x86_64-linux-gnu/intel-opencl:/ovms/lib
 
   lp-vlm-workload-handler:
-    devices: !reset
+    devices: !override
       - /dev/dxg:/dev/dxg
     volumes:
       - /usr/lib/wsl/lib:/usr/lib/wsl/lib:ro

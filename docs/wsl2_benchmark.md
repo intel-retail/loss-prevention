@@ -18,11 +18,12 @@ Install Python 3 on Windows and install the host dependencies in PowerShell:
 python -m pip install psutil pywin32
 ```
 
-Set `WINDOWS_PYTHON` in the root Makefile to your Windows interpreter's WSL
-executable path, for example:
+The Makefile defaults to `WINDOWS_PYTHON ?= python.exe`. Override it only when
+`python.exe` is not on WSL's `PATH` or you need a specific interpreter, using the
+interpreter's WSL executable path:
 
 ```makefile
-WINDOWS_PYTHON ?= /mnt/c/Users/intel/AppData/Local/Programs/Python/Python311/python.exe
+WINDOWS_PYTHON ?= /mnt/c/Users/<YourName>/AppData/Local/Programs/Python/Python311/python.exe
 ```
 
 The collector and dependency setup use that executable directly. There is no
