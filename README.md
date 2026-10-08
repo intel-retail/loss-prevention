@@ -150,14 +150,7 @@ Run `ls configs/workload_to_pipeline_*` to confirm what your checkout provides. 
 > **View results for any benchmark/density run:** `make consolidate-metrics` → `cat benchmark/metrics.csv` and `make plot-metrics` → utilization chart.
 >For Advanced Benchmark settings, :point_right: [Benchmarking Guide](https://intel-retail.github.io/documentation/use-cases/loss-prevention/performance.html)
 
-**Windows/WSL2:** start with the [WSL setup guide](docs/wsl2_setup.md), then
-complete the [hardware metrics prerequisites](docs/wsl_hardware_metrics.md).
-See [WSL benchmark metrics](docs/wsl2_benchmark.md) for automatic collection,
-output files, and reporting limitations. Use `WSL2=true` (not `WSL=true`);
-outputs default to `benchmark/`. GPU power and native Windows PCM require
-supported hardware and per-host setup. Unavailable measurements are `NA`,
-while NPU uses the intentional WSL-only `0.00` default. The existing plotting
-command has no new integration for the Windows hardware summary.
+**Windows/WSL2:** Follow the [WSL setup guide](docs/wsl2_setup.md), complete the [hardware metrics prerequisites](docs/wsl_hardware_metrics.md), and use the [WSL benchmark metrics guide](docs/wsl2_benchmark.md) when benchmarking. WSL2 currently supports CPU and GPU workloads; NPU workloads are not supported.
 
 #### 1 · Self-checkout
 
