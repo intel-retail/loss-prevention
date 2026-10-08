@@ -56,6 +56,21 @@ INFERENCE_INTERVAL ?= 3
 REGISTRY ?= true
 DOCKER_COMPOSE ?= docker-compose.yml
 STREAM_LOOP ?= true
+WSL2 ?= $(if $(shell uname -r | grep -i microsoft),true,false)
+export WSL2
+WINDOWS_PYTHON ?= python.exe
+export WINDOWS_PYTHON
+WINDOWS_PCM_EXE ?= C:\Program Files\PCM\pcm.exe
+export WINDOWS_PCM_EXE
+WINDOWS_LHM_DLL ?= C:\Program Files\LibreHardwareMonitor\LibreHardwareMonitorLib.dll
+export WINDOWS_LHM_DLL
+WINDOWS_GPU_POWER_SENSOR ?= /gpu-intel-integrated/%5C%5C%3F%5CPCI%23VEN_8086%26DEV_7D51%26SUBSYS_88FE1043%26REV_03%233%2611583659%260%2610%23%7B1ca05180-a699-450a-9a0c-de4fbe3ddd89%7D/power/0
+export WINDOWS_GPU_POWER_SENSOR
+WINDOWS_GPU_POWER_ADAPTER ?= luid_0x00000000_0x0000B457_phys_0
+export WINDOWS_GPU_POWER_ADAPTER
+ifeq ($(WSL2),true)
+DOCKER_COMPOSE := docker-compose-wsl2.yml
+endif
 
 # OVMS and VLM defaults
 VLM_BACKEND ?= ovms
@@ -203,6 +218,7 @@ check-device-env:
 	@echo "[INFO] Environment configuration valid"
 
 run-lp: validate_workload_mapping update-submodules download-sample-videos
+	@echo "[INFO] WSL2=$(WSL2) | DOCKER_COMPOSE=$(DOCKER_COMPOSE)"
 	@echo "Running loss prevention pipeline"
 	@LOG_FILE="vlm_loss_prevention.log"; \
 	mkdir -p $$(dirname $$LOG_FILE); \
@@ -267,7 +283,11 @@ fetch-benchmark:
 
 build-benchmark:
 	@echo "Building benchmark Docker image..."$(REGISTRY)
-	@if [ "$(REGISTRY)" = "true" ]; then \
+	@if [ "$(WSL2)" = "true" ]; then \
+		echo "WSL2: using Windows host metrics; no collector image required"; \
+		"$(WINDOWS_PYTHON)" -c 'import os; assert os.name == "nt", "Windows Python is required"' || { echo "ERROR: Set WINDOWS_PYTHON in Makefile or .env to the Windows python.exe executable using its WSL path."; exit 1; }; \
+		"$(WINDOWS_PYTHON)" -m pip install psutil pywin32; \
+	elif [ "$(REGISTRY)" = "true" ]; then \
 		$(MAKE) fetch-benchmark; \
 	else \
 		cd performance-tools && $(MAKE) build-benchmark-docker; \
@@ -329,7 +349,9 @@ benchmark-stream-density: build-benchmark download-sample-videos download-models
 	)
 	
 benchmark-quickstart: download-models download-sample-videos
-	@if [ "$(REGISTRY)" = "true" ]; then \
+	@if [ "$(WSL2)" = "true" ]; then \
+		$(MAKE) build-benchmark; \
+	elif [ "$(REGISTRY)" = "true" ]; then \
 		echo "Using registry mode - skipping benchmark container build..."; \
 	else \
 		echo "Building benchmark container locally..."; \
@@ -344,7 +366,7 @@ benchmark-quickstart: download-models download-sample-videos
 	python3 -m venv venv && \
 	. venv/bin/activate && \
 	pip3 install -r requirements.txt && \
-	python3 benchmark.py --compose_file ../../src/$(DOCKER_COMPOSE) --pipelines $(PIPELINE_COUNT) --results_dir $(RESULTS_DIR) $$(if [ "$(REGISTRY)" = "true" ]; then echo "--benchmark_type=reg"; fi); \
+		python3 benchmark.py --compose_file ../../src/$(DOCKER_COMPOSE) --pipelines $(PIPELINE_COUNT) --results_dir $(RESULTS_DIR) $$(if [ "$(REGISTRY)" = "true" ]; then echo "--benchmark_type=reg"; fi); \
 	deactivate \
 	)
 	$(MAKE) consolidate-metrics

@@ -150,6 +150,8 @@ Run `ls configs/workload_to_pipeline_*` to confirm what your checkout provides. 
 > **View results for any benchmark/density run:** `make consolidate-metrics` → `cat benchmark/metrics.csv` and `make plot-metrics` → utilization chart.
 >For Advanced Benchmark settings, :point_right: [Benchmarking Guide](https://intel-retail.github.io/documentation/use-cases/loss-prevention/performance.html)
 
+**Windows/WSL2:** Follow the [WSL setup guide](docs/wsl2_setup.md), complete the [hardware metrics prerequisites](docs/wsl_hardware_metrics.md), and use the [WSL benchmark metrics guide](docs/wsl2_benchmark.md) when benchmarking. WSL2 currently supports CPU and GPU workloads; NPU workloads are not supported.
+
 #### 1 · Self-checkout
 
 **Run it, detection + classification on the iGPU**

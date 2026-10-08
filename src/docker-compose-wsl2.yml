@@ -1,0 +1,34 @@
+include:
+  - path: docker-compose.yml
+
+services:
+  ovms-vlm:
+    devices: !override
+      - /dev/dxg:/dev/dxg
+    volumes:
+      - /usr/lib/wsl/lib:/usr/lib/wsl/lib:ro
+      - /usr/lib/wsl/drivers:/usr/lib/wsl/drivers:ro
+      - /etc/OpenCL:/etc/OpenCL:ro
+      - /usr/lib/x86_64-linux-gnu/intel-opencl:/usr/lib/x86_64-linux-gnu/intel-opencl:ro
+    environment:
+      LD_LIBRARY_PATH: /usr/lib/wsl/lib:/usr/lib/wsl/drivers:/usr/lib/x86_64-linux-gnu/intel-opencl:/ovms/lib
+
+  lp-vlm-workload-handler:
+    devices: !override
+      - /dev/dxg:/dev/dxg
+    volumes:
+      - /usr/lib/wsl/lib:/usr/lib/wsl/lib:ro
+      - /usr/lib/wsl/drivers:/usr/lib/wsl/drivers:ro
+      - /etc/OpenCL:/etc/OpenCL:ro
+    environment:
+      LD_LIBRARY_PATH: /usr/lib/wsl/lib:/usr/lib/wsl/drivers:/opt/intel/openvino/runtime/lib/intel64
+
+  lp-pipeline-runner:
+    devices:
+      - /dev/dxg:/dev/dxg
+    volumes:
+      - /usr/lib/wsl/lib:/usr/lib/wsl/lib:ro
+      - /usr/lib/wsl/drivers:/usr/lib/wsl/drivers:ro
+      - /etc/OpenCL:/etc/OpenCL:ro
+    environment:
+      VIDEO_SINK: ximagesink

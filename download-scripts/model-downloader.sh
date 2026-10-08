@@ -17,6 +17,18 @@ ovms_model_ready() {
     [[ -f "$model_dir/graph.pbtxt" ]] && ls "$model_dir"/*.xml >/dev/null 2>&1
 }
 
+model_ready() {
+    local model_dir="$MODELS_PATH/$1/$MODEL_NAME"
+    [[ -s "$model_dir/$PRECISION/$MODEL_NAME.xml" &&
+       -s "$model_dir/$PRECISION/$MODEL_NAME.bin" ]] || return 1
+    if [[ "$MODEL_NAME" == age-gender-recognition-retail-* ||
+          "$MODEL_NAME" == face-detection-retail-* ||
+          "$MODEL_NAME" == face-reidentification-retail-* ]]; then
+        [[ -s "$model_dir/$MODEL_NAME.json" ]] || return 1
+    fi
+    return 0
+}
+
 ############################################
 # MODE 1: JSON-driven (bulk download)
 ############################################
@@ -60,7 +72,7 @@ if [[ -n "${WORKLOAD_DIST:-}" && -f "$CONFIG_JSON" ]]; then
                 echo "[INFO] VLM Detection Model | $MODEL_NAME | $PRECISION"
                 
                 # Skip if already exists
-                if find "$MODELS_PATH" -type f -path "*/$MODEL_NAME/*.xml" | grep -q "$MODEL_NAME.xml"; then
+                if model_ready object_detection; then
                     echo "[INFO] Detection Model $MODEL_NAME already exists, skipping"
                 else
                     bash "$SCRIPT_BASE_PATH/model-handler.sh"
@@ -77,7 +89,11 @@ if [[ -n "${WORKLOAD_DIST:-}" && -f "$CONFIG_JSON" ]]; then
             echo "[INFO] $TYPE | $MODEL | $PRECISION"
             
             # Skip if already exists
-            if find "$MODELS_PATH" -type f -path "*/$MODEL_NAME/*.xml" | grep -q "$MODEL_NAME.xml"; then
+            MODEL_SUBDIR=object_classification
+            if [[ "$TYPE" == "gvadetect" ]]; then
+                MODEL_SUBDIR=object_detection
+            fi
+            if model_ready "$MODEL_SUBDIR"; then
                 echo "[INFO] Model $MODEL_NAME already exists, skipping"
                 continue
             fi

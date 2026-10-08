@@ -39,12 +39,12 @@ OMZ_DIR="/tmp/open_model_zoo"
 echo "=== Preparing directories ..."
 mkdir -p "$MODELS_PATH"
 
-MODEL_XML_FP16="$MODELS_PATH/$MODEL_NAME/FP16/$MODEL_NAME.xml"
+MODEL_XML="$MODELS_PATH/$MODEL_NAME/$PRECISION/$MODEL_NAME.xml"
+MODEL_BIN="$MODELS_PATH/$MODEL_NAME/$PRECISION/$MODEL_NAME.bin"
 
-if [ -f "$MODEL_XML_FP16" ] ; then
-    echo "✓ Model $MODEL_NAME already exists in $MODELS_PATH"
-    exit 0
-fi
+if [[ -s "$MODEL_XML" && -s "$MODEL_BIN" ]]; then
+    echo "Model $MODEL_NAME ($PRECISION) already exists in $MODELS_PATH"
+else
 
 # ==============================
 # 3️⃣ Clone full OMZ repo
@@ -71,12 +71,15 @@ python3 "$TOOLS_DIR/downloader.py" \
 # 5️⃣ Move model and cleanup
 # ==============================
 if [ -d "$MODELS_PATH/intel/$MODEL_NAME" ]; then
-    mv "$MODELS_PATH/intel/$MODEL_NAME" "$MODELS_PATH/" || true
+    mkdir -p "$MODELS_PATH/$MODEL_NAME"
+    cp -a "$MODELS_PATH/intel/$MODEL_NAME/." "$MODELS_PATH/$MODEL_NAME/"
+    rm -rf "$MODELS_PATH/intel/$MODEL_NAME"
     rmdir --ignore-fail-on-non-empty "$MODELS_PATH/intel" 2>/dev/null || true
 fi
 
 echo "=== Cleaning up Open Model Zoo repo ..."
 rm -rf "$OMZ_DIR"
+fi
 
 # ==============================
 # 6️⃣ Download model_proc JSON
@@ -90,14 +93,16 @@ if [[ "$MODEL_NAME" == face-reidentification-retail-* ]] || [[ "$MODEL_NAME" == 
     fi
     MODEL_PROC_PATH="$MODELS_PATH/$MODEL_NAME/${MODEL_NAME}.json"
 
-    if [[ -f "$MODEL_PROC_PATH" ]]; then
+    if [[ -s "$MODEL_PROC_PATH" ]]; then
         echo "[INFO] Model proc JSON already exists at $MODEL_PROC_PATH, skipping download"
     else
-        if wget --no-check-certificate --timeout=30 --tries=2 "$MODEL_PROC_URL" -P "$(dirname "$MODEL_PROC_PATH")"; then
+        mkdir -p "$(dirname "$MODEL_PROC_PATH")"
+        if wget --timeout=30 --tries=2 "$MODEL_PROC_URL" -O "$MODEL_PROC_PATH" && [[ -s "$MODEL_PROC_PATH" ]]; then
             echo "[INFO] Successfully downloaded model_proc JSON for $MODEL_NAME"
         else
-            echo "[WARN] Failed to download model_proc JSON from $MODEL_PROC_URL"
-            echo "[WARN] Model $MODEL_NAME may not work properly without model_proc configuration"
+            rm -f "$MODEL_PROC_PATH"
+            echo "[ERROR] Failed to download model_proc JSON from $MODEL_PROC_URL" >&2
+            exit 1
         fi
     fi
 else
@@ -108,6 +113,10 @@ fi
 # 7️⃣ Verify download
 # ==============================
 echo "=== Listing downloaded model files ..."
+if [[ ! -s "$MODEL_XML" || ! -s "$MODEL_BIN" ]]; then
+    echo "[ERROR] Missing model files for $MODEL_NAME ($PRECISION)" >&2
+    exit 1
+fi
 find "$MODELS_PATH/$MODEL_NAME" -type f \( -name "*.xml" -o -name "*.bin" \) | sort
 
 echo "✅ Model $MODEL_NAME downloaded successfully into $MODELS_PATH"
