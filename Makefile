@@ -58,7 +58,7 @@ DOCKER_COMPOSE ?= docker-compose.yml
 STREAM_LOOP ?= true
 WSL2 ?= $(if $(shell uname -r | grep -i microsoft),true,false)
 export WSL2
-WINDOWS_PYTHON ?= /mnt/c/Users/intel/AppData/Local/Programs/Python/Python311/python.exe
+WINDOWS_PYTHON ?= python.exe
 export WINDOWS_PYTHON
 WINDOWS_PCM_EXE ?= C:\Program Files\PCM\pcm.exe
 export WINDOWS_PCM_EXE

@@ -84,10 +84,10 @@ export WINDOWS_PYTHON="/mnt/c/Users/intel/AppData/Local/Programs/Python/Python31
 
 The verification must print the installed executable and `nt`. Stop and correct the path if it fails.
 
-For future Make invocations, set the same path in the root Makefile's existing assignment:
+For future Make invocations, the Makefile defaults to `WINDOWS_PYTHON ?= python.exe`, which works when `python.exe` resolves through WSL's `PATH` interop. Override it only if the verification above failed or you need a specific interpreter:
 
 ```makefile
-WINDOWS_PYTHON ?= /mnt/c/Users/intel/AppData/Local/Programs/Python/Python311/python.exe
+WINDOWS_PYTHON ?= /mnt/c/Users/<YourName>/AppData/Local/Programs/Python/Python311/python.exe
 ```
 
 Alternatively, put `WINDOWS_PYTHON = /mnt/c/.../python.exe` with your full path in the root `.env` to keep machine-specific configuration out of the Makefile. Make assignments do not need surrounding quotes, even for paths containing spaces. Keep the existing `export WINDOWS_PYTHON` in the Makefile.
