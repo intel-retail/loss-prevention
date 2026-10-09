@@ -80,6 +80,19 @@ if [ "${VLM_WORKLOAD_ENABLED}" = "0" ]; then
     done < "$pipeline_file"
 
     echo "Extracted stream names: ${source_names[*]}"
+
+    stream_manifest="$pipelines_dir/${pipeline_file_name%.sh}_streams.json"
+    if [ -f "$stream_manifest" ]; then
+        manifest_count=$(python3 -c 'import json,sys; print(len(json.load(open(sys.argv[1]))["streams"]))' "$stream_manifest")
+        if [[ "$manifest_count" -ne "${#source_names[@]}" ]]; then
+            echo "################# ERROR: $stream_manifest lists $manifest_count streams but pipeline has ${#source_names[@]} sources ###################"
+            exit 1
+        fi
+        cp "$stream_manifest" "$results_dir/pipeline_streams_${cid}.json"
+    else
+        echo "WARN: stream manifest not found at $stream_manifest"
+    fi
+
     # Create per-stream pipeline log files using extracted names
     declare -a pipeline_logs
     pipeline_logs=()  # Initialize as empty array to prevent unbound variable error
