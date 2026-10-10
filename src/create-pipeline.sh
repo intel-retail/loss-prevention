@@ -38,6 +38,10 @@ cid=$(date +%Y%m%d%H%M%S)$(date +%6N | cut -c1-6)
 export TIMESTAMP=$cid
 echo "===============TIMESTAMP===================: $TIMESTAMP"
 
+# Maps each pipeline_stream<N> log to its lane and camera; read by run-pipeline.sh and stream_density.py
+export STREAM_MANIFEST_PATH="$pipelines_dir/${pipeline_file_name%.sh}_streams.json"
+rm -f "$STREAM_MANIFEST_PATH"
+
 gst_cmd=$(python3 "$(dirname "$0")/gst-pipeline-generator.py" "$NUM_OF_PIPELINES")    
 
 # Exit container if gst_cmd is empty or whitespace

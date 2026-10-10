@@ -275,7 +275,7 @@ def build_gst_element(cfg):
         elem = cfg["type"]
     return elem, DECODE
 
-def build_dynamic_gstlaunch_command(camera, workloads, workload_map, branch_idx=0, model_instance_map=None, detect_counter=None, classify_counter=None, inference_counter=None, name_idx_counter=None, timestamp=None):
+def build_dynamic_gstlaunch_command(camera, workloads, workload_map, branch_idx=0, model_instance_map=None, detect_counter=None, classify_counter=None, inference_counter=None, name_idx_counter=None, timestamp=None, lane_idx=0, camera_index=None, stream_manifest=None):
     if model_instance_map is None:
         model_instance_map = {}
     if detect_counter is None:
@@ -295,6 +295,7 @@ def build_dynamic_gstlaunch_command(camera, workloads, workload_map, branch_idx=
     source_name = derive_stream_name(camera, stream_uri)
     signature_to_steps = {}
     signature_to_source = {}
+    signature_to_workloads = {}
     queue_params = "max-size-buffers=3 max-size-time=100000000 leaky=downstream"
     for w in workloads:
         if w in workload_map:
@@ -326,6 +327,7 @@ def build_dynamic_gstlaunch_command(camera, workloads, workload_map, branch_idx=
                 } for s in steps
             ], sort_keys=True)
             sig = model_prec_signature
+            signature_to_workloads.setdefault(sig, []).append(w)
             if sig not in signature_to_steps:
                 signature_to_steps[sig] = steps
                 if stream_uri:
@@ -437,7 +439,17 @@ def build_dynamic_gstlaunch_command(camera, workloads, workload_map, branch_idx=
                     pipeline += f" ! queue {queue_params}"
         name_idx_counter[0] += 1
         tee_name = f"t{branch_idx+1}_{idx+1}_{name_idx_counter[0]}"
-        stream_id = f"stream{branch_idx+1}_{idx+1}_{name_idx_counter[0]}"
+        # gvafpscounter reports streams sorted by name; lane-first zero-padded names keep that equal to emit order
+        stream_id = f"stream_l{lane_idx:04d}_c{branch_idx:03d}_b{idx:02d}"
+        if stream_manifest is not None:
+            stream_manifest.append({
+                "fpscounter": stream_id,
+                "lane": lane_idx,
+                "camera_index": branch_idx if camera_index is None else camera_index,
+                "camera_id": camera_id,
+                "branch": idx,
+                "workloads": signature_to_workloads.get(sig, []),
+            })
         has_gvapython = any(step.get("type") == "gvapython" for step in steps)
         if not has_gvapython:
             pipeline += f" ! gvametaconvert "
@@ -477,6 +489,21 @@ def format_pipeline_branch(pipeline):
     # Wrap in parentheses for GStreamer parallel branches
     return f'({pipeline})'
 
+def write_stream_manifest(stream_manifest):
+    manifest_path = os.environ.get("STREAM_MANIFEST_PATH")
+    if not manifest_path:
+        return
+    # Byte order matches gvafpscounter's std::map<std::string> ordering of per-stream FPS values
+    ordered = sorted(stream_manifest, key=lambda entry: entry["fpscounter"].encode())
+    if [e["fpscounter"] for e in ordered] != [e["fpscounter"] for e in stream_manifest]:
+        print("Error: FPS counter names do not sort in pipeline order", file=sys.stderr)
+        sys.exit(1)
+    for log_index, entry in enumerate(ordered):
+        entry["log_index"] = log_index
+    os.makedirs(os.path.dirname(manifest_path) or ".", exist_ok=True)
+    with open(manifest_path, "w") as f:
+        json.dump({"streams": ordered}, f, indent=2)
+
 def main(num_of_pipelines=1):
     # Ensure results directory exists at project root before running pipeline
     results_dir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "results"))
@@ -498,7 +525,7 @@ def main(num_of_pipelines=1):
     cameras = camera_config["lane_config"]["cameras"]
     filtered_cameras = []
     
-    for cam in cameras:
+    for cam_cfg_idx, cam in enumerate(cameras):
         workloads = cam.get("workloads", [])
         # Support both list and single string
         if isinstance(workloads, str):
@@ -512,15 +539,17 @@ def main(num_of_pipelines=1):
             print(f"Skipping camera {cam.get('camera_id', 'unknown')} with lp_vlm workload", file=sys.stderr)
             continue
         
-        filtered_cameras.append(cam)
+        filtered_cameras.append((cam_cfg_idx, cam))
     
+    stream_manifest = []
     # Process only filtered cameras
     for pipeline_instance in range(num_of_pipelines):
-        for idx, cam in enumerate(filtered_cameras):
+        for idx, (cam_cfg_idx, cam) in enumerate(filtered_cameras):
             workloads = [w.lower() for w in cam["workloads"]]
             norm_workload_map = {k.lower(): v for k, v in workload_map.items()}
-            cam_pipelines = build_dynamic_gstlaunch_command(cam, workloads, norm_workload_map, branch_idx=idx, model_instance_map=model_instance_map, detect_counter=detect_counter, classify_counter=classify_counter, inference_counter=inference_counter, name_idx_counter=name_idx_counter, timestamp=timestamp)
+            cam_pipelines = build_dynamic_gstlaunch_command(cam, workloads, norm_workload_map, branch_idx=idx, model_instance_map=model_instance_map, detect_counter=detect_counter, classify_counter=classify_counter, inference_counter=inference_counter, name_idx_counter=name_idx_counter, timestamp=timestamp, lane_idx=pipeline_instance, camera_index=cam_cfg_idx, stream_manifest=stream_manifest)
             pipelines.extend([p.strip() for p in cam_pipelines])
+    write_stream_manifest(stream_manifest)
     # Print gst-launch-1.0 --verbose and all pipelines, each filesrc on a new line, with a backslash at the end except the last
     gst_debug = os.getenv('GST_DEBUG', 'GST_TRACER:7,gvafpscounter:4')
     gst_tracers = os.getenv('GST_TRACERS', 'latency_tracer(flags=pipeline)')

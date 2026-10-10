@@ -80,6 +80,19 @@ if [ "${VLM_WORKLOAD_ENABLED}" = "0" ]; then
     done < "$pipeline_file"
 
     echo "Extracted stream names: ${source_names[*]}"
+
+    stream_manifest="$pipelines_dir/${pipeline_file_name%.sh}_streams.json"
+    if [ -f "$stream_manifest" ]; then
+        manifest_count=$(python3 -c 'import json,sys; print(len(json.load(open(sys.argv[1]))["streams"]))' "$stream_manifest")
+        if [[ "$manifest_count" -ne "${#source_names[@]}" ]]; then
+            echo "################# ERROR: $stream_manifest lists $manifest_count streams but pipeline has ${#source_names[@]} sources ###################"
+            exit 1
+        fi
+        cp "$stream_manifest" "$results_dir/pipeline_streams_${cid}.json"
+    else
+        echo "WARN: stream manifest not found at $stream_manifest"
+    fi
+
     # Create per-stream pipeline log files using extracted names
     declare -a pipeline_logs
     pipeline_logs=()  # Initialize as empty array to prevent unbound variable error
@@ -91,7 +104,7 @@ if [ "${VLM_WORKLOAD_ENABLED}" = "0" ]; then
         logfile="$results_dir/pipeline_stream${i}_${cid}.log"
         #logfile="$results_dir/pipeline${cid}_${safe_name}.log"
         pipeline_logs+=("$logfile")
-        > "$logfile"  # empty the file
+        printf 'fps,duration_seconds\n' > "$logfile"
         echo "Created log file: $logfile"
     done
 
@@ -121,8 +134,9 @@ if [ "${VLM_WORKLOAD_ENABLED}" = "0" ]; then
     # Read the gst log file in "tail -F" mode
     tail -F "$gst_log" | while read -r line; do
         # Match only FpsCounter(last ...) lines (ignore 'average' lines)
-        if [[ "$line" =~ FpsCounter\(last.*number-streams=([0-9]+) ]]; then
-            num_streams="${BASH_REMATCH[1]}"
+        if [[ "$line" =~ FpsCounter\(last[[:space:]]+([0-9]+\.[0-9]+)sec\).*number-streams=([0-9]+) ]]; then
+            sample_duration="${BASH_REMATCH[1]}"
+            num_streams="${BASH_REMATCH[2]}"
             if [[ "$num_streams" -eq "$source_count" ]]; then
                 if [[ "$num_streams" -eq 1 ]]; then
                     if [[ "$line" =~ per-stream=([0-9]+\.[0-9]+) ]]; then
@@ -142,7 +156,7 @@ if [ "${VLM_WORKLOAD_ENABLED}" = "0" ]; then
                 for idx in "${!fps_array[@]}"; do
                     fps="${fps_array[idx]}"
                     if [[ idx -lt ${#pipeline_logs[@]} ]]; then
-                        echo "$fps" >> "${pipeline_logs[idx]}"
+                        printf '%s,%s\n' "$fps" "$sample_duration" >> "${pipeline_logs[idx]}"
                     fi
                 done
             fi
