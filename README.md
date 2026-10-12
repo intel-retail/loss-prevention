@@ -2,7 +2,9 @@
 > Part of the **Intel® Retail AI Suite**: open-source, runnable AI workloads that let you measure real performance on Intel hardware and decide whether it fits your deployment.
 
 > [!WARNING]
->  The **main** branch  is work-in-progress and not guaranteed stable. For the latest stable release :point_right: [Releases](https://github.com/intel-retail/loss-prevention/releases)
+>  The **main** branch  is work-in-progress and not guaranteed stable. For the latest stable release, clone its tag with git as shown in [QuickStart](#quickstart). The tags are listed on :point_right: [Releases](https://github.com/intel-retail/loss-prevention/releases).
+>
+> Don't use the **Source code (zip / tar.gz)** download from the Releases page: `make` needs a git clone to fetch the `performance-tools` submodule, and GitHub's archives leave it out.
 
 > [!IMPORTANT]
 > **Migrating from Automated Self-Checkout (ASC)?** The `automated-self-checkout` repo is **End-of-Life (retiring end of September 2026)**. Its pipelines and all future updates, issues, and contributions moved here. The ASC use cases (object detection, object-detection + classification, age verification) run in this repo: see [Use cases](#use-cases-in-this-repo) and [Walkthroughs](#per-use-case-walkthroughs).
@@ -125,7 +127,7 @@ The metrics that matter: **FPS, end-to-end latency, CPU/GPU/NPU utilization, pow
     ```
 ## QuickStart
 ```sh
-git clone -b <release-or-tag> --single-branch https://github.com/intel-retail/loss-prevention  # e.g. v4.0.0
+git clone -b v2026.2.0 --single-branch --recurse-submodules https://github.com/intel-retail/loss-prevention  # latest release tag; newer tags on the Releases page
 cd loss-prevention
 RENDER_MODE=1 DISPLAY=:0 make run-lp      # visual: see detections live (recommended first run)
 make run-lp                               # headless
