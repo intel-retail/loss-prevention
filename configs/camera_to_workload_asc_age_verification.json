@@ -2,6 +2,12 @@
   "_notes": {
     "targetFps": "Optional per-camera key. Add lane_config.cameras[].targetFps to set per-stream target FPS. If omitted, stream density falls back to global TARGET_FPS."
   },
+  "_about": {
+    "name": "Self-checkout lane with age verification",
+    "summary": "One lane runs two pipelines at once: a product camera detects items with YOLO11n and classifies them with EfficientNet-B0, and a customer-facing camera detects faces and estimates each customer's age",
+    "cameras": "Two cameras at 15 fps, one scanning products and one facing the customer",
+    "why_run_it": "Shows whether a system can run a complete lane, scanning plus age verification for age-restricted sales, at the frame rate each camera needs"
+  },
   "lane_config": {
     "cameras": [
       {
@@ -10,7 +16,7 @@
         "width": 1080,
         "height": 1920,
         "fileSrc":"age_prediction-1920-15-bench.mp4|https://www.pexels.com/download/video/3249935", 
-        "workloads": ["asc_obj_detection_age_prediction_face_detection"]
+        "workloads": ["asc_face_detection_age_prediction"]
       },
       {
         "camera_id": "cam2",
@@ -18,7 +24,7 @@
         "width": 1080,
         "height": 1920,
         "fileSrc":"obj_classification-1920-15-bench.mp4|https://www.pexels.com/download/video/6891009", 
-        "workloads": ["asc_obj_detection_age_prediction"]
+        "workloads": ["asc_product_detection_classification"]
       }
     ]
   }

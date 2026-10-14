@@ -1,6 +1,6 @@
 {
   "workload_pipeline_map": {
-    "asc_obj_detection_age_prediction": [
+    "asc_product_detection_classification": [
       {
         "type": "gvadetect",
         "model": "yolo11n",
@@ -14,7 +14,7 @@
         "precision": "FP16-INT8"
       }
     ],
-    "asc_obj_detection_age_prediction_face_detection": [
+    "asc_face_detection_age_prediction": [
       {
         "type": "gvadetect",
         "model": "face-detection-retail-0004",

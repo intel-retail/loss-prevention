@@ -2,6 +2,12 @@
   "_notes": {
     "targetFps": "Optional per-camera key. Add lane_config.cameras[].targetFps to set per-stream target FPS. If omitted, stream density falls back to global TARGET_FPS."
   },
+  "_about": {
+    "name": "Self-checkout lane with a vision-language model",
+    "summary": "YOLO11n detects items in the lane, and a local vision-language model (Qwen2.5-VL-7B-Instruct) identifies the specific product beyond the detector's generic class",
+    "cameras": "One lane camera at 15 fps",
+    "why_run_it": "Shows what adding a local vision-language model to a lane costs, in stream density and in time to first token and token throughput"
+  },
   "lane_config": {
     "cameras": [
       {
