@@ -12,6 +12,36 @@ from typing import Dict, List, Any, Optional
 import os
 
 
+def print_camera_config_about(config_path: str) -> None:
+    """Print scenario details from a camera config's _about section."""
+    try:
+        with open(config_path, 'r') as f:
+            config = json.load(f)
+    except (OSError, json.JSONDecodeError):
+        return
+
+    if not isinstance(config, dict):
+        return
+    about = config.get('_about', {})
+    if not isinstance(about, dict):
+        return
+
+    fields = (
+        ('name', 'Scenario'),
+        ('summary', 'Summary'),
+        ('cameras', 'Cameras'),
+        ('why_run_it', 'Why run it'),
+    )
+    if not any(about.get(key) for key, _ in fields):
+        return
+
+    print('Camera config _about:')
+    for key, label in fields:
+        value = about.get(key)
+        if value:
+            print(f'{label}: {value}')
+
+
 class ConfigValidator:
     def validate_workload_mapping(self, pipeline_config_path: str, camera_config_path: str) -> bool:
         """Check that all workloads in camera_to_workload.json exist in workload_to_pipeline.json."""
@@ -334,6 +364,7 @@ def main():
 
     print(f"Using camera config file: {camera_stream}")
     print(f"Using workload config file: {workload_dist}")
+    print_camera_config_about(args.camera_config)
 
     # Default to validating all if no specific validation is requested
     if not any([args.validate_pipeline, args.validate_camera, args.validate_all, args.validate_workload_mapping]):
