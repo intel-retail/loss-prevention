@@ -361,10 +361,9 @@ benchmark-quickstart: download-models download-sample-videos
 	python3 -m venv venv && \
 	. venv/bin/activate && \
 	pip3 install -r requirements.txt && \
-	python3 benchmark.py --compose_file ../../src/$(DOCKER_COMPOSE) --pipelines $(PIPELINE_COUNT) --results_dir "$$RUN_DIR" $$(if [ "$(REGISTRY)" = "true" ]; then echo "--benchmark_type=reg"; fi); \
-	deactivate \
-	); \
-	$(MAKE) consolidate-metrics RESULTS_DIR="$$RUN_DIR"
+	python3 benchmark.py --compose_file ../../src/$(DOCKER_COMPOSE) --pipelines $(PIPELINE_COUNT) --results_dir "$$RUN_DIR" $$(if [ "$(REGISTRY)" = "true" ]; then echo "--benchmark_type=reg"; fi) \
+	) && \
+	$(MAKE) -C "$(CURDIR)" consolidate-metrics TARGET_DIR="$$RUN_DIR"
 
 clean-images:
 	@echo "Cleaning up dangling Docker images..."
@@ -437,7 +436,8 @@ validate-all-configs:
 	@python3 src/validate-configs.py --validate-all
 
 consolidate-metrics:
-	@TARGET_DIR=$$(ls -td $(RESULTS_DIR)/*/ 2>/dev/null | head -1 | sed 's|/$$||'); \
+	@TARGET_DIR="$(TARGET_DIR)"; \
+	if [ -z "$$TARGET_DIR" ]; then TARGET_DIR=$$(ls -td $(RESULTS_DIR)/*/ 2>/dev/null | head -1 | sed 's|/$$||'); fi; \
 	TARGET_DIR=$${TARGET_DIR:-$(RESULTS_DIR)}; \
 	echo "Consolidating metrics for: $$TARGET_DIR"; \
 	cd performance-tools/benchmark-scripts && \

@@ -99,7 +99,7 @@ The metrics that matter: **FPS, end-to-end latency, CPU/GPU/NPU utilization, pow
 
 - **Stream density = the most concurrent streams a box sustains at a target FPS.** Because an LP lane is **multi-camera** (six cameras at potentially different frame-rate needs), density is best read as **use-case instances**: “how many shopping lanes with this use case running per box”, judging **each camera against its own FPS target** (use-case density, not a raw stream count).
 - **Reading the result:** a stream cannot sustain more than its source FPS, so any per-stream reading **above** the source rate is a measurement artifact rather than real throughput. Two things cause it. The counter tallies whole frames inside roughly one-second sampling intervals, and the interval boundary does not line up with frame arrivals, so an interval catches one frame more or fewer than expected. On a 15 fps source that shows up as readings of 14, 15 and 16 on a stream whose average is exactly 15, and it happens on a perfectly healthy stream. Under load a second cause appears: a pipeline that has fallen behind processes its buffered frames in a burst as it recovers. That is real work, but it is not a rate the pipeline can hold.
-- **How we measure it:** we ramp the number of streams, let each step complete its warmup period, then read the sustained per-stream FPS against the target to find the most streams that hold it. `INIT_DURATION` controls the **warmup period**: how long the pipelines run before any FPS samples are taken at each density step, so warm-up effects (model load, buffering, autoscaling) are excluded from the measurement. Its default is **10 seconds** (`INIT_DURATION ?= 10` in the `Makefile`). `MEASUREMENT_WINDOW_SECONDS` controls the **minimum measurement interval** for FPS samples at each density step. Its default is **100 seconds**, and each step adds a lane after one passing measurement interval. The measured FPS used for pass/fail is the sum of each sample's FPS times its reported duration, divided by the sum of those durations. The result shows that same measured FPS alongside p10 and p90 of the same FPS samples. These rates are estimates because the counter rounds FPS and duration. Every interval requires at least **100 valid samples from each pipeline log**; if needed, collection extends by up to one additional configured interval. If the sample floor is still unmet, the interval is reported as **inconclusive** and is not used for a pass/fail decision. An inconclusive interval is retried once at the same lane count without restarting the pipelines; if the retry is also inconclusive, the run ends with `Result: Inconclusive` and reports the last passing density, if any step passed, which has not been confirmed by the run acceptance criterion. Because the counter reports about one sample per second, `MEASUREMENT_WINDOW_SECONDS` must be at least **100**. The final count is confirmed by the run acceptance criterion (two consecutive passes), and a lane is only given up after two consecutive failing measurement intervals. Each measurement interval is evaluated independently; intervals are not combined into one longer interval. A longer warmup period gives the pipelines more time to stabilize before measuring, and a longer measurement interval can reduce short-term measurement noise, but both increase the total benchmark duration. The resolved warmup period is also printed in the stream-density result summary. For example:
+- **How we measure it:** we ramp the number of streams, let each step complete its warmup period, then read the sustained per-stream FPS against the target to find the most streams that hold it. `INIT_DURATION` controls the **warmup period**: how long the pipelines run before any FPS samples are taken at each density step, so warm-up effects (model load, buffering, autoscaling) are excluded from the measurement. Its default is **10 seconds** (`INIT_DURATION ?= 10` in the `Makefile`). `MEASUREMENT_WINDOW_SECONDS` controls the **minimum measurement interval** for FPS samples at each density step. Its default is **100 seconds**, and each step adds a lane after one passing measurement interval. The measured FPS used for pass/fail is the sum of each sample's FPS times its reported duration, divided by the sum of those durations. `stream_density.log` shows this measured FPS with p10 and p90 of the FPS samples for each completed window, plus p50 and p99 of that window's frame-latency samples by source/sink channel; the detailed density report remains at the end. FPS log names (`pipeline_streamN`) and latency channel names (`source -> sink`) are different identifiers. These rates are estimates because the counter rounds FPS and duration. Every interval requires at least **100 valid samples from each pipeline log**; if needed, collection extends by up to one additional configured interval. If the sample floor is still unmet, the interval is reported as **inconclusive** and is not used for a pass/fail decision. An inconclusive interval is retried once at the same lane count without restarting the pipelines; if the retry is also inconclusive, the run ends with `Result: Inconclusive` and reports the last passing density, if any step passed, which has not been confirmed by the run acceptance criterion. Because the counter reports about one sample per second, `MEASUREMENT_WINDOW_SECONDS` must be at least **100**. The final count is confirmed by the run acceptance criterion (two consecutive passes), and a lane is only given up after two consecutive failing measurement intervals. Each measurement interval is evaluated independently; intervals are not combined into one longer interval. A longer warmup period gives the pipelines more time to stabilize before measuring, and a longer measurement interval can reduce short-term measurement noise, but both increase the total benchmark duration. The resolved warmup period is also printed in the stream-density result summary. For example:
 
   ```sh
   make benchmark-stream-density \
@@ -164,7 +164,7 @@ Each use case supports three actions: **run** it, **benchmark** a fixed load, an
 
 Run `ls configs/workload_to_pipeline_*` to confirm what your checkout provides. Passing a variant that doesn't exist fails fast — `make run-lp` validates the pair first and reports `Configuration file not found: configs/<name>.json`.
 
-> **View results for any benchmark/density run:** `make consolidate-metrics` → `cat benchmark/metrics.csv` and `make plot-metrics` → utilization chart.
+> **View results for any benchmark/density run:** runs are saved under `benchmark/<config>__<device>__<timestamp>/`. `make consolidate-metrics` and `make plot-metrics` use the latest run folder by default. Read its `metrics.csv` and `stream_density.log` (for density runs); `make benchmark-quickstart` consolidates its own run automatically. Density `metrics.csv` uses only the final confirming window for camera FPS and latency percentiles; if no window was saved, it uses the whole logs.
 >For Advanced Benchmark settings, :point_right: [Benchmarking Guide](https://intel-retail.github.io/documentation/use-cases/loss-prevention/performance.html)
 
 #### 1 · Self-checkout
@@ -181,7 +181,8 @@ make benchmark-stream-density CAMERA_STREAM=camera_to_workload_asc_object_detect
 
 **See the results**
 ```sh
-make consolidate-metrics && cat benchmark/metrics.csv
+make consolidate-metrics
+cat "$(ls -td benchmark/*/ | head -1)metrics.csv"
 ```
 
 #### 2 · Self-checkout + age verification
@@ -208,7 +209,8 @@ make benchmark-stream-density CAMERA_STREAM=camera_to_workload_asc_age_verificat
 
 **See the results**
 ```sh
-make consolidate-metrics && cat benchmark/metrics.csv
+make consolidate-metrics
+cat "$(ls -td benchmark/*/ | head -1)metrics.csv"
 ```
 
 #### 3 · Loss prevention
@@ -232,7 +234,8 @@ make benchmark-stream-density
 
 **See the results**
 ```sh
-make consolidate-metrics && cat benchmark/metrics.csv
+make consolidate-metrics
+cat "$(ls -td benchmark/*/ | head -1)metrics.csv"
 ```
 
 #### 4 · Run Loss prevention with the VLM Workload With Qwen Model (Default)
