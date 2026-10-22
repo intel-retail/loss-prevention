@@ -55,16 +55,22 @@ class ConfigValidator:
         c_base = os.path.basename(camera_config_path)
 
         # 1. Extract config identifier
-        m_cam = re.match(r"camera_to_workload_(.+)\.json$", c_base)
-        if m_cam:
-            config_name = m_cam.group(1)
+        if c_base in {"camera_to_workload.json", "camera_to_workload_vlm.json"}:
+            m_pipe_variant = re.fullmatch(
+                r"workload_to_pipeline(?:_(.+))?\.json", p_base)
+            pipeline_variant = m_pipe_variant.group(1) if m_pipe_variant else None
+            config_name = f"lp_{pipeline_variant}" if pipeline_variant else "lp"
         else:
-            m_pipe = re.match(r"workload_to_pipeline_(.+?)_(cpu|gpu|npu|hetero|gpu-npu)\.json$", p_base)
-            if m_pipe:
-                config_name = m_pipe.group(1)
+            m_cam = re.match(r"camera_to_workload_(.+)\.json$", c_base)
+            if m_cam:
+                config_name = m_cam.group(1)
             else:
-                m_pipe_simple = re.match(r"workload_to_pipeline_(.+)\.json$", p_base)
-                config_name = m_pipe_simple.group(1) if m_pipe_simple else "default"
+                m_pipe = re.match(r"workload_to_pipeline_(.+?)_(cpu|gpu|npu|hetero|gpu-npu)\.json$", p_base)
+                if m_pipe:
+                    config_name = m_pipe.group(1)
+                else:
+                    m_pipe_simple = re.match(r"workload_to_pipeline_(.+)\.json$", p_base)
+                    config_name = m_pipe_simple.group(1) if m_pipe_simple else "default"
 
         # 2. Extract device from active workloads in camera and pipeline configurations
         device_str = "unknown"
