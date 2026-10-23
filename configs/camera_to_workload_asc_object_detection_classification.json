@@ -2,6 +2,12 @@
   "_notes": {
     "targetFps": "Optional per-camera key. Add lane_config.cameras[].targetFps to set per-stream target FPS. If omitted, stream density falls back to global TARGET_FPS."
   },
+  "_about": {
+    "name": "Self-checkout lane, detect and classify",
+    "summary": "Simulates a self-checkout shopping lane that detects objects in the scene and then classifies what each one is",
+    "cameras": "One overhead lane camera at 15 fps",
+    "why_run_it": "Establishes how many detect-and-classify lanes a single system can drive, to compare against the detection-only baseline"
+  },
   "lane_config": {
     "cameras": [
       {

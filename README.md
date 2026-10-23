@@ -365,6 +365,8 @@ These settings control which configurations are benchmarked and how the stream-d
 ### Configuration & user-defined workloads
 - Workloads are configured by JSON in `configs/` plus the `CAMERA_STREAM` / `WORKLOAD_DIST` env vars (CPU/GPU/NPU/hetero variants, [availability varies by use case](#per-use-case-walkthroughs)). You can also **define your own**: map cameras to custom pipelines by editing `camera_to_workload_*.json` (which cameras run which workloads) and `workload_to_pipeline_*.json` (each workload’s *pipeline*, a sequence of GStreamer elements + models, e.g. `gvadetect` / `gvaclassify`, on a chosen device). See the [Documentation Guide](https://intel-retail.github.io/documentation/use-cases/loss-prevention/getting_started.html) for pre-configured workloads and [User-Defined Workloads](https://intel-retail.github.io/documentation/use-cases/loss-prevention/advanced.html#user-defined-workloads) for the full definitions.
 
+- Camera configs can include an optional `_about` block describing the scenario, cameras, and purpose of the workload; the stream-density report prints this description to give the results context.
+
 - Inference interval
 
    The `INFERENCE_INTERVAL` environment variable controls how often the detector runs        inference (the `gvadetect inference-interval` property). A value of `N` runs inference    on every `N`th frame and relies on the tracker for the frames in between.

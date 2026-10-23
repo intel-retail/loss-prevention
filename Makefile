@@ -89,6 +89,16 @@ else
 	STREAM_LOOP_VALUE := true
 endif
 
+PRINT_CAMERA_ABOUT = print_camera_about() { \
+	python3 -c 'import json, sys; \
+exec("try:\n    with open(sys.argv[1], encoding=\"utf-8\") as config_file:\n        config = json.load(config_file)\nexcept (OSError, ValueError):\n    config = {}"); \
+about = config.get("_about", {}) if isinstance(config, dict) else {}; \
+about = about if isinstance(about, dict) else {}; \
+fields = (("name", "Scenario"), ("summary", "Summary"), ("cameras", "Cameras"), ("why_run_it", "Why run it")); \
+lines = [label + ": " + str(about[key]) for key, label in fields if about.get(key)]; \
+print("Camera config _about:\n" + "\n".join(lines)) if lines else None' "$$1"; \
+}
+
 check-models:
 	@chmod +x check_models.sh
 	@./check_models.sh models || true
@@ -223,6 +233,8 @@ down-lp:
 	@echo "VLM cleanup completed"
 
 run: validate_workload_mapping download-sample-videos
+	@$(PRINT_CAMERA_ABOUT); \
+	print_camera_about "configs/$(CAMERA_STREAM)"
 	@echo "Setting up environment for STREAM_LOOP..."
 	@mkdir -p results results/vlm-results
 	@LOG_FILE="vlm_loss_prevention.log"; \
@@ -246,6 +258,8 @@ run-render-mode: validate_workload_mapping download-sample-videos
 	@echo "Using DISPLAY=$(DISPLAY)"
 	@echo "Using config file: configs/$(CAMERA_STREAM)"
 	@echo "Using workload config: configs/$(WORKLOAD_DIST)"
+	@$(PRINT_CAMERA_ABOUT); \
+	print_camera_about "configs/$(CAMERA_STREAM)"
 	@xhost +local:docker
 	@LOG_FILE="vlm_loss_prevention.log"; \
 		mkdir -p $$(dirname $$LOG_FILE); \
@@ -275,6 +289,8 @@ build-benchmark:
 	fi
 
 benchmark: build-benchmark download-sample-videos download-models
+	@$(PRINT_CAMERA_ABOUT); \
+	print_camera_about "configs/$(CAMERA_STREAM)"
 	@mkdir -p $$(dirname $(VLM_LOGS_FILE)); \
 	[ -f $(VLM_LOGS_FILE) ] || touch $(VLM_LOGS_FILE); \
 	RUN_TAG=$$(python3 src/validate-configs.py --get-run-tag --camera-config configs/$(CAMERA_STREAM) --pipeline-config configs/$(WORKLOAD_DIST) 2>/dev/null || echo "default__unknown"); \
@@ -301,6 +317,8 @@ benchmark: build-benchmark download-sample-videos download-models
 
 
 benchmark-stream-density: build-benchmark download-sample-videos download-models
+	@$(PRINT_CAMERA_ABOUT); \
+	print_camera_about "configs/$(CAMERA_STREAM)"
 	@if [ "$(OOM_PROTECTION)" = "0" ]; then \
         echo "╔════════════════════════════════════════════════════════════╗";\
 		echo "║ WARNING                                                    ║";\
@@ -341,6 +359,8 @@ benchmark-stream-density: build-benchmark download-sample-videos download-models
 	)
 	
 benchmark-quickstart: download-models download-sample-videos
+	@$(PRINT_CAMERA_ABOUT); \
+	print_camera_about "configs/$(CAMERA_STREAM)"
 	@if [ "$(REGISTRY)" = "true" ]; then \
 		echo "Using registry mode - skipping benchmark container build..."; \
 	else \
