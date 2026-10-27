@@ -474,6 +474,15 @@ validate-all-configs:
 	@echo "Validating all configuration files..."
 	@python3 src/validate-configs.py --validate-all
 
+.PHONY: combined-report
+combined-report:
+	@python3 -m venv performance-tools/benchmark-scripts/venv && \
+	performance-tools/benchmark-scripts/venv/bin/python -m pip install \
+		-r performance-tools/benchmark-scripts/requirements.txt && \
+	performance-tools/benchmark-scripts/venv/bin/python \
+		performance-tools/benchmark-scripts/compare_stream_density.py \
+		--results-dir "$(RESULTS_DIR)" $(REPORT_ARGS)
+
 consolidate-metrics:
 	@TARGET_DIR="$(TARGET_DIR)"; \
 	if [ -z "$$TARGET_DIR" ]; then TARGET_DIR=$$(ls -td $(RESULTS_DIR)/*/ 2>/dev/null | head -1 | sed 's|/$$||'); fi; \
