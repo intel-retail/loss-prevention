@@ -400,6 +400,7 @@ An integrated **MediaMTX** RTSP server (`rtsp-streamer` container) streams the s
 - **TCP transport**: reliable streaming over corporate networks
 - **Low latency**: 200 ms default for real-time processing
 - **Multiple streams**: supports concurrent camera streams
+- **Startup readiness**: pipeline runners wait until every mounted `.mp4` stream delivers video packets over RTSP. The health check probes streams concurrently with a 10-second limit per stream; an open RTSP port alone is not considered ready.
 - **Proxy support**: works through corporate HTTP/HTTPS proxies
 
 ### Docker Services

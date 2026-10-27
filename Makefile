@@ -1,7 +1,7 @@
 # Copyright © 2025 Intel Corporation. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-.PHONY: update-submodules download-models download-samples download-sample-videos build-assets-downloader run-assets-downloader build-pipeline-runner run-loss-prevention run-lp down-lp clean-images clean-containers clean-all clean-project-images validate-config validate-camera-config validate-all-configs check-models check-device-env
+.PHONY: update-submodules download-models download-samples download-sample-videos build-assets-downloader run-assets-downloader build-pipeline-runner run-loss-prevention run-lp down-lp clean-images clean-containers clean-all clean-project-images validate-config validate-camera-config validate-all-configs check-models check-device-env validate-display
 -include .env
 
 
@@ -217,7 +217,8 @@ check-device-env:
 # Benchmarks use the same compose file without this profile, so the MCP is excluded there.
 run-lp down-lp: export COMPOSE_PROFILES = mcp
 
-run-lp: validate_workload_mapping update-submodules download-sample-videos
+# Check the display first in render mode so a bad DISPLAY fails before submodule and video downloads.
+run-lp: $(if $(filter-out 0,$(RENDER_MODE)),validate-display) validate_workload_mapping update-submodules download-sample-videos
 	@echo "Running loss prevention pipeline"
 	@LOG_FILE="vlm_loss_prevention.log"; \
 	mkdir -p $$(dirname $$LOG_FILE); \
@@ -251,14 +252,28 @@ run: validate_workload_mapping download-sample-videos
 		LOCAL_UID=$(shell id -u) LOCAL_GID=$(shell id -g) LP_VLM_WORKLOAD_ENABLED=$(LP_VLM_WORKLOAD_ENABLED) STREAM_LOOP=$(STREAM_LOOP_VALUE) BATCH_SIZE_DETECT=$(BATCH_SIZE_DETECT) BATCH_SIZE_CLASSIFY=$(BATCH_SIZE_CLASSIFY) INFERENCE_INTERVAL=$(INFERENCE_INTERVAL) docker compose -f src/$(DOCKER_COMPOSE) up --build -d; \
 	fi
 
-run-render-mode: validate_workload_mapping download-sample-videos
+validate-display:
 	@if [ -z "$(DISPLAY)" ] || ! echo "$(DISPLAY)" | grep -qE "^:[0-9]+(\.[0-9]+)?$$"; then \
 		echo "ERROR: Invalid or missing DISPLAY environment variable."; \
 		echo "Please set DISPLAY in the format ':<number>' (e.g., ':0')."; \
 		echo "Usage: make <target> DISPLAY=:<number>"; \
-		echo "Example: make $@ DISPLAY=:0"; \
+		echo "Example: make run-lp RENDER_MODE=1 DISPLAY=:0"; \
 		exit 1; \
 	fi
+	@display_num=$$(echo "$(DISPLAY)" | sed -E 's/^:([0-9]+).*/\1/'); \
+	if [ ! -S "/tmp/.X11-unix/X$$display_num" ]; then \
+		available=$$(ls /tmp/.X11-unix 2>/dev/null | sed -n 's/^X\([0-9][0-9]*\)$$/:\1/p' | tr '\n' ' ' | sed 's/ $$//'); \
+		echo "ERROR: DISPLAY=$(DISPLAY) does not exist (no X server socket /tmp/.X11-unix/X$$display_num)."; \
+		echo "Available displays on this host: $${available:-none}"; \
+		exit 1; \
+	fi
+	@if ! DISPLAY=$(DISPLAY) timeout 5 xhost >/dev/null 2>&1; then \
+		echo "ERROR: DISPLAY=$(DISPLAY) exists but cannot be opened (not authorized or not responding)."; \
+		echo "Run from the desktop session, or set XAUTHORITY to the display's authority file."; \
+		exit 1; \
+	fi
+
+run-render-mode: validate-display validate_workload_mapping download-sample-videos
 	@echo "Using DISPLAY=$(DISPLAY)"
 	@echo "Using config file: configs/$(CAMERA_STREAM)"
 	@echo "Using workload config: configs/$(WORKLOAD_DIST)"

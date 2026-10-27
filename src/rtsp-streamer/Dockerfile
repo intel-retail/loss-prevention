@@ -28,8 +28,8 @@ COPY --from=mediamtx /mediamtx ./mediamtx
 COPY --from=mediamtx /mediamtx.yml ./mediamtx.yml
 
 # ---- Startup script ----
-COPY start.sh ./start.sh
-RUN chmod +x ./start.sh ./mediamtx
+COPY start.sh healthcheck.sh ./
+RUN chmod +x ./start.sh ./healthcheck.sh ./mediamtx
 
 # ---- Runtime config ----
 ENV MEDIA_DIR=/media \
@@ -39,8 +39,8 @@ ENV MEDIA_DIR=/media \
 EXPOSE 8554
 
 # ---- Health Check ----
-HEALTHCHECK --interval=10s --timeout=5s --retries=3 \
-  CMD nc -z 127.0.0.1 ${RTSP_PORT} || exit 1
+HEALTHCHECK --interval=10s --timeout=15s --start-period=60s --retries=3 \
+  CMD ["/opt/rtsp-streamer/healthcheck.sh"]
 
 # ---- Run ----
 ENTRYPOINT ["/opt/rtsp-streamer/start.sh"]
