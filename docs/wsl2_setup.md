@@ -737,7 +737,7 @@ docker buildx version
 daemon proxy from step 7. A hang or `TLS handshake timeout` means that drop-in is wrong
 or did not load; re-check `docker info | grep -i proxy`.
 
-`docker compose version` must report **v2.24.0 or newer** — the Makefile uses
+`docker compose version` must report **v2.24.4 or newer** — the Makefile uses
 `docker compose` (space, not hyphen) throughout, and `src/docker-compose-wsl2.yml`
 relies on the `include` top-level element and the `!override` merge tag, which earlier
 v2 releases reject. If your version is older, upgrade `docker-compose-plugin` from

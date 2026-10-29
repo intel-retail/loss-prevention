@@ -179,7 +179,7 @@ In the WSL shell used for benchmarking, select the installed Windows executable:
 export WINDOWS_PCM_EXE='C:\Tools\pcm\pcm.exe'
 ```
 
-If omitted, the Windows worker searches its Windows PATH for `pcm.exe`. The worker starts PCM automatically after warm-up and writes its CSV-formatted raw output to `benchmark/windows_pcm_raw.log`; no manually running PCM process is required during benchmarking. Package energy is divided by elapsed sample time to obtain watts. READ+WRITE GB/s is converted to MB/s. The first PCM sample is discarded because its preceding timestamp is unavailable.
+If omitted, the Windows worker searches its Windows PATH for `pcm.exe`. The worker starts PCM automatically after warm-up and writes its CSV-formatted raw output to `windows_pcm_raw.log` in the timestamped benchmark run directory printed by Make; no manually running PCM process is required during benchmarking. Package energy is divided by elapsed sample time to obtain watts. READ+WRITE GB/s is converted to MB/s. The first PCM sample is discarded because its preceding timestamp is unavailable.
 
 ## 4. Optional GPU Power
 
@@ -204,7 +204,7 @@ mkdir -p benchmark
   --lhm-dll "$WINDOWS_LHM_DLL" --list-gpu-power-sensors
 ```
 
-This writes `benchmark/windows_gpu_power_sensors.json` and prints the GPU hardware names, sensor identifiers, and readings. A null value means unavailable. Only `Power` sensors attached to GPU hardware are eligible; CPU package sensors are excluded. Select the sensor representing the intended GPU power domain, not a GPU rail or subcomponent if you need total GPU power. Not every GPU exposes a suitable total-power sensor. An empty list or persistent null values means this provider cannot supply that measurement with the current hardware/driver/permissions.
+This writes `benchmark/windows_gpu_power_sensors.json` directly in the repository's `benchmark/` directory and prints the GPU hardware names, sensor identifiers, and readings. It is a one-time discovery file, not a benchmark run output. A null value means unavailable. Only `Power` sensors attached to GPU hardware are eligible; CPU package sensors are excluded. Select the sensor representing the intended GPU power domain, not a GPU rail or subcomponent if you need total GPU power. Not every GPU exposes a suitable total-power sensor. An empty list or persistent null values means this provider cannot supply that measurement with the current hardware/driver/permissions.
 
 Configure the exact identifiers found on this machine:
 
@@ -213,7 +213,7 @@ export WINDOWS_GPU_POWER_SENSOR='<sensor_id from windows_gpu_power_sensors.json>
 export WINDOWS_GPU_POWER_ADAPTER='<luid_..._phys_... for the same physical GPU>'
 ```
 
-Obtain the PDH adapter identifier from GPU Engine counter instance names or the `adapters` object in `benchmark/windows_metrics.json` after an initial benchmark without GPU-power settings. Verify that it is the same physical GPU as the selected Libre Hardware Monitor sensor. On multi-GPU machines, do not guess from enumeration order: use Windows adapter diagnostics to resolve the LUID, or leave GPU power unconfigured if the association is uncertain. LUIDs can change after reboot. The configured power adapter is assigned `GPU_1`; other observed adapters receive subsequent numbers. These numbers need not match Task Manager or Linux qmassa numbering.
+Obtain the PDH adapter identifier from GPU Engine counter instance names or the `adapters` object in `windows_metrics.json` in the timestamped run directory printed by Make, after an initial benchmark without GPU-power settings. Verify that it is the same physical GPU as the selected Libre Hardware Monitor sensor. On multi-GPU machines, do not guess from enumeration order: use Windows adapter diagnostics to resolve the LUID, or leave GPU power unconfigured if the association is uncertain. LUIDs can change after reboot. The configured power adapter is assigned `GPU_1`; other observed adapters receive subsequent numbers. These numbers need not match Task Manager or Linux qmassa numbering.
 
 The discovery command is setup only. During benchmarking the collector opens the library, updates sensors, and closes it automatically. The Libre Hardware Monitor GUI does not need to run. Missing samples are skipped; if no valid reading exists, GPU watts remain `NA`. No CPU-package-to-GPU substitution is performed. Driver contention with PCM is possible and must be checked on the target machine.
 
@@ -232,7 +232,11 @@ unsupported NPU workloads.
 
 The ordinary benchmark target does not automatically invoke consolidation; `benchmark-quickstart` does. The existing benchmark and stream-density Compose lifecycle starts and stops the Windows worker automatically. It begins sampling after the configured warm-up. Stream-density iterations replace telemetry with the latest collected run rather than accumulating all iterations. Auxiliary Compose starts through the same helper also trigger collection; there is no archive or automatic best-iteration selection. The regular `run-lp` target does not launch this benchmark collector. The existing plotting command has no new integration for the Windows hardware summary.
 
-By default all generated telemetry files are under the repository's `benchmark` directory:
+Benchmark telemetry files are saved in the timestamped run directory under
+`RESULTS_DIR`; Make prints its path as `Running benchmark in:`. With the default
+`RESULTS_DIR`, that directory is beneath the repository's `benchmark/` folder.
+The one-time `windows_gpu_power_sensors.json` discovery file is separate and is
+written directly to `benchmark/` by the discovery command. Run output files:
 
 ```text
 windows_metrics.json          Final summary, sources and adapter mapping
