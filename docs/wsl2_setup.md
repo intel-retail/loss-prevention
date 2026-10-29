@@ -785,8 +785,11 @@ nproc
 df -h /
 ```
 
-The repository plus models needs roughly **300 GB**. The WSL virtual disk lives on your
-Windows `C:` drive, so `df -h /` reflects free space there.
+The repository plus models needs roughly **300 GB**. `df -h /` reports free space inside
+the WSL filesystem, not free space on the Windows drive storing its virtual disk. Check
+that host drive separately in **PowerShell** (for example, `Get-PSDrive C` if the distro
+is stored on `C:`). Both the WSL filesystem and its Windows host drive need sufficient
+space.
 
 ---
 
