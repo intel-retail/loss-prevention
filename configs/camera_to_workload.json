@@ -2,6 +2,12 @@
   "_notes": {
     "targetFps": "Optional per-camera key. Add lane_config.cameras[].targetFps to set per-stream target FPS. If omitted, stream density falls back to global TARGET_FPS."
   },
+  "_about": {
+    "name": "Loss prevention lane, six scenarios",
+    "summary": "One self-checkout lane watched by six cameras, each running one loss-prevention scenario: Items-in-Basket, Hidden Items, Fake-Scan Detection, Multi-Product Identification, Product Switching and Sweethearting",
+    "cameras": "Six cameras at 15 fps, one per scenario",
+    "why_run_it": "Shows how many six-camera loss-prevention lanes a single system can drive at the frame rate each camera needs"
+  },
   "lane_config": {
     "cameras": [
       {

@@ -19,9 +19,9 @@ services:
       - LOCAL_GID=${LOCAL_GID}
       - MODELS_DIR=/workspace/models
       - WORKLOAD_DIST=${WORKLOAD_DIST:-workload_to_pipeline.json}
-      - MODEL_NAME=${MODEL_NAME}
-      - PRECISION=${PRECISION}
-      - HUGGINGFACE_TOKEN=${HUGGINGFACE_TOKEN}
+      - MODEL_NAME=${MODEL_NAME:-}
+      - PRECISION=${PRECISION:-}
+      - HUGGINGFACE_TOKEN=${HUGGINGFACE_TOKEN:-}
       - HF_HOME=/root/.cache/huggingface
     volumes:
       - ../models:/workspace/models
@@ -35,8 +35,8 @@ services:
       - "5672:5672" # AMQP port
       - "15672:15672" # Management UI port
     environment:
-      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-}
     healthcheck:
       test: [ "CMD", "rabbitmq-diagnostics", "status" ]
       interval: 10s
@@ -55,8 +55,8 @@ services:
       no_proxy: ${no_proxy},localhost
       http_proxy: ${http_proxy}
       https_proxy: ${https_proxy}
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-}
       MINIO_API_HOST_PORT: ${MINIO_API_HOST_PORT}
       MINIO_CONSOLE_HOST_PORT: ${MINIO_CONSOLE_HOST_PORT}
       LP_IP: ${LP_IP}
@@ -183,10 +183,10 @@ services:
       - HTTPS_PROXY=${HTTPS_PROXY}
       - http_proxy=${http_proxy}
       - https_proxy=${https_proxy}
-      - RABBITMQ_USER=${RABBITMQ_USER}
-      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}
-      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
-      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+      - RABBITMQ_USER=${RABBITMQ_USER:-}
+      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD:-}
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER:-}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-}
       - LP_IP=${LP_IP}
       - LP_BASE_DIR=${LP_BASE_DIR}
       - RABBITMQ_HOST=rabbitmq
@@ -243,16 +243,16 @@ services:
       - http_proxy=${http_proxy}
       - https_proxy=${https_proxy}
       - VLM_WORKLOAD_ENABLED=${LP_VLM_WORKLOAD_ENABLED}
-      - ROI_COORDINATES=${ROI_COORDINATES}
+      - ROI_COORDINATES=${ROI_COORDINATES:-}
       - LP_IP=${LP_IP}
-      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
-      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
-      - RABBITMQ_USER=${RABBITMQ_USER}
-      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER:-}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-}
+      - RABBITMQ_USER=${RABBITMQ_USER:-}
+      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD:-}
       - THRESHOLD=${THRESHOLD:-16}
       - DISPLAY=${DISPLAY:-:0}
       - RENDER_MODE=${RENDER_MODE:-0}
-      - DETECTION_THRESHOLD=${DETECTION_THRESHOLD}
+      - DETECTION_THRESHOLD=${DETECTION_THRESHOLD:-}
       - LP_BASE_DIR=${LP_BASE_DIR}
       - RABBITMQ_HOST=rabbitmq
       - RABBITMQ_PORT=5672
@@ -312,6 +312,8 @@ services:
         soft: 67108864
         hard: 67108864
     depends_on:
+      rtsp-streamer:
+        condition: service_healthy
       model-downloader:
         condition: service_completed_successfully
     environment:
@@ -320,13 +322,13 @@ services:
       - http_proxy=${http_proxy}
       - https_proxy=${https_proxy}
       - VLM_WORKLOAD_ENABLED=0
-      - VIDEO_NAME=${VIDEO_NAME}
+      - VIDEO_NAME=${VIDEO_NAME:-}
       - LP_IP=${LP_IP}
-      - ROI_COORDINATES=${ROI_COORDINATES}
-      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
-      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
-      - RABBITMQ_USER=${RABBITMQ_USER}
-      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}
+      - ROI_COORDINATES=${ROI_COORDINATES:-}
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER:-}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-}
+      - RABBITMQ_USER=${RABBITMQ_USER:-}
+      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD:-}
       - THRESHOLD=${THRESHOLD:-7}
       - LP_BASE_DIR=${LP_BASE_DIR}
       - DISPLAY=${DISPLAY:-:0}
@@ -345,7 +347,6 @@ services:
       - GST_DEBUG=GST_TRACER:7,gvafpscounter:4
       - GST_TRACERS=latency_tracer(flags=pipeline)
       - ROUND_ROBIN_COUNT=4
-
     volumes:
       - ../models:/home/pipeline-server/models
       - ../performance-tools/sample-media:/home/pipeline-server/sample-media
@@ -357,9 +358,53 @@ services:
       - my_network
     privileged: true
 
+  lp-mcp-service:
+    container_name: lp-mcp-service
+    # Enabled by make run-lp / down-lp; benchmarks run this file without it.
+    profiles: ["mcp"]
+    build:
+      context: ../mcp-service
+      dockerfile: Dockerfile
+    image: intel/lp-mcp:${LP_TAG:-latest}
+    # Start last; the runners already wait on the rest of the stack.
+    depends_on:
+      lp-pipeline-runner:
+        condition: service_started
+      vlm-pipeline-runner:
+        condition: service_started
+    ports:
+      - "${LP_MCP_PORT:-9100}:9100"
+    environment:
+      MCP_TRANSPORT: streamable-http
+      MCP_HOST: 0.0.0.0
+      MCP_PORT: 9100
+      STORE_ID: ${STORE_ID:-store_001}
+      LP_LOG_PATH: /data/lp_log.sqlite
+      LP_EVENT_HUB_URL: ${LP_EVENT_HUB_URL:-}
+      LP_EVENT_DELIVERY: ${LP_EVENT_DELIVERY:-on}
+      LP_EVENT_HUB_MIN_SEVERITY: ${LP_EVENT_HUB_MIN_SEVERITY:-high}
+      LP_TIMEZONE: ${LP_TIMEZONE:-Asia/Kolkata}
+      USE_CASE: ${USE_CASE:-retail}
+      LP_RESULTS_DIR: /results
+      # Background watcher tails results/rs-*.jsonl into the log (off to disable).
+      LP_JSONL_WATCH: ${LP_JSONL_WATCH:-on}
+      LP_CAMERA_CONFIG: /configs/${CAMERA_STREAM:-camera_to_workload.json}
+      LP_LANE: ${LP_LANE:-lane-1}
+      SEED_DEMO: ${SEED_DEMO:-false}
+    volumes:
+      - lp_mcp_data:/data
+      - ${RESULTS_DIR:-../results}:/results:ro
+      - ../configs:/configs:ro
+    networks:
+      - my_network
+    restart: unless-stopped
+
 volumes:
   minio_data:
     driver: local
+  lp_mcp_data:
+    driver: local
+    name: lp-mcp-data
 networks:
   my_network:
     driver: bridge

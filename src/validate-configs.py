@@ -10,6 +10,7 @@ import argparse
 from pathlib import Path
 from typing import Dict, List, Any, Optional
 import os
+import re
 
 
 class ConfigValidator:
@@ -47,6 +48,81 @@ class ConfigValidator:
             return False
         print("SUCCESS: All camera workloads have matching pipeline mappings.")
         return True
+
+    def get_run_tag(self, pipeline_config_path: str, camera_config_path: str) -> str:
+        """Derive <config>__<device> identifier from camera and pipeline configurations."""
+        p_base = os.path.basename(pipeline_config_path)
+        c_base = os.path.basename(camera_config_path)
+
+        # 1. Extract config identifier
+        if c_base in {"camera_to_workload.json", "camera_to_workload_vlm.json"}:
+            m_pipe_variant = re.fullmatch(
+                r"workload_to_pipeline(?:_(.+))?\.json", p_base)
+            pipeline_variant = m_pipe_variant.group(1) if m_pipe_variant else None
+            config_name = f"lp_{pipeline_variant}" if pipeline_variant else "lp"
+        else:
+            m_cam = re.match(r"camera_to_workload_(.+)\.json$", c_base)
+            if m_cam:
+                config_name = m_cam.group(1)
+            else:
+                m_pipe = re.match(r"workload_to_pipeline_(.+?)_(cpu|gpu|npu|hetero|gpu-npu)\.json$", p_base)
+                if m_pipe:
+                    config_name = m_pipe.group(1)
+                else:
+                    m_pipe_simple = re.match(r"workload_to_pipeline_(.+)\.json$", p_base)
+                    config_name = m_pipe_simple.group(1) if m_pipe_simple else "default"
+
+        # 2. Extract device from active workloads in camera and pipeline configurations
+        device_str = "unknown"
+        try:
+            with open(camera_config_path, "r", encoding="utf-8") as f:
+                c_data = json.load(f)
+            with open(pipeline_config_path, "r", encoding="utf-8") as f:
+                p_data = json.load(f)
+
+            lane_cameras = c_data.get("lane_config", {}).get("cameras", [])
+            active_workloads = set()
+            for cam in lane_cameras:
+                w = cam.get("workloads", [])
+                if isinstance(w, str):
+                    w = [w]
+                for item in w:
+                    if isinstance(item, str) and item.strip():
+                        active_workloads.add(item.strip().lower())
+
+            w_map = {k.lower(): v for k, v in p_data.get("workload_pipeline_map", {}).items()}
+            devices = set()
+            for w in active_workloads:
+                for step in w_map.get(w, []):
+                    if isinstance(step, dict):
+                        if step.get("device"):
+                            devices.add(step["device"].strip().upper())
+                        if step.get("vlm_device"):
+                            devices.add(step["vlm_device"].strip().upper())
+
+            # Fallback to all devices in pipeline config if active workloads did not yield devices
+            if not devices:
+                for steps in w_map.values():
+                    if isinstance(steps, list):
+                        for step in steps:
+                            if isinstance(step, dict):
+                                if step.get("device"):
+                                    devices.add(step["device"].strip().upper())
+                                if step.get("vlm_device"):
+                                    devices.add(step["vlm_device"].strip().upper())
+
+            if len(devices) == 1:
+                device_str = list(devices)[0].lower()
+            elif len(devices) > 1:
+                device_str = "hetero"
+            else:
+                m_dev = re.search(r"_(cpu|gpu|npu|hetero|gpu-npu)\.json$", p_base, re.IGNORECASE)
+                device_str = m_dev.group(1).lower() if m_dev else "unknown"
+        except Exception:
+            m_dev = re.search(r"_(cpu|gpu|npu|hetero|gpu-npu)\.json$", p_base, re.IGNORECASE)
+            device_str = m_dev.group(1).lower() if m_dev else "unknown"
+
+        return f"{config_name}__{device_str}"
     """Validates configuration files for the loss-prevention pipeline."""
     
     def __init__(self):
@@ -329,8 +405,15 @@ def main():
                        help='Validate all configurations (default if no specific validation is requested)')
     parser.add_argument('--validate-workload-mapping', dest='validate_workload_mapping', action='store_true',
                        help='Validate that all camera workloads have matching pipeline mappings')
+    parser.add_argument('--get-run-tag', action='store_true',
+                       help='Extract and print <config>__<device> identifier for benchmark run directory naming')
     
     args = parser.parse_args()
+
+    if args.get_run_tag:
+        validator = ConfigValidator()
+        print(validator.get_run_tag(args.pipeline_config, args.camera_config))
+        sys.exit(0)
 
     print(f"Using camera config file: {camera_stream}")
     print(f"Using workload config file: {workload_dist}")

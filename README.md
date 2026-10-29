@@ -92,14 +92,31 @@ This repo covers loss prevention at the self-checkout and point of sale, built o
 - **Visual mode** (`RENDER_MODE=1 DISPLAY=:0`) opens a video window with detection overlays/alerts; the pipeline runs until the video completes. **Headless mode** runs the same pipeline for servers and automated benchmarking.
 - These are **off-the-shelf, non-fine-tuned models**: *expected* misclassifications under real-world conditions are part of an authentic evaluation, not defects to hide. The goal is a faithful performance picture, not a flawless demo.
 - For a 15 fps source, a healthy stream holds **~15 fps per stream**; throughput, latency, and utilization vary by platform and configuration (see §4).
-- Output files (visual + headless): `results/pipeline_stream*.log` (per-stream FPS) and `results/gst-launch_*.log` (full GStreamer output). First run downloads videos, models, and images, so it takes a while.
+- Output files (visual + headless): `results/pipeline_stream*.log` (per-stream `fps,duration_seconds` samples) and `results/gst-launch_*.log` (full GStreamer output). First run downloads videos, models, and images, so it takes a while.
 
 ## How to think about performance & stream density
 The metrics that matter: **FPS, end-to-end latency, CPU/GPU/NPU utilization, power, and stream density** (for GenAI/LVLM use cases also **TTFT** and **token throughput**).
 
 - **Stream density = the most concurrent streams a box sustains at a target FPS.** Because an LP lane is **multi-camera** (six cameras at potentially different frame-rate needs), density is best read as **use-case instances**: “how many shopping lanes with this use case running per box”, judging **each camera against its own FPS target** (use-case density, not a raw stream count).
-- **Reading the result:** a stream cannot sustain more than its source FPS, so any per-stream reading **above** the source rate is a measurement artifact rather than real throughput. Two things cause it. The counter tallies whole frames inside a fixed window, and the window boundary does not line up with frame arrivals, so a window catches one frame more or fewer than expected. On a 15 fps source that shows up as readings of 14, 15 and 16 on a stream whose average is exactly 15, and it happens on a perfectly healthy stream. Under load a second cause appears: a pipeline that has fallen behind processes its buffered frames in a burst as it recovers. That is real work, but it is not a rate the pipeline can hold.
-- **How we measure it:** we ramp the number of streams, let each step settle, then read the sustained per-stream FPS against the target to find the most streams that hold it. This method has **known limitations** (a short measurement window can misread under noise) and we’re **actively improving it** toward a steadier measurement.
+- **Reading the result:** a stream cannot sustain more than its source FPS, so any per-stream reading **above** the source rate is a measurement artifact rather than real throughput. Two things cause it. The counter tallies whole frames inside roughly one-second sampling intervals, and the interval boundary does not line up with frame arrivals, so an interval catches one frame more or fewer than expected. On a 15 fps source that shows up as readings of 14, 15 and 16 on a stream whose average is exactly 15, and it happens on a perfectly healthy stream. Under load a second cause appears: a pipeline that has fallen behind processes its buffered frames in a burst as it recovers. That is real work, but it is not a rate the pipeline can hold.
+- **How we measure it:** we ramp the number of streams, let each step complete its warmup period, then read the sustained per-stream FPS against the target to find the most streams that hold it. `INIT_DURATION` controls the **warmup period**: how long the pipelines run before any FPS samples are taken at each density step, so warm-up effects (model load, buffering, autoscaling) are excluded from the measurement. Its default is **10 seconds** (`INIT_DURATION ?= 10` in the `Makefile`). `MEASUREMENT_WINDOW_SECONDS` controls the **minimum measurement interval** for FPS samples at each density step. Its default is **100 seconds**, and each step adds a lane after one passing measurement interval. The measured FPS used for pass/fail is the sum of each sample's FPS times its reported duration, divided by the sum of those durations. `stream_density.log` shows this measured FPS with p10 and p90 of the FPS samples for each completed measurement interval, plus p50, p95, and p99 of that measurement interval's frame-latency samples by source/sink channel and for the pooled system; the detailed density report remains at the end. FPS log names (`pipeline_streamN`) and latency channel names (`source -> sink`) are different identifiers. These rates are estimates because the counter rounds FPS and duration. Every interval requires at least **100 valid samples from each pipeline log**; if needed, collection extends by up to one additional configured interval. If the sample floor is still unmet, the interval is reported as **inconclusive** and is not used for a pass/fail decision. An inconclusive interval is retried once at the same lane count without restarting the pipelines; if the retry is also inconclusive, the run ends with `Result: Inconclusive` and reports the last passing density, if any step passed, which has not been confirmed by the run acceptance criterion. Because the counter reports about one sample per second, `MEASUREMENT_WINDOW_SECONDS` must be at least **100**. The final count is confirmed by the run acceptance criterion (two consecutive passes), and a lane is only given up after two consecutive failing measurement intervals. Each measurement interval is evaluated independently; intervals are not combined into one longer interval. A longer warmup period gives the pipelines more time to stabilize before measuring, and a longer measurement interval can reduce short-term measurement noise, but both increase the total benchmark duration. The resolved warmup period is also printed in the stream-density result summary. For example:
+
+  ```sh
+  make benchmark-stream-density \
+    INIT_DURATION=10 \
+    MEASUREMENT_WINDOW_SECONDS=100
+  ```
+
+### How the target FPS is selected
+
+The stream-density benchmark resolves the effective target FPS for each camera using this precedence:
+
+1. `TARGET_FPS` environment variable, when explicitly supplied. This overrides the camera configuration for every stream.
+2. Per-camera `targetFps` in the selected `camera_to_workload_*.json` file. This is the explicit benchmark target for that camera.
+3. Per-camera `fps` in the camera configuration. This is used as the fallback target when `targetFps` is not present or is not a positive value.
+4. The default target FPS, currently `15`, when neither camera field provides a positive value.
+
+`TARGET_FPS` is an environment/command-line override, while `targetFps` and `fps` are JSON fields. The resolved target value and its source are recorded in `stream_density.log` so the benchmark result can be audited.
 
 ## Prerequisites
 
@@ -147,7 +164,7 @@ Each use case supports three actions: **run** it, **benchmark** a fixed load, an
 
 Run `ls configs/workload_to_pipeline_*` to confirm what your checkout provides. Passing a variant that doesn't exist fails fast — `make run-lp` validates the pair first and reports `Configuration file not found: configs/<name>.json`.
 
-> **View results for any benchmark/density run:** `make consolidate-metrics` → `cat benchmark/metrics.csv` and `make plot-metrics` → utilization chart.
+> **View results for any benchmark/density run:** runs are saved under `benchmark/<config>__<device>__<timestamp>/` (for example, `lp__hetero__<timestamp>` for the default loss-prevention configuration and `lp_vlm__<device>__<timestamp>` for the VLM configuration). `make consolidate-metrics` and `make plot-metrics` use the latest run folder by default. Read its `metrics.csv` and `stream_density.log` (for density runs); `make benchmark-quickstart` consolidates its own run automatically. For a density run with a recorded status, `metrics.csv` uses the final confirming measurement interval for camera FPS and latency percentiles. If no density was confirmed, it reports `Result: no confirmed density` and omits FPS and latency metrics. Older runs without a recorded status may still use the whole logs.
 >For Advanced Benchmark settings, :point_right: [Benchmarking Guide](https://intel-retail.github.io/documentation/use-cases/loss-prevention/performance.html)
 
 **Windows/WSL2:** Follow the [WSL setup guide](docs/wsl2_setup.md), complete the [hardware metrics prerequisites](docs/wsl_hardware_metrics.md), and use the [WSL benchmark metrics guide](docs/wsl2_benchmark.md) when benchmarking. WSL2 currently supports CPU and GPU workloads; NPU workloads are not supported.
@@ -166,7 +183,8 @@ make benchmark-stream-density CAMERA_STREAM=camera_to_workload_asc_object_detect
 
 **See the results**
 ```sh
-make consolidate-metrics && cat benchmark/metrics.csv
+make consolidate-metrics
+cat "$(ls -td benchmark/*/ | head -1)metrics.csv"
 ```
 
 #### 2 · Self-checkout + age verification
@@ -193,7 +211,8 @@ make benchmark-stream-density CAMERA_STREAM=camera_to_workload_asc_age_verificat
 
 **See the results**
 ```sh
-make consolidate-metrics && cat benchmark/metrics.csv
+make consolidate-metrics
+cat "$(ls -td benchmark/*/ | head -1)metrics.csv"
 ```
 
 #### 3 · Loss prevention
@@ -217,7 +236,8 @@ make benchmark-stream-density
 
 **See the results**
 ```sh
-make consolidate-metrics && cat benchmark/metrics.csv
+make consolidate-metrics
+cat "$(ls -td benchmark/*/ | head -1)metrics.csv"
 ```
 
 #### 4 · Run Loss prevention with the VLM Workload With Qwen Model (Default)
@@ -289,7 +309,7 @@ __What to Expect__
 
 + *Visual and Headless Mode*
    - Verify that these output files are created and contain data:     
-     - `<loss-prevention-workspace>/results/pipeline_stream*.log`: per-stream FPS metrics (one value per line)
+    - `<loss-prevention-workspace>/results/pipeline_stream*.log`: per-stream `fps,duration_seconds` samples (one CSV row per counter interval)
      - `<loss-prevention-workspace>/results/gst-launch_*.log`: full GStreamer logs
               
    - Expected result:
@@ -329,8 +349,25 @@ make run-lp DISPLAY=:0 REGISTRY=false RENDER_MODE=1
 ```sh
 make run-lp REGISTRY=false
 ```
+
+### Stream-density benchmark settings
+
+These settings control which configurations are benchmarked and how the stream-density search measures each density step.
+
+| Setting | Purpose | Default |
+|---|---|---|
+| `CAMERA_STREAM` | Camera/workload configuration | `camera_to_workload.json` |
+| `WORKLOAD_DIST` | Workload-to-pipeline configuration | `workload_to_pipeline.json` |
+| `INIT_DURATION` | Warmup period before FPS measurement begins at each density step | `10` seconds |
+| `MEASUREMENT_WINDOW_SECONDS` | Minimum FPS collection duration per interval; may extend by up to one additional configured interval to collect 100 samples per pipeline log. Values below 100 are rejected | `100` seconds |
+| `DENSITY_INCREMENT` | Pipelines added during scaling | `1` |
+| `TARGET_FPS` | Explicit override for all streams | unset |
+| `targetFps` (JSON field) | Per-camera target in `camera_to_workload_*.json` | Per configuration |
+
 ### Configuration & user-defined workloads
 - Workloads are configured by JSON in `configs/` plus the `CAMERA_STREAM` / `WORKLOAD_DIST` env vars (CPU/GPU/NPU/hetero variants, [availability varies by use case](#per-use-case-walkthroughs)). You can also **define your own**: map cameras to custom pipelines by editing `camera_to_workload_*.json` (which cameras run which workloads) and `workload_to_pipeline_*.json` (each workload’s *pipeline*, a sequence of GStreamer elements + models, e.g. `gvadetect` / `gvaclassify`, on a chosen device). See the [Documentation Guide](https://intel-retail.github.io/documentation/use-cases/loss-prevention/getting_started.html) for pre-configured workloads and [User-Defined Workloads](https://intel-retail.github.io/documentation/use-cases/loss-prevention/advanced.html#user-defined-workloads) for the full definitions.
+
+- Camera configs can include an optional `_about` block describing the scenario, cameras, and purpose of the workload; the stream-density report prints this description to give the results context.
 
 - Inference interval
 
@@ -365,6 +402,7 @@ An integrated **MediaMTX** RTSP server (`rtsp-streamer` container) streams the s
 - **TCP transport**: reliable streaming over corporate networks
 - **Low latency**: 200 ms default for real-time processing
 - **Multiple streams**: supports concurrent camera streams
+- **Startup readiness**: pipeline runners wait until every mounted `.mp4` stream delivers video packets over RTSP. The health check probes streams concurrently with a 10-second limit per stream; an open RTSP port alone is not considered ready.
 - **Proxy support**: works through corporate HTTP/HTTPS proxies
 
 ### Docker Services

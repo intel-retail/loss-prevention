@@ -1,7 +1,7 @@
 # Copyright © 2025 Intel Corporation. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-.PHONY: update-submodules download-models download-samples download-sample-videos build-assets-downloader run-assets-downloader build-pipeline-runner run-loss-prevention run-lp down-lp clean-images clean-containers clean-all clean-project-images validate-config validate-camera-config validate-all-configs check-models check-device-env
+.PHONY: update-submodules download-models download-samples download-sample-videos build-assets-downloader run-assets-downloader build-pipeline-runner run-loss-prevention run-lp down-lp clean-images clean-containers clean-all clean-project-images validate-config validate-camera-config validate-all-configs check-models check-device-env validate-display
 -include .env
 
 
@@ -41,8 +41,9 @@ USER_GROUP_ID ?= $(shell id -g)
 export USER_GROUP_ID
 # Default values for benchmark
 PIPELINE_COUNT ?= 1
-INIT_DURATION ?= 120
-TARGET_FPS ?= 14.95
+INIT_DURATION ?= 10
+MEASUREMENT_WINDOW_SECONDS ?= 100
+TARGET_FPS_ARG := $(if $(strip $(TARGET_FPS)),--target_fps $(TARGET_FPS),)
 CONTAINER_NAMES ?= gst0
 DENSITY_INCREMENT ?= 1
 MKDOCS_IMAGE ?= asc-mkdocs
@@ -95,6 +96,7 @@ REGISTRY_BENCHMARK ?= intel/retail-benchmark:$(LP_TAG)
 
 VLM_LOGS_FILE ?= $(PWD)/vlm_loss_prevention.log
 LP_VLM_WORKLOAD_ENABLED := $(shell python3 lp-vlm/src/workload_utils.py --camera-config configs/$(CAMERA_STREAM) --has-lp-vlm)
+export LP_VLM_WORKLOAD_ENABLED
 
 # Set STREAM_LOOP based on LP_VLM_WORKLOAD_ENABLED
 ifeq ($(LP_VLM_WORKLOAD_ENABLED),1)
@@ -102,6 +104,16 @@ ifeq ($(LP_VLM_WORKLOAD_ENABLED),1)
 else
 	STREAM_LOOP_VALUE := true
 endif
+
+PRINT_CAMERA_ABOUT = print_camera_about() { \
+	python3 -c 'import json, sys; \
+exec("try:\n    with open(sys.argv[1], encoding=\"utf-8\") as config_file:\n        config = json.load(config_file)\nexcept (OSError, ValueError):\n    config = {}"); \
+about = config.get("_about", {}) if isinstance(config, dict) else {}; \
+about = about if isinstance(about, dict) else {}; \
+fields = (("name", "Scenario"), ("summary", "Summary"), ("cameras", "Cameras"), ("why_run_it", "Why run it")); \
+lines = [label + ": " + str(about[key]) for key, label in fields if about.get(key)]; \
+print("Camera config _about:\n" + "\n".join(lines)) if lines else None' "$$1"; \
+}
 
 check-models:
 	@chmod +x check_models.sh
@@ -217,7 +229,11 @@ check-device-env:
 	fi
 	@echo "[INFO] Environment configuration valid"
 
-run-lp: validate_workload_mapping update-submodules download-sample-videos
+# Benchmarks use the same compose file without this profile, so the MCP is excluded there.
+run-lp down-lp: export COMPOSE_PROFILES = mcp
+
+# Check the display first in render mode so a bad DISPLAY fails before submodule and video downloads.
+run-lp: $(if $(filter-out 0,$(RENDER_MODE)),validate-display) validate_workload_mapping update-submodules download-sample-videos
 	@echo "[INFO] WSL2=$(WSL2) | DOCKER_COMPOSE=$(DOCKER_COMPOSE)"
 	@echo "Running loss prevention pipeline"
 	@LOG_FILE="vlm_loss_prevention.log"; \
@@ -238,6 +254,8 @@ down-lp:
 	@echo "VLM cleanup completed"
 
 run: validate_workload_mapping download-sample-videos
+	@$(PRINT_CAMERA_ABOUT); \
+	print_camera_about "configs/$(CAMERA_STREAM)"
 	@echo "Setting up environment for STREAM_LOOP..."
 	@mkdir -p results results/vlm-results
 	@LOG_FILE="vlm_loss_prevention.log"; \
@@ -250,17 +268,33 @@ run: validate_workload_mapping download-sample-videos
 		LOCAL_UID=$(shell id -u) LOCAL_GID=$(shell id -g) LP_VLM_WORKLOAD_ENABLED=$(LP_VLM_WORKLOAD_ENABLED) STREAM_LOOP=$(STREAM_LOOP_VALUE) BATCH_SIZE_DETECT=$(BATCH_SIZE_DETECT) BATCH_SIZE_CLASSIFY=$(BATCH_SIZE_CLASSIFY) INFERENCE_INTERVAL=$(INFERENCE_INTERVAL) docker compose -f src/$(DOCKER_COMPOSE) up --build -d; \
 	fi
 
-run-render-mode: validate_workload_mapping download-sample-videos
+validate-display:
 	@if [ -z "$(DISPLAY)" ] || ! echo "$(DISPLAY)" | grep -qE "^:[0-9]+(\.[0-9]+)?$$"; then \
 		echo "ERROR: Invalid or missing DISPLAY environment variable."; \
 		echo "Please set DISPLAY in the format ':<number>' (e.g., ':0')."; \
 		echo "Usage: make <target> DISPLAY=:<number>"; \
-		echo "Example: make $@ DISPLAY=:0"; \
+		echo "Example: make run-lp RENDER_MODE=1 DISPLAY=:0"; \
 		exit 1; \
 	fi
+	@display_num=$$(echo "$(DISPLAY)" | sed -E 's/^:([0-9]+).*/\1/'); \
+	if [ ! -S "/tmp/.X11-unix/X$$display_num" ]; then \
+		available=$$(ls /tmp/.X11-unix 2>/dev/null | sed -n 's/^X\([0-9][0-9]*\)$$/:\1/p' | tr '\n' ' ' | sed 's/ $$//'); \
+		echo "ERROR: DISPLAY=$(DISPLAY) does not exist (no X server socket /tmp/.X11-unix/X$$display_num)."; \
+		echo "Available displays on this host: $${available:-none}"; \
+		exit 1; \
+	fi
+	@if ! DISPLAY=$(DISPLAY) timeout 5 xhost >/dev/null 2>&1; then \
+		echo "ERROR: DISPLAY=$(DISPLAY) exists but cannot be opened (not authorized or not responding)."; \
+		echo "Run from the desktop session, or set XAUTHORITY to the display's authority file."; \
+		exit 1; \
+	fi
+
+run-render-mode: validate-display validate_workload_mapping download-sample-videos
 	@echo "Using DISPLAY=$(DISPLAY)"
 	@echo "Using config file: configs/$(CAMERA_STREAM)"
 	@echo "Using workload config: configs/$(WORKLOAD_DIST)"
+	@$(PRINT_CAMERA_ABOUT); \
+	print_camera_about "configs/$(CAMERA_STREAM)"
 	@xhost +local:docker
 	@LOG_FILE="vlm_loss_prevention.log"; \
 		mkdir -p $$(dirname $$LOG_FILE); \
@@ -294,8 +328,15 @@ build-benchmark:
 	fi
 
 benchmark: build-benchmark download-sample-videos download-models
-	mkdir -p $$(dirname $(VLM_LOGS_FILE)); \
+	@$(PRINT_CAMERA_ABOUT); \
+	print_camera_about "configs/$(CAMERA_STREAM)"
+	@mkdir -p $$(dirname $(VLM_LOGS_FILE)); \
 	[ -f $(VLM_LOGS_FILE) ] || touch $(VLM_LOGS_FILE); \
+	RUN_TAG=$$(python3 src/validate-configs.py --get-run-tag --camera-config configs/$(CAMERA_STREAM) --pipeline-config configs/$(WORKLOAD_DIST) 2>/dev/null || echo "default__unknown"); \
+	RUN_TIMESTAMP=$$(date +%Y-%m-%dT%H-%M-%S); \
+	RUN_DIR="$(RESULTS_DIR)/$${RUN_TAG}__$${RUN_TIMESTAMP}"; \
+	mkdir -p "$$RUN_DIR"; \
+	echo "Running benchmark in: $$RUN_DIR"; \
 	cd performance-tools/benchmark-scripts && \
 	export MULTI_STREAM_MODE=1 && \
 	export LP_VLM_WORKLOAD_ENABLED=$(LP_VLM_WORKLOAD_ENABLED) && \
@@ -307,7 +348,7 @@ benchmark: build-benchmark download-sample-videos download-models
 		python3 benchmark.py \
 			--compose_file ../../src/$(DOCKER_COMPOSE) \
 			--pipelines $(PIPELINE_COUNT) \
-			--results_dir $(RESULTS_DIR) \
+			--results_dir "$$RUN_DIR" \
 			$$(if [ "$(REGISTRY)" = "true" ]; then echo "--benchmark_type=reg"; fi); \
 		deactivate \
 	)
@@ -315,6 +356,8 @@ benchmark: build-benchmark download-sample-videos download-models
 
 
 benchmark-stream-density: build-benchmark download-sample-videos download-models
+	@$(PRINT_CAMERA_ABOUT); \
+	print_camera_about "configs/$(CAMERA_STREAM)"
 	@if [ "$(OOM_PROTECTION)" = "0" ]; then \
         echo "╔════════════════════════════════════════════════════════════╗";\
 		echo "║ WARNING                                                    ║";\
@@ -328,8 +371,13 @@ benchmark-stream-density: build-benchmark download-sample-videos download-models
 		echo "╚════════════════════════════════════════════════════════════╝";\
 		sleep 5;\
     fi
-	mkdir -p $$(dirname $(VLM_LOGS_FILE)); \
+	@mkdir -p $$(dirname $(VLM_LOGS_FILE)); \
 	[ -f $(VLM_LOGS_FILE) ] || touch $(VLM_LOGS_FILE); \
+	RUN_TAG=$$(python3 src/validate-configs.py --get-run-tag --camera-config configs/$(CAMERA_STREAM) --pipeline-config configs/$(WORKLOAD_DIST) 2>/dev/null || echo "default__unknown"); \
+	RUN_TIMESTAMP=$$(date +%Y-%m-%dT%H-%M-%S); \
+	RUN_DIR="$(RESULTS_DIR)/$${RUN_TAG}__$${RUN_TIMESTAMP}"; \
+	mkdir -p "$$RUN_DIR"; \
+	echo "Running benchmark in: $$RUN_DIR"; \
 	cd performance-tools/benchmark-scripts && \
 	export MULTI_STREAM_MODE=1 && \
 	export STREAM_LOOP=$(STREAM_LOOP_VALUE) && \
@@ -340,15 +388,18 @@ benchmark-stream-density: build-benchmark download-sample-videos download-models
 	python3 benchmark.py \
 		--compose_file ../../src/$(DOCKER_COMPOSE) \
 		--init_duration $(INIT_DURATION) \
-		--target_fps $(TARGET_FPS) \
+		--measurement_window_seconds $(MEASUREMENT_WINDOW_SECONDS) \
+		$(TARGET_FPS_ARG) \
 		--container_names $(CONTAINER_NAMES) \
 		--density_increment $(DENSITY_INCREMENT) \
-		--results_dir $(RESULTS_DIR) \
+		--results_dir "$$RUN_DIR" \
 		$$(if [ "$(REGISTRY)" = "true" ]; then echo "--benchmark_type=reg"; fi); \
 	deactivate \
 	)
 	
 benchmark-quickstart: download-models download-sample-videos
+	@$(PRINT_CAMERA_ABOUT); \
+	print_camera_about "configs/$(CAMERA_STREAM)"
 	@if [ "$(WSL2)" = "true" ]; then \
 		$(MAKE) build-benchmark; \
 	elif [ "$(REGISTRY)" = "true" ]; then \
@@ -357,8 +408,13 @@ benchmark-quickstart: download-models download-sample-videos
 		echo "Building benchmark container locally..."; \
 		$(MAKE) build-benchmark; \
 	fi
-	mkdir -p $$(dirname $(VLM_LOGS_FILE)); \
+	@mkdir -p $$(dirname $(VLM_LOGS_FILE)); \
 	[ -f $(VLM_LOGS_FILE) ] || touch $(VLM_LOGS_FILE); \
+	RUN_TAG=$$(python3 src/validate-configs.py --get-run-tag --camera-config configs/$(CAMERA_STREAM) --pipeline-config configs/$(WORKLOAD_DIST) 2>/dev/null || echo "default__unknown"); \
+	RUN_TIMESTAMP=$$(date +%Y-%m-%dT%H-%M-%S); \
+	RUN_DIR="$(RESULTS_DIR)/$${RUN_TAG}__$${RUN_TIMESTAMP}"; \
+	mkdir -p "$$RUN_DIR"; \
+	echo "Running benchmark in: $$RUN_DIR"; \
 	cd performance-tools/benchmark-scripts && \
 	export MULTI_STREAM_MODE=1 && \
 	export STREAM_LOOP=$(STREAM_LOOP_VALUE) && \
@@ -366,10 +422,9 @@ benchmark-quickstart: download-models download-sample-videos
 	python3 -m venv venv && \
 	. venv/bin/activate && \
 	pip3 install -r requirements.txt && \
-		python3 benchmark.py --compose_file ../../src/$(DOCKER_COMPOSE) --pipelines $(PIPELINE_COUNT) --results_dir $(RESULTS_DIR) $$(if [ "$(REGISTRY)" = "true" ]; then echo "--benchmark_type=reg"; fi); \
-	deactivate \
-	)
-	$(MAKE) consolidate-metrics
+	python3 benchmark.py --compose_file ../../src/$(DOCKER_COMPOSE) --pipelines $(PIPELINE_COUNT) --results_dir "$$RUN_DIR" $$(if [ "$(REGISTRY)" = "true" ]; then echo "--benchmark_type=reg"; fi) \
+	) && \
+	$(MAKE) -C "$(CURDIR)" consolidate-metrics TARGET_DIR="$$RUN_DIR"
 
 clean-images:
 	@echo "Cleaning up dangling Docker images..."
@@ -442,21 +497,80 @@ validate-all-configs:
 	@python3 src/validate-configs.py --validate-all
 
 consolidate-metrics:
+	@TARGET_DIR="$(TARGET_DIR)"; \
+	if [ -z "$$TARGET_DIR" ]; then TARGET_DIR=$$(ls -td $(RESULTS_DIR)/*/ 2>/dev/null | head -1 | sed 's|/$$||'); fi; \
+	TARGET_DIR=$${TARGET_DIR:-$(RESULTS_DIR)}; \
+	echo "Consolidating metrics for: $$TARGET_DIR"; \
 	cd performance-tools/benchmark-scripts && \
 	( \
 	python3 -m venv venv && \
 	. venv/bin/activate && \
 	pip install -r requirements.txt && \
-	python3 consolidate_multiple_run_of_metrics.py --root_directory $(RESULTS_DIR) --output $(RESULTS_DIR)/metrics.csv && \
+	python3 consolidate_multiple_run_of_metrics.py --root_directory "$$TARGET_DIR" --output "$$TARGET_DIR/metrics.csv" && \
 	deactivate \
 	)
 
 plot-metrics:
+	@TARGET_DIR=$$(ls -td $(RESULTS_DIR)/*/ 2>/dev/null | head -1 | sed 's|/$$||'); \
+	TARGET_DIR=$${TARGET_DIR:-$(RESULTS_DIR)}; \
+	echo "Plotting metrics from: $$TARGET_DIR"; \
 	cd performance-tools/benchmark-scripts && \
 	( \
 	python3 -m venv venv && \
 	. venv/bin/activate && \
 	pip install -r requirements.txt && \
-	python3 usage_graph_plot.py --dir $(RESULTS_DIR)  && \
+	python3 usage_graph_plot.py --dir "$$TARGET_DIR" && \
 	deactivate \
 	)
+
+# ---------- Loss Prevention MCP sensor service ----------
+.PHONY: mcp-build mcp-image mcp-up mcp-down mcp-seed mcp-bench mcp-test mcp-import
+
+MCP_COMPOSE ?= src/$(DOCKER_COMPOSE)
+LP_MCP_PORT ?= 9100
+# The MCP's background watcher reads this camera config and lane for live ingestion.
+LP_LANE ?= lane-1
+export CAMERA_STREAM LP_LANE LP_MCP_PORT
+mcp-build mcp-image mcp-up mcp-down mcp-seed mcp-import mcp-bench: export COMPOSE_PROFILES = mcp
+
+mcp-build:
+	@docker compose -f $(MCP_COMPOSE) build lp-mcp-service
+
+# REGISTRY=true (default) pulls intel/lp-mcp:$(LP_TAG); REGISTRY=false builds from mcp-service/.
+mcp-image:
+	@if [ "$(REGISTRY)" = "true" ]; then \
+		echo "Pulling MCP image intel/lp-mcp:$(LP_TAG) from registry..."; \
+		if ! docker compose -f $(MCP_COMPOSE) pull -q lp-mcp-service >/dev/null 2>&1; then \
+			echo "MCP image not available in registry; building it locally from mcp-service/..."; \
+			$(MAKE) --no-print-directory mcp-build; \
+		fi; \
+	else \
+		echo "Building MCP image locally from mcp-service/..."; \
+		$(MAKE) --no-print-directory mcp-build; \
+	fi
+
+# Start only the MCP service (make run-lp starts it with the rest of the stack).
+mcp-up: mcp-image
+	@docker compose -f $(MCP_COMPOSE) up -d --no-deps lp-mcp-service
+	@echo "LP MCP service: http://localhost:$(LP_MCP_PORT)/mcp (older results: make mcp-import)"
+
+mcp-down:
+	@docker compose -f $(MCP_COMPOSE) rm -sf lp-mcp-service
+
+mcp-seed:
+	@docker compose -f $(MCP_COMPOSE) exec lp-mcp-service python /app/scripts/seed_demo.py
+
+# Manual backfill of non-VLM JSONL output (live runs are ingested by the watcher).
+mcp-import:
+	@docker compose -f $(MCP_COMPOSE) exec lp-mcp-service \
+		python /app/scripts/import_jsonl.py --results-dir /results \
+		--camera-config /configs/$(CAMERA_STREAM) --lane $(LP_LANE) \
+		$(if $(strip $(IMPORT_SINCE_MS)),--since-ms $(IMPORT_SINCE_MS),)
+
+# Clean benchmark run: preload history, durable log only, no hub fan-out.
+mcp-bench: mcp-image
+	LP_EVENT_DELIVERY=off SEED_DEMO=true docker compose -f $(MCP_COMPOSE) up -d --no-deps lp-mcp-service
+
+mcp-test:
+	cd mcp-service && python3 -m pytest -q
+

@@ -1,0 +1,36 @@
+name: lp-mcp
+
+services:
+  lp-mcp-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: intel/lp-mcp:${TAG:-latest}
+    ports:
+      - "${LP_MCP_PORT:-9100}:9100"
+    environment:
+      MCP_TRANSPORT: streamable-http
+      MCP_HOST: 0.0.0.0
+      MCP_PORT: 9100
+      STORE_ID: ${STORE_ID:-store_001}
+      LP_LOG_PATH: /data/lp_log.sqlite
+      LP_EVENT_HUB_URL: ${LP_EVENT_HUB_URL:-}
+      # Set LP_EVENT_DELIVERY=off for clean benchmark runs (log only, no fan-out).
+      LP_EVENT_DELIVERY: ${LP_EVENT_DELIVERY:-on}
+      LP_EVENT_HUB_MIN_SEVERITY: ${LP_EVENT_HUB_MIN_SEVERITY:-high}
+      LP_TIMEZONE: ${LP_TIMEZONE:-Asia/Kolkata}
+      USE_CASE: ${USE_CASE:-retail}
+      SEED_DEMO: ${SEED_DEMO:-false}
+      LP_RESULTS_DIR: /results
+      LP_JSONL_WATCH: ${LP_JSONL_WATCH:-on}
+      LP_CAMERA_CONFIG: /configs/${CAMERA_STREAM:-camera_to_workload.json}
+      LP_LANE: ${LP_LANE:-lane-1}
+    volumes:
+      - lp-mcp-data:/data
+      # Read non-VLM pipeline JSONL output and camera configs for `make mcp-import`.
+      - ../results:/results:ro
+      - ../configs:/configs:ro
+    restart: unless-stopped
+
+volumes:
+  lp-mcp-data:
