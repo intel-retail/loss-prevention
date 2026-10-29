@@ -6,7 +6,7 @@ For a concise description of automatic collection and report fields, see
 
 ## Scope and Portability
 
-Run the benchmark from the loss-prevention repository root inside WSL2. The project flag is `WSL2=true`, not `WSL=true`. The Makefile detects a Microsoft kernel automatically; pass the flag explicitly when validating this setup. Windows collection is disabled for `WSL2=false`.
+Run the benchmark from the loss-prevention repository root inside WSL2. The Makefile detects WSL2 from the Microsoft kernel automatically; no flag is needed. Windows collection is disabled for `WSL2=false`.
 
 No source edits should be needed on another supported host. Installed executable paths, hardware sensors, permissions, and adapter identifiers are host-specific. Sensor and adapter identifiers must be rechecked after reboot, driver changes, or GPU changes. This is not a guarantee that every WSL machine can supply every measurement.
 
@@ -15,9 +15,9 @@ No source edits should be needed on another supported host. Installed executable
 | GPU activity | Windows GPU driver exposing GPU Engine PDH counters; Windows Python and pywin32 | `NA` |
 | GPU power | Optional Libre Hardware Monitor library, Python.NET, working GPU power sensor, explicit sensor/adapter selection | `NA` |
 | CPU package power and DRAM bandwidth | Native Intel PCM, supported Intel CPU/counters, working driver and permissions | `NA` |
-| NPU | No collector required; intentional WSL reporting default | `0.00` |
+| NPU | NPU utilization is unavailable under WSL2 | `NA` |
 
-Unavailable measurements remain `NA` in `windows_metrics.json` for diagnostics, but their rows are omitted from the consolidated WSL `metrics.csv`. Valid zeros, including the NPU default `0.00`, are retained. Native Linux CSV behavior is unchanged.
+Unavailable measurements remain `NA` in `windows_metrics.json` for diagnostics and are retained as `NA` in the consolidated WSL `metrics.csv`. Valid zero readings are retained as zero. Native Linux CSV behavior is unchanged.
 
 GPU activity uses Windows counterparts of CCS/RCS/VCS/VECS/Copy, not identical Intel hardware counters. Processes are summed per physical engine; the busiest engine in each category is used, including the busiest decode/encode engine for Video. Measurements are host-wide and include unrelated Windows applications. Valid zero activity is distinct from an unavailable measurement.
 
@@ -124,7 +124,7 @@ In the same **WSL terminal**, install packages into Windows Python:
 After both commands succeed, run from the loss-prevention repository root:
 
 ```bash
-make build-benchmark WSL2=true
+make build-benchmark
 ```
 
 In WSL mode, this target verifies the configured Windows interpreter and installs `psutil pywin32`, using Windows pip's saved proxy configuration. It does not locate or install Python itself. Optional power dependencies are not installed automatically.
@@ -222,9 +222,13 @@ The discovery command is setup only. During benchmarking the collector opens the
 Run in the same WSL shell as the optional exports:
 
 ```bash
-make benchmark WSL2=true
-make consolidate-metrics WSL2=true
+make benchmark CAMERA_STREAM=camera_to_workload_asc_object_detection_classification.json WORKLOAD_DIST=workload_to_pipeline_asc_object_detection_classification_gpu.json
+make consolidate-metrics
 ```
+
+Use an explicit CPU or GPU config pair for WSL2 benchmarks. Do not use the
+default configs, `_npu`, `_gpu-npu`, or `_hetero` configs, which include
+unsupported NPU workloads.
 
 The ordinary benchmark target does not automatically invoke consolidation; `benchmark-quickstart` does. The existing benchmark and stream-density Compose lifecycle starts and stops the Windows worker automatically. It begins sampling after the configured warm-up. Stream-density iterations replace telemetry with the latest collected run rather than accumulating all iterations. Auxiliary Compose starts through the same helper also trigger collection; there is no archive or automatic best-iteration selection. The regular `run-lp` target does not launch this benchmark collector. The existing plotting command has no new integration for the Windows hardware summary.
 
@@ -241,7 +245,7 @@ metrics.csv                  Produced by consolidation
 
 If you override `RESULTS_DIR`, pass the same absolute directory to benchmark and consolidation. Outputs then go there intentionally; there is no random output directory. Telemetry from a preceding run is reset. Worker failure does not stop the workload; inspect logs when fields remain `NA`. The existing Makefile dependency-install step can still fail if Windows Python or network access is missing, so complete prerequisites before benchmarking.
 
-Do not treat presence of rows as proof of successful collection. Check that adapter metadata matches the intended GPU, GPU activity changes under load, power readings are plausible for that device, PCM logs contain no permission/unsupported-counter errors, and NPU is exactly the intentional `0.00` default. Close unrelated GPU-heavy applications for repeatable host-wide measurements.
+Do not treat presence of rows as proof of successful collection. Check that adapter metadata matches the intended GPU, GPU activity changes under load, power readings are plausible for that device, PCM logs contain no permission/unsupported-counter errors, and NPU utilization remains `NA` under WSL2. Close unrelated GPU-heavy applications for repeatable host-wide measurements.
 
 ## Validation Status
 

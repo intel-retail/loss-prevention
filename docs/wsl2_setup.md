@@ -8,7 +8,7 @@ Windows GPU counters, optional GPU power sensors, and native Windows PCM need
 separate host-side setup. Collection then starts and stops automatically with
 the benchmark; no separate collector command is needed during a run. See
 [WSL benchmark metrics](wsl2_benchmark.md) for outputs and limitations. The
-project flag is `WSL2=true`, not `WSL=true`.
+Makefile detects WSL2 automatically from the Microsoft kernel; no flag is needed.
 
 Follow the steps **in order**. Several of them fail in confusing ways if done out of
 sequence — particularly the proxy configuration, which must come before any download.
@@ -54,10 +54,9 @@ fails somewhere else. Every occurrence below is marked with a ⚙️ note.
 
 | Placeholder used here | What it is | How to find yours |
 |---|---|---|
-| `proxy-iind.intel.com` | Proxy hostname — `iind` is Intel **India**; other sites differ | `netsh winhttp show proxy` (Windows), `echo $HTTP_PROXY` (Ubuntu) |
-| `911` / `912` | Proxy port | Test both, keep the one returning `200` (see 1b) |
-| `.intel.com`, `10.0.0.0/8` | `NO_PROXY` internal domain and network range | Your own internal DNS suffix and RFC1918 ranges |
-| `autoproxy.iglb.intel.com/wpad.dat` | PAC file | `echo $WSL_PAC_URL` (Ubuntu) |
+| `http://proxy.example.com:PORT` | Example proxy URL; replace the host and port with your site's values | `netsh winhttp show proxy` or `ProxyServer` (Windows), `echo $HTTP_PROXY` (Ubuntu) |
+| `.example.com`, `192.0.2.0/24` | Reserved example values for the `NO_PROXY` internal domain and network range | Your own internal DNS suffix and network ranges |
+| PAC URL | Proxy auto-configuration file | `AutoConfigURL` (Windows), `echo $WSL_PAC_URL` (Ubuntu) |
 | `C:\Users\<YourName>` | Windows profile path | Use `$env:USERPROFILE`, which resolves itself |
 
 **Discover everything at once.** In **PowerShell**:
@@ -138,10 +137,10 @@ netsh winhttp show proxy
 If it still reports `Direct access (no proxy server)`, set it explicitly:
 
 ```powershell
-netsh winhttp set proxy proxy-server="http=proxy-iind.intel.com:911;https=proxy-iind.intel.com:911" bypass-list="*.intel.com;localhost;127.0.0.1;<local>"
+netsh winhttp set proxy proxy-server="http=proxy.example.com:PORT;https=proxy.example.com:PORT" bypass-list="*.example.com;localhost;127.0.0.1;<local>"
 ```
 
-> ⚙️ **Site-specific.** Replace `proxy-iind.intel.com:911` and the bypass list with your
+> ⚙️ **Site-specific.** Replace `proxy.example.com:PORT` and the bypass list with your
 > own. Find them with:
 >
 > ```powershell
@@ -150,17 +149,17 @@ netsh winhttp set proxy proxy-server="http=proxy-iind.intel.com:911;https=proxy-
 > ```
 >
 > If only `AutoConfigURL` is set, open that PAC URL in a browser and read the proxy host
-> out of the JavaScript.
+> and port out of the JavaScript.
 
 Check the proxy actually reaches the download host before going further:
 
 ```powershell
-curl.exe -sS -o NUL -w "%{http_code}`n" -x http://proxy-iind.intel.com:911 https://github.com
-curl.exe -sS -o NUL -w "%{http_code}`n" -x http://proxy-iind.intel.com:912 https://github.com
+curl.exe -sS -o NUL -w "%{http_code}`n" -x http://proxy.example.com:PORT https://github.com
 ```
 
-Want `200`. Use whichever port returns it. A `403` means that port refuses the
-destination.
+Replace the example host and `PORT` with the proxy host and port reported by your
+settings or PAC file. A `200` confirms the proxy reaches the destination; a `403` means
+it refuses that destination.
 
 ### 1c. Check firmware virtualization
 
@@ -200,10 +199,10 @@ the Windows certificate store — the same store your browser uses, so the inspe
 is accepted:
 
 ```powershell
-$json = curl.exe -sS -x http://proxy-iind.intel.com:911 https://api.github.com/repos/microsoft/WSL/releases/latest | ConvertFrom-Json
+$json = curl.exe -sS -x http://proxy.example.com:PORT https://api.github.com/repos/microsoft/WSL/releases/latest | ConvertFrom-Json
 $url  = ($json.assets | Where-Object { $_.name -like '*x64.msi' }).browser_download_url
 $url
-curl.exe -L -x http://proxy-iind.intel.com:911 -o "$env:TEMP\wsl.msi" $url
+curl.exe -L -x http://proxy.example.com:PORT -o "$env:TEMP\wsl.msi" $url
 (Get-Item "$env:TEMP\wsl.msi").Length
 msiexec /i "$env:TEMP\wsl.msi" /qn /norestart
 ```
@@ -211,8 +210,8 @@ msiexec /i "$env:TEMP\wsl.msi" /qn /norestart
 The length check matters: expect roughly 100–150 MB. A few kilobytes means you downloaded
 the proxy's block page rather than the installer.
 
-> ⚙️ **Site-specific.** The two `-x http://proxy-iind.intel.com:911` flags — use the port
-> you confirmed in 1b. The `api.github.com` URL is universal, and the MSI URL is
+> ⚙️ **Site-specific.** Replace `http://proxy.example.com:PORT` with the proxy URL
+> confirmed in 1b. The `api.github.com` URL is universal, and the MSI URL is
 > deliberately *not* hardcoded: the API query resolves the current version's
 > `browser_download_url`, so it stays correct as WSL releases change. Do not replace it
 > with a literal filename.
@@ -330,12 +329,12 @@ skipping it produces misleading failures much later.
 
 ### Why this trips people up
 
-On the Intel network, **port 80 works directly but port 443 is blocked.** Ubuntu's own
-package repositories are plain HTTP, so `sudo apt update` appears to succeed:
+On some networks, plain HTTP may work directly while HTTPS is blocked. Ubuntu's own
+package repositories may use plain HTTP, so `sudo apt update` can appear to succeed:
 
 ```text
-Hit:1 http://archive.ubuntu.com/ubuntu noble InRelease        <-- port 80, works
-Err:6 https://download.docker.com/linux/ubuntu noble InRelease <-- port 443, blocked
+Hit:1 http://archive.ubuntu.com/ubuntu noble InRelease        <-- HTTP repository succeeds
+Err:6 https://download.docker.com/linux/ubuntu noble InRelease <-- HTTPS repository times out
   Could not connect to download.docker.com:443, connection timed out
 ```
 
@@ -407,7 +406,7 @@ if [ -n "$HTTP_PROXY" ]; then
     export HTTPS_PROXY="${HTTPS_PROXY:-$HTTP_PROXY}"
     export http_proxy="$HTTP_PROXY"
     export https_proxy="$HTTPS_PROXY"
-    export NO_PROXY="localhost,127.0.0.1,::1,.intel.com,10.0.0.0/8,rabbitmq,minio-service,rtsp-streamer,ovms-vlm,model-downloader"
+    export NO_PROXY="localhost,127.0.0.1,::1,.example.com,192.0.2.0/24,rabbitmq,minio-service,rtsp-streamer,ovms-vlm,model-downloader"
     export no_proxy="$NO_PROXY"
 fi
 EOF
@@ -425,14 +424,16 @@ curl -sI --max-time 15 https://download.docker.com/linux/ubuntu/gpg | head -1
 The `curl` must return `HTTP/1.1 200` or `HTTP/2 200`. A hang means HTTPS is still
 going direct.
 
-> Find your proxy URL from `echo $HTTP_PROXY`, or from the PAC file WSL exposes as
-> `$WSL_PAC_URL`. On the Intel India network it is `http://proxy-iind.intel.com:912`.
+> Find your proxy URL from `echo $HTTP_PROXY`, or inspect the PAC file WSL exposes as
+> `$WSL_PAC_URL`. On Windows, `netsh winhttp show proxy` and the Internet Settings
+> `ProxyServer` and `AutoConfigURL` values show the configured proxy or PAC URL. If only
+> a PAC URL is available, inspect its script to find the proxy host and port.
 
-> ⚙️ **Site-specific.** The `NO_PROXY` list above mixes two kinds of entry. Change
-> `.intel.com` and `10.0.0.0/8` to your own internal domain and network ranges. **Keep**
-> `rabbitmq`, `minio-service`, `rtsp-streamer`, `ovms-vlm` and `model-downloader` — those
-> are Compose service names from `src/docker-compose.yml`, identical on every machine,
-> and routing them through a proxy breaks inter-container traffic.
+> ⚙️ **Site-specific.** The `NO_PROXY` list above mixes two kinds of entry. Replace
+> `.example.com` and `192.0.2.0/24` with your own internal domain and network ranges.
+> Keep `rabbitmq`, `minio-service`, `rtsp-streamer`, `ovms-vlm` and `model-downloader` —
+> those are Compose service names from `src/docker-compose.yml`, identical on every
+> machine, and routing them through a proxy breaks inter-container traffic.
 >
 > ```bash
 > echo "$HTTP_PROXY"
@@ -446,8 +447,8 @@ separate from step 3b and both are required:
 
 ```bash
 sudo tee /etc/apt/apt.conf.d/95proxies > /dev/null <<'EOF'
-Acquire::http::Proxy "http://proxy-iind.intel.com:912";
-Acquire::https::Proxy "http://proxy-iind.intel.com:912";
+Acquire::http::Proxy "http://proxy.example.com:PORT";
+Acquire::https::Proxy "http://proxy.example.com:PORT";
 EOF
 ```
 
@@ -652,16 +653,17 @@ shell environment:
 sudo mkdir -p /etc/systemd/system/docker.service.d
 sudo tee /etc/systemd/system/docker.service.d/proxy.conf > /dev/null <<'EOF'
 [Service]
-Environment="HTTP_PROXY=http://proxy-iind.intel.com:912"
-Environment="HTTPS_PROXY=http://proxy-iind.intel.com:912"
-Environment="NO_PROXY=localhost,127.0.0.1,.intel.com,rabbitmq,minio-service,rtsp-streamer,ovms-vlm,model-downloader"
+Environment="HTTP_PROXY=http://proxy.example.com:PORT"
+Environment="HTTPS_PROXY=http://proxy.example.com:PORT"
+Environment="NO_PROXY=localhost,127.0.0.1,.example.com,rabbitmq,minio-service,rtsp-streamer,ovms-vlm,model-downloader"
 EOF
 
 sudo systemctl daemon-reload
 sudo systemctl restart docker
 ```
 
-> ⚙️ **Site-specific.** Replace the proxy host and the `.intel.com` entry with your own;
+> ⚙️ **Site-specific.** Replace `http://proxy.example.com:PORT` and the `.example.com`
+> entry with your own;
 > keep the Compose service names. Confirm the values you are about to write first with
 > `echo "$HTTP_PROXY"`.
 
@@ -686,7 +688,7 @@ the project's own images, but coverage has gaps:
 
 - With `WSL2=false REGISTRY=false`, `make build-benchmark` delegates to the
   `performance-tools` submodule's Makefile, which is outside this repo's proxy
-  plumbing. With `WSL2=true`, it instead uses the Windows Python executable
+  plumbing. On WSL2, it instead uses the Windows Python executable
   configured by `WINDOWS_PYTHON` in the root Makefile and installs
   its Python dependencies; Windows Python needs its own working network/proxy
   configuration. Docker proxy settings do not configure Windows pip.
@@ -703,16 +705,16 @@ cat > ~/.docker/config.json <<'EOF'
 {
   "proxies": {
     "default": {
-      "httpProxy": "http://proxy-iind.intel.com:912",
-      "httpsProxy": "http://proxy-iind.intel.com:912",
-      "noProxy": "localhost,127.0.0.1,.intel.com,rabbitmq,minio-service,rtsp-streamer,ovms-vlm,model-downloader"
+      "httpProxy": "http://proxy.example.com:PORT",
+      "httpsProxy": "http://proxy.example.com:PORT",
+      "noProxy": "localhost,127.0.0.1,.example.com,rabbitmq,minio-service,rtsp-streamer,ovms-vlm,model-downloader"
     }
   }
 }
 EOF
 ```
 
-> ⚙️ **Site-specific.** Same substitution as step 7 — proxy host, port and `.intel.com`.
+> ⚙️ **Site-specific.** Same substitution as step 7 — proxy host, port and `.example.com`.
 > This file is JSON, so a trailing comma or an unescaped value breaks every `docker`
 > command, not just builds. Validate it after writing:
 >
@@ -738,9 +740,8 @@ or did not load; re-check `docker info | grep -i proxy`.
 `docker compose version` must report **v2.24.0 or newer** — the Makefile uses
 `docker compose` (space, not hyphen) throughout, and `src/docker-compose-wsl2.yml`
 relies on the `include` top-level element and the `!override` merge tag, which earlier
-v2 releases reject. `make run-lp` enforces this minimum when `WSL2=true`. If your
-version is older, upgrade `docker-compose-plugin` from the Docker apt repository
-configured in step 6.
+v2 releases reject. If your version is older, upgrade `docker-compose-plugin` from
+the Docker apt repository configured in step 6.
 
 ---
 
@@ -824,19 +825,18 @@ git submodule status
 
 The Makefile reads an optional `.env` file. Proxy variables do **not** need to go here —
 `make` already imports them from your shell environment. Use `.env` only for values that
-should not be global, such as secrets and WSL2 host configuration:
+should not be global, such as secrets and optional WSL2 host configuration:
 
 ```bash
 # .env  (do not commit)
 HUGGINGFACE_TOKEN=hf_xxxxxxxx
-WSL2=true
 ```
 
-`WSL2=true` selects `src/docker-compose-wsl2.yml` instead of the native
-`src/docker-compose.yml`. The WSL2 Compose file replaces native Linux `/dev/dri`
+The Makefile detects WSL2 automatically and selects `src/docker-compose-wsl2.yml`
+instead of the native `src/docker-compose.yml`. The WSL2 Compose file replaces native Linux `/dev/dri`
 device mappings with WSL2's `/dev/dxg` and mounts the WSL graphics libraries,
-driver helper libraries, and OpenCL ICD configuration. CPU workloads remain CPU
-workloads because the device is selected by the workload JSON.
+driver helper libraries, and host OpenCL paths. CPU workloads remain CPU workloads
+because the device is selected by the workload JSON.
 
 ---
 
@@ -852,12 +852,20 @@ wrong and will break GPU access.**
 
 In WSL, the Intel *Windows* driver projects its Linux-side libraries into the distro at
 `/usr/lib/wsl/lib`. Installing the apt packages places conflicting versions in
-`/usr/lib/x86_64-linux-gnu` that shadow them.
+`/usr/lib/x86_64-linux-gnu` that shadow them. The WSL Compose override also bind-mounts
+`/etc/OpenCL` and, for `ovms-vlm`, `/usr/lib/x86_64-linux-gnu/intel-opencl` from the
+host. These paths are not created by the setup steps in this guide, and their source
+and provisioning method must be verified on the target WSL installation. Do not assume
+that the Windows driver populates them or install an ICD package to create them without
+confirming that is the supported setup for your environment. A missing host path can be
+created as an empty directory by Docker and mask files at the corresponding image path.
 
 The same applies to the NPU — there is no `intel_vpu` kernel module to install.
 
-If the GPU is missing, the fix is always on the **Windows** side: install the latest
-Intel graphics driver, then `wsl --shutdown`.
+If the GPU is missing, first check that the host OpenCL paths required by the WSL
+Compose override exist and contain the expected files. If the Windows-provided WSL GPU
+libraries or `/dev/dxg` are missing, install the latest Intel graphics driver on
+Windows, then run `wsl --shutdown`.
 
 ### 11a. Host device check
 
@@ -865,7 +873,8 @@ Intel graphics driver, then `wsl --shutdown`.
 ls -l /dev/dxg
 ls -l /usr/lib/wsl/lib/
 ls -l /usr/lib/wsl/drivers/
-find /etc/OpenCL -maxdepth 2 -type f -print
+ls -ld /etc/OpenCL /usr/lib/x86_64-linux-gnu/intel-opencl
+find /etc/OpenCL /usr/lib/x86_64-linux-gnu/intel-opencl -maxdepth 3 -type f -print
 ls /dev/dri 2>&1
 ls /dev/accel 2>&1
 ```
@@ -877,7 +886,8 @@ Expected results:
 | `/dev/dxg` | **exists** | the WSL GPU device — replaces `/dev/dri` |
 | `/usr/lib/wsl/lib/` | populated | `libd3d12.so`, `libd3d12core.so`, `libdxcore.so` plus Intel compute libraries |
 | `/usr/lib/wsl/drivers/` | populated | WSL GPU driver helpers such as `libwsl_compute_helper.so` |
-| `/etc/OpenCL/` | populated | OpenCL ICD files used to discover the GPU |
+| `/etc/OpenCL/` | must exist and contain the expected ICD configuration | bind-mounted by the WSL Compose override; this guide does not provision it |
+| `/usr/lib/x86_64-linux-gnu/intel-opencl/` | must exist and contain the expected runtime files when using `ovms-vlm` | bind-mounted by the WSL Compose override; this guide does not provision it |
 | `/dev/dri` | **absent** | expected; this is why the compose device mappings need changing |
 | `/dev/accel` | likely absent | the NPU finding |
 

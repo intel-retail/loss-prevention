@@ -1,10 +1,10 @@
 # Benchmark metrics on WSL2
 
-With `WSL2=true`, the benchmark automatically launches Windows Python through
-WSL interoperability for GPU activity and hardware power/bandwidth collection.
-Native Linux collection remains unchanged. The project flag is `WSL2=true`,
-not `WSL=true`. This helper does not change Compose arguments, pipeline
-execution, or stream-density calculations.
+On WSL2, the benchmark automatically launches Windows Python through WSL
+interoperability for GPU activity and hardware power/bandwidth collection. The
+Makefile detects WSL2 automatically; native Linux collection remains unchanged.
+This helper does not change Compose arguments, pipeline execution, or
+stream-density calculations.
 
 ## Prerequisites
 
@@ -38,21 +38,27 @@ Package power and DRAM bandwidth require supported native Windows PCM and its
 driver. Optional GPU watts require Python.NET, Libre Hardware Monitor, and an
 explicit GPU power sensor/adapter selection. CPU package watts are never used
 as GPU watts. Missing hardware measurements remain `NA` in `windows_metrics.json`
-and are omitted from the consolidated WSL `metrics.csv`.
+and are retained as `NA` in the consolidated WSL `metrics.csv`.
 
 ## Commands
 
 Run these commands from the repository root in WSL:
 
 ```bash
-make benchmark WSL2=true
-make consolidate-metrics WSL2=true
+make benchmark CAMERA_STREAM=camera_to_workload_asc_object_detection_classification.json WORKLOAD_DIST=workload_to_pipeline_asc_object_detection_classification_gpu.json
+make consolidate-metrics
 ```
 
-For stream density, use `make benchmark-stream-density WSL2=true` with your
-existing workload parameters, then consolidate. The Makefile detects and
-exports `WSL2` automatically on a Microsoft kernel; it is explicit above for
-clarity. Keep optional collector settings exported in the same WSL shell.
+For stream density, pass an explicit supported config pair as well:
+
+```bash
+make benchmark-stream-density CAMERA_STREAM=camera_to_workload_asc_object_detection_classification.json WORKLOAD_DIST=workload_to_pipeline_asc_object_detection_classification_gpu.json
+```
+
+Use a CPU or GPU config pair for WSL2; do not use the default configs, `_npu`,
+`_gpu-npu`, or `_hetero` configs, which include unsupported NPU workloads. The
+Makefile detects and exports `WSL2` automatically on a Microsoft kernel.
+Keep optional collector settings exported in the same WSL shell.
 
 `RESULTS_DIR` defaults to the repository's `benchmark` directory. If overridden,
 use the same absolute directory for benchmarking and consolidation.
@@ -89,7 +95,7 @@ power, and bandwidth measurements.
 | `GPU_<index> GPU Power (W)` | Explicitly selected GPU power sensor, when configured and available |
 | `S<index> Power Draw W` | PCM package energy divided by elapsed sample time |
 | `S<index> Memory Bandwidth Usage MB/s` | PCM READ + WRITE converted from GB/s to MB/s |
-| `NPU Utilization %` | Intentional WSL-only reporting default of `0.00` |
+| `NPU Utilization %` | `NA`; NPU utilization is unavailable under WSL2 |
 
 GPU labels preserve CSV compatibility, but Windows measurements are not
 identical to Intel hardware counters. Process values are summed per physical
@@ -101,8 +107,8 @@ not match Task Manager indices or Linux DRM card numbers. A configured
 GPU-power adapter is assigned `GPU_1`. Verify sensor/adapter association on
 each host, especially after reboot or driver changes.
 
-Unavailable measurements are `NA` in the diagnostic JSON, not zero. Their rows
-are omitted from the WSL CSV. Valid zero readings, including NPU `0.00`, are retained.
+Unavailable measurements are `NA` in the diagnostic JSON and remain `NA` in the
+WSL CSV. Valid zero readings are retained as zero.
 The WSL consolidator ignores old Linux NPU, PCM, power/bandwidth, qmassa, and
 XPUM inputs to avoid stale hardware results. Native Linux parsing is unchanged.
 
