@@ -139,8 +139,7 @@ dependency installation is unavailable. Inspect `windows_metrics.log` and
 
 Linux tests cover WSL guards, native no-op behavior, GPU aggregation, optional
 GPU power sensor filtering, missing values, PCM units, and mocked lifecycle
-failures. Real Windows/WSL2 validation is still required for driver access,
-sensor accuracy, simultaneous PCM/library operation, and workload visibility.
+failures.
 
 No source edits should normally be needed on another supported host. Installed
 paths, GPU sensor/adapter identifiers, permissions, and hardware support require

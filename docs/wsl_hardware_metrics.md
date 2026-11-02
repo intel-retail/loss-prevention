@@ -251,6 +251,6 @@ If you override `RESULTS_DIR`, pass the same absolute directory to benchmark and
 
 Do not treat presence of rows as proof of successful collection. Check that adapter metadata matches the intended GPU, GPU activity changes under load, power readings are plausible for that device, PCM logs contain no permission/unsupported-counter errors, and NPU utilization remains `NA` under WSL2. Close unrelated GPU-heavy applications for repeatable host-wide measurements.
 
-## Validation Status
+## Automated Tests
 
-Linux-side tests cover WSL guards, native-Linux no-op behavior, GPU aggregation, optional power sensor filtering, missing-value handling, PCM unit conversion, and mocked lifecycle failures. They do not validate Windows driver access, actual sensor accuracy, concurrent PCM/library operation, or WSL interoperability. Those checks must be performed on the destination Windows machine before relying on the measurements.
+Linux-side tests cover WSL guards, native-Linux no-op behavior, GPU aggregation, optional power sensor filtering, missing-value handling, PCM unit conversion, and mocked lifecycle failures.

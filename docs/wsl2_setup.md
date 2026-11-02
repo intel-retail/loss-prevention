@@ -837,8 +837,9 @@ HUGGINGFACE_TOKEN=hf_xxxxxxxx
 
 The Makefile detects WSL2 automatically and selects `src/docker-compose-wsl2.yml`
 instead of the native `src/docker-compose.yml`. The WSL2 Compose file replaces native Linux `/dev/dri`
-device mappings with WSL2's `/dev/dxg` and mounts the WSL graphics libraries,
-driver helper libraries, and host OpenCL paths. CPU workloads remain CPU workloads
+device mappings with WSL2's `/dev/dxg` and mounts the WSL graphics libraries
+and driver helper libraries. OpenCL configuration and userspace runtimes come
+from the container images, not host OpenCL bind mounts. CPU workloads remain CPU workloads
 because the device is selected by the workload JSON.
 
 ---
@@ -847,28 +848,31 @@ because the device is selected by the workload JSON.
 
 This is the go/no-go check for the whole port.
 
-### Do NOT install Intel GPU drivers via apt
+### Windows drivers and container userspace runtimes
 
-On native Linux you would follow the `dgpu-docs.intel.com` guide and install
-`intel-opencl-icd`, `intel-level-zero-gpu` and similar packages. **Under WSL2 that is
-wrong and will break GPU access.**
+WSL GPU access uses the Windows graphics driver and `/dev/dxg`, not a native
+Linux GPU kernel driver. WSL exposes graphics libraries under `/usr/lib/wsl/lib`
+and driver helpers under `/usr/lib/wsl/drivers`. Keep the Windows graphics driver
+up to date; do not install a native Linux kernel driver to replace it.
 
-In WSL, the Intel *Windows* driver projects its Linux-side libraries into the distro at
-`/usr/lib/wsl/lib`. Installing the apt packages places conflicting versions in
-`/usr/lib/x86_64-linux-gnu` that shadow them. The WSL Compose override also bind-mounts
-`/etc/OpenCL` and, for `ovms-vlm`, `/usr/lib/x86_64-linux-gnu/intel-opencl` from the
-host. These paths are not created by the setup steps in this guide, and their source
-and provisioning method must be verified on the target WSL installation. Do not assume
-that the Windows driver populates them or install an ICD package to create them without
-confirming that is the supported setup for your environment. A missing host path can be
-created as an empty directory by Docker and mask files at the corresponding image path.
+OpenCL and Level Zero userspace runtimes are separate from that kernel driver.
+The container images must provide compatible runtimes and ICD configuration.
+The WSL Compose override retains the image's `/etc/OpenCL` and
+`/usr/lib/x86_64-linux-gnu/intel-opencl` contents instead of mounting host copies
+over them. These host directories are not prerequisites and should not be created
+just to satisfy Docker mounts. Host userspace packages do not provision container
+runtimes.
 
-The same applies to the NPU — there is no `intel_vpu` kernel module to install.
+For `lp-pipeline-runner`, the WSL startup wrapper prepends both WSL library
+directories to the image's existing `LD_LIBRARY_PATH` before running the normal
+pipeline script. The other GPU services also include the WSL library paths.
+GPU enumeration in the actual deployment images remains a required host check;
+Compose parsing alone does not establish runtime compatibility.
 
-If the GPU is missing, first check that the host OpenCL paths required by the WSL
-Compose override exist and contain the expected files. If the Windows-provided WSL GPU
-libraries or `/dev/dxg` are missing, install the latest Intel graphics driver on
-Windows, then run `wsl --shutdown`.
+If the Windows-provided WSL libraries or `/dev/dxg` are missing, update the Intel
+graphics driver on Windows, then run `wsl --shutdown`. If the device exists but
+OpenVINO cannot enumerate a GPU, inspect the container's runtime and ICD files.
+NPU workloads remain unsupported by this WSL setup.
 
 ### 11a. Host device check
 
@@ -876,8 +880,6 @@ Windows, then run `wsl --shutdown`.
 ls -l /dev/dxg
 ls -l /usr/lib/wsl/lib/
 ls -l /usr/lib/wsl/drivers/
-ls -ld /etc/OpenCL /usr/lib/x86_64-linux-gnu/intel-opencl
-find /etc/OpenCL /usr/lib/x86_64-linux-gnu/intel-opencl -maxdepth 3 -type f -print
 ls /dev/dri 2>&1
 ls /dev/accel 2>&1
 ```
@@ -887,10 +889,8 @@ Expected results:
 | Path | Expected | Meaning |
 |---|---|---|
 | `/dev/dxg` | **exists** | the WSL GPU device — replaces `/dev/dri` |
-| `/usr/lib/wsl/lib/` | populated | `libd3d12.so`, `libd3d12core.so`, `libdxcore.so` plus Intel compute libraries |
+| `/usr/lib/wsl/lib/` | populated | WSL graphics bridge libraries such as `libd3d12.so` and `libdxcore.so`; not a substitute for the container's OpenCL runtime |
 | `/usr/lib/wsl/drivers/` | populated | WSL GPU driver helpers such as `libwsl_compute_helper.so` |
-| `/etc/OpenCL/` | must exist and contain the expected ICD configuration | bind-mounted by the WSL Compose override; this guide does not provision it |
-| `/usr/lib/x86_64-linux-gnu/intel-opencl/` | must exist and contain the expected runtime files when using `ovms-vlm` | bind-mounted by the WSL Compose override; this guide does not provision it |
 | `/dev/dri` | **absent** | expected; this is why the compose device mappings need changing |
 | `/dev/accel` | likely absent | the NPU finding |
 
@@ -903,10 +903,9 @@ docker run --rm \
   --device=/dev/dxg \
   -v /usr/lib/wsl/lib:/usr/lib/wsl/lib:ro \
   -v /usr/lib/wsl/drivers:/usr/lib/wsl/drivers:ro \
-  -v /etc/OpenCL:/etc/OpenCL:ro \
-  intel/dlstreamer:2026.2.0-ubuntu24-rc3 \
+  intel/dlstreamer:2026.2.0-ubuntu24 \
   bash -lc '. /opt/intel/openvino/setupvars.sh 2>/dev/null || true; \
-    export LD_LIBRARY_PATH=/usr/lib/wsl/lib:/usr/lib/openvino-2026.2.0:$LD_LIBRARY_PATH; \
+    export LD_LIBRARY_PATH=/usr/lib/wsl/lib:/usr/lib/wsl/drivers:/usr/lib/openvino-2026.2.0${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}; \
     python3 -c "import openvino as ov; print(ov.Core().available_devices)"'
 ```
 
@@ -920,9 +919,8 @@ docker run --rm \
   --device=/dev/dxg \
   -v /usr/lib/wsl/lib:/usr/lib/wsl/lib:ro \
   -v /usr/lib/wsl/drivers:/usr/lib/wsl/drivers:ro \
-  -v /etc/OpenCL:/etc/OpenCL:ro \
-  intel/dlstreamer:2026.2.0-ubuntu24-rc3 \
-  bash -lc 'export LD_LIBRARY_PATH=/usr/lib/wsl/lib:/usr/lib/openvino-2026.2.0; \
+  intel/dlstreamer:2026.2.0-ubuntu24 \
+  bash -lc 'export LD_LIBRARY_PATH=/usr/lib/wsl/lib:/usr/lib/wsl/drivers:/usr/lib/openvino-2026.2.0${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}; \
     ldd /usr/lib/openvino-2026.2.0/libopenvino_intel_gpu_plugin.so | grep "not found" || true; \
     python3 -c "import openvino as ov; print(ov.Core().available_devices)"'
 ```
