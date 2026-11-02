@@ -22,6 +22,6 @@ services:
   lp-pipeline-runner:
     cpuset: *cpuset
     environment:
-      - ROUND_ROBIN_COUNT=4
+      - ROUND_ROBIN_COUNT=128
   lp-mcp-service:
     cpuset: *cpuset
