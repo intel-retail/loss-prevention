@@ -141,6 +141,12 @@ Linux tests cover WSL guards, native no-op behavior, GPU aggregation, optional
 GPU power sensor filtering, missing values, PCM units, and mocked lifecycle
 failures.
 
+### Windows/WSL2 Validation
+
+All workloads ran successfully on both CPU and GPU on an Intel Arrow Lake
+(ARL) Windows host running WSL2. The Windows metrics collector also ran
+successfully during benchmarking.
+
 No source edits should normally be needed on another supported host. Installed
 paths, GPU sensor/adapter identifiers, permissions, and hardware support require
 per-machine setup. Follow the [prerequisite and verification
