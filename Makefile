@@ -56,6 +56,10 @@ BATCH_SIZE_CLASSIFY ?= 1
 INFERENCE_INTERVAL ?= 3
 REGISTRY ?= true
 DOCKER_COMPOSE ?= docker-compose.yml
+# Core pinning (benchmark-stream-density only): CORE_TYPE is PCORE, ECORE or LPECORE
+CORE_PINNING ?= false
+CORE_TYPE ?= ECORE
+CORE_PINNING_COMPOSE ?= docker-compose-core_pinning.yml
 STREAM_LOOP ?= true
 
 # OVMS and VLM defaults
@@ -358,6 +362,17 @@ benchmark-stream-density: build-benchmark download-sample-videos download-models
 	RUN_DIR="$(RESULTS_DIR)/$${RUN_TAG}__$${RUN_TIMESTAMP}"; \
 	mkdir -p "$$RUN_DIR"; \
 	echo "Running benchmark in: $$RUN_DIR"; \
+	CORE_PINNING_COMPOSE_ARG=""; \
+	case "$(CORE_PINNING)" in \
+		true|True|TRUE|1) \
+			CPUSET=$$(bash src/get-core-types.sh $(CORE_TYPE)) || { echo "ERROR: failed to get cores for CORE_TYPE='$(CORE_TYPE)' (expected PCORE, ECORE or LPECORE)"; exit 1; }; \
+			export CPUSET; \
+			CORE_PINNING_COMPOSE_ARG="--compose_file ../../src/$(CORE_PINNING_COMPOSE)"; \
+			echo "Core pinning enabled: CORE_TYPE=$(CORE_TYPE) CPUSET=$$CPUSET override=$(CORE_PINNING_COMPOSE)"; \
+			printf 'CORE_TYPE=%s\nCPUSET=%s\nROUND_ROBIN_COUNT=128\n' "$(CORE_TYPE)" "$$CPUSET" > "$$RUN_DIR/core_pinning.txt" ;; \
+		false|False|FALSE|0|"") ;; \
+		*) echo "ERROR: invalid CORE_PINNING='$(CORE_PINNING)' (expected true or false)"; exit 1 ;; \
+	esac; \
 	cd performance-tools/benchmark-scripts && \
 	export MULTI_STREAM_MODE=1 && \
 	export STREAM_LOOP=$(STREAM_LOOP_VALUE) && \
@@ -367,6 +382,7 @@ benchmark-stream-density: build-benchmark download-sample-videos download-models
 	pip3 install -r requirements.txt && \
 	python3 benchmark.py \
 		--compose_file ../../src/$(DOCKER_COMPOSE) \
+		$$CORE_PINNING_COMPOSE_ARG \
 		--init_duration $(INIT_DURATION) \
 		--measurement_window_seconds $(MEASUREMENT_WINDOW_SECONDS) \
 		$(TARGET_FPS_ARG) \

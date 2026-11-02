@@ -1,0 +1,27 @@
+# Core pinning override for docker-compose.yml (used by: make benchmark-stream-density CORE_PINNING=true).
+# Applied as an additional compose file; only adds cpuset and overrides ROUND_ROBIN_COUNT.
+# When adding a service to docker-compose.yml, add a matching cpuset entry here.
+
+x-cpuset: &cpuset "${CPUSET:?CPUSET must be set (run via make benchmark-stream-density CORE_PINNING=true)}"
+
+services:
+  model-downloader:
+    cpuset: *cpuset
+  rabbitmq:
+    cpuset: *cpuset
+  minio-service:
+    cpuset: *cpuset
+  rtsp-streamer:
+    cpuset: *cpuset
+  ovms-vlm:
+    cpuset: *cpuset
+  lp-vlm-workload-handler:
+    cpuset: *cpuset
+  vlm-pipeline-runner:
+    cpuset: *cpuset
+  lp-pipeline-runner:
+    cpuset: *cpuset
+    environment:
+      - ROUND_ROBIN_COUNT=4
+  lp-mcp-service:
+    cpuset: *cpuset
