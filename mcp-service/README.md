@@ -85,7 +85,7 @@ make run-lp CAMERA_STREAM=camera_to_workload_asc_age_verification.json \
   WORKLOAD_DIST=workload_to_pipeline_asc_age_verification_gpu.json
 ```
 
-`run-lp` enables the profile, so one `docker compose up` starts the MCP after the
+`run-lp` (and `make run`) enable the profile, so one `docker compose up` starts the MCP after the
 pipeline; `make down-lp` stops it with the rest of the stack. `make benchmark` and
 `make benchmark-stream-density` run the file without the profile, so the MCP
 never adds load to measurements and its log survives their `down --volumes`. There is
