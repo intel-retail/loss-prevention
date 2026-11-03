@@ -420,8 +420,21 @@ An integrated **MediaMTX** RTSP server (`rtsp-streamer` container) streams the s
 | `lp-vlm-workload-handler` | VLM inference processor | - | GPU/CPU inference |
 | `vlm-pipeline-runner` | VLM pipeline orchestrator | - | Requires DISPLAY variable |
 | `lp-pipeline-runner` | Main inference pipeline | - | Supports CPU/GPU/NPU |
+| `lp-mcp-service` | MCP server exposing loss events and age-range results to AI agents | 9100 | Optional; `mcp` Compose profile — see [LP MCP service](#lp-mcp-service) |
 
 All services run on `my_network` bridge network for DNS resolution;use `rtsp-streamer`, `rabbitmq`, `minio-service` as hostnames for inter-service communication
+
+### LP MCP service
+`lp-mcp-service` is an optional [Model Context Protocol](https://modelcontextprotocol.io/) server that lets AI agents query what the pipeline detected. A background watcher ingests `results/rs-*.jsonl` (and VLM results after each run) into a SQLite event log and exposes read-only tools such as `Get_loss_history`, `Get_age_range_counts`, and `Get_item_verifications` at `http://localhost:9100/mcp`. It only reads pipeline output, so every workload runs the same with or without it.
+
+| Command | MCP service |
+|---|---|
+| `make run` / `make run-lp` | Started with the stack (`mcp` profile enabled) |
+| `make down-lp` | Stopped with the stack |
+| `make benchmark` / `make benchmark-stream-density` | **Not** started, so it never adds load to measurements |
+| `make mcp-up` / `make mcp-down` | Start / stop only the MCP service |
+
+See [mcp-service/README.md](mcp-service/README.md) for the event schema, full tool list, and configuration.
 
 
 ## Project Structure
@@ -434,6 +447,7 @@ All services run on `my_network` bridge network for DNS resolution;use `rtsp-str
 - `src/rtsp-streamer/`: RTSP server container (MediaMTX + FFmpeg)
 - `src/gst-pipeline-generator.py`: Dynamic GStreamer pipeline generator
 - `src/docker-compose.yml`: Multi-container orchestration
+- `mcp-service/`: Loss Prevention MCP server for AI-agent access to results ([details](mcp-service/README.md))
 - `performance-tools/sample-media/`: Video files for RTSP streaming
 - `Makefile`: Build automation and workflow commands
 

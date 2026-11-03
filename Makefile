@@ -234,7 +234,7 @@ check-device-env:
 	@echo "[INFO] Environment configuration valid"
 
 # Benchmarks use the same compose file without this profile, so the MCP is excluded there.
-run-lp down-lp: export COMPOSE_PROFILES = mcp
+run run-render-mode run-lp down-lp: export COMPOSE_PROFILES = mcp
 
 # Check the display first in render mode so a bad DISPLAY fails before submodule and video downloads.
 run-lp: $(if $(filter-out 0,$(RENDER_MODE)),validate-display) validate_workload_mapping update-submodules download-sample-videos
@@ -565,7 +565,7 @@ mcp-image:
 		$(MAKE) --no-print-directory mcp-build; \
 	fi
 
-# Start only the MCP service (make run-lp starts it with the rest of the stack).
+# Start only the MCP service (make run / run-lp start it with the rest of the stack).
 mcp-up: mcp-image
 	@docker compose -f $(MCP_COMPOSE) up -d --no-deps lp-mcp-service
 	@echo "LP MCP service: http://localhost:$(LP_MCP_PORT)/mcp (older results: make mcp-import)"
