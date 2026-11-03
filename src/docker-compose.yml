@@ -360,7 +360,7 @@ services:
 
   lp-mcp-service:
     container_name: lp-mcp-service
-    # Enabled by make run-lp / down-lp; benchmarks run this file without it.
+    # Enabled by make run / run-lp / down-lp; benchmarks run this file without it.
     profiles: ["mcp"]
     build:
       context: ../mcp-service
