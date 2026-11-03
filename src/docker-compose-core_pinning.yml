@@ -20,8 +20,6 @@ services:
   vlm-pipeline-runner:
     cpuset: *cpuset
   lp-pipeline-runner:
-    cpuset: *cpuset
-    environment:
-      - ROUND_ROBIN_COUNT=128
+    cpuset: *cpuset   
   lp-mcp-service:
     cpuset: *cpuset

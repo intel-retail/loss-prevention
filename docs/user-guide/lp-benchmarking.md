@@ -201,7 +201,7 @@ make benchmark-stream-density \
 | `OOM_PROTECTION`            | Prevent out-of-memory crashes                           | `1` (enabled), `0` (disabled)     |
 | `PASS_TOLERANCE_RATIO`      | Fraction of each target FPS required to pass            | `0.95` (default), up to `1.0`     |
 | `CORE_PINNING`              | Pin all services to one core type (stream density only) | `false` (default), `true`         |
-| `CORE_TYPE`                 | Core type used when `CORE_PINNING=true`                 | `PCORE` (default), `ECORE`, `LPECORE` |
+| `CORE_TYPE`                 | Core type used when `CORE_PINNING=true`                 | `ECORE` (default), `PCORE`, `LPECORE` |
 
 > **Warning:** Setting `OOM_PROTECTION=0` may crash your system requiring a hard reboot.
 
