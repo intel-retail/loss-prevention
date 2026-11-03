@@ -1,0 +1,31 @@
+services:
+  ovms-vlm:
+    devices: !override
+      - /dev/dxg:/dev/dxg
+    volumes:
+      - /usr/lib/wsl/lib:/usr/lib/wsl/lib:ro
+      - /usr/lib/wsl/drivers:/usr/lib/wsl/drivers:ro
+    environment:
+      LD_LIBRARY_PATH: /usr/lib/wsl/lib:/usr/lib/wsl/drivers:/usr/lib/x86_64-linux-gnu/intel-opencl:/ovms/lib
+
+  lp-vlm-workload-handler:
+    devices: !override
+      - /dev/dxg:/dev/dxg
+    volumes:
+      - /usr/lib/wsl/lib:/usr/lib/wsl/lib:ro
+      - /usr/lib/wsl/drivers:/usr/lib/wsl/drivers:ro
+    environment:
+      LD_LIBRARY_PATH: /usr/lib/wsl/lib:/usr/lib/wsl/drivers:/opt/intel/openvino/runtime/lib/intel64
+
+  lp-pipeline-runner:
+    entrypoint:
+      - /bin/bash
+      - -c
+      - 'export LD_LIBRARY_PATH=/usr/lib/wsl/lib:/usr/lib/wsl/drivers$${LD_LIBRARY_PATH:+:$$LD_LIBRARY_PATH}; exec scripts/run-pipeline.sh'
+    devices:
+      - /dev/dxg:/dev/dxg
+    volumes:
+      - /usr/lib/wsl/lib:/usr/lib/wsl/lib:ro
+      - /usr/lib/wsl/drivers:/usr/lib/wsl/drivers:ro
+    environment:
+      VIDEO_SINK: ximagesink
