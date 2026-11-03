@@ -57,6 +57,21 @@ INFERENCE_INTERVAL ?= 3
 REGISTRY ?= true
 DOCKER_COMPOSE ?= docker-compose.yml
 STREAM_LOOP ?= true
+WSL2 ?= $(if $(shell uname -r | grep -i microsoft),true,false)
+export WSL2
+WINDOWS_PYTHON ?= python.exe
+export WINDOWS_PYTHON
+WINDOWS_PCM_EXE ?=
+export WINDOWS_PCM_EXE
+WINDOWS_LHM_DLL ?=
+export WINDOWS_LHM_DLL
+WINDOWS_GPU_POWER_SENSOR ?=
+export WINDOWS_GPU_POWER_SENSOR
+WINDOWS_GPU_POWER_ADAPTER ?=
+export WINDOWS_GPU_POWER_ADAPTER
+ifeq ($(WSL2),true)
+DOCKER_COMPOSE := docker-compose-wsl2.yml
+endif
 
 # OVMS and VLM defaults
 VLM_BACKEND ?= ovms
@@ -219,6 +234,7 @@ run-lp down-lp: export COMPOSE_PROFILES = mcp
 
 # Check the display first in render mode so a bad DISPLAY fails before submodule and video downloads.
 run-lp: $(if $(filter-out 0,$(RENDER_MODE)),validate-display) validate_workload_mapping update-submodules download-sample-videos
+	@echo "[INFO] WSL2=$(WSL2) | DOCKER_COMPOSE=$(DOCKER_COMPOSE)"
 	@echo "Running loss prevention pipeline"
 	@LOG_FILE="vlm_loss_prevention.log"; \
 	mkdir -p $$(dirname $$LOG_FILE); \
@@ -301,7 +317,11 @@ fetch-benchmark:
 
 build-benchmark:
 	@echo "Building benchmark Docker image..."$(REGISTRY)
-	@if [ "$(REGISTRY)" = "true" ]; then \
+	@if [ "$(WSL2)" = "true" ]; then \
+		echo "WSL2: using Windows host metrics; no collector image required"; \
+		"$(WINDOWS_PYTHON)" -c 'import os; assert os.name == "nt", "Windows Python is required"' || { echo "ERROR: Set WINDOWS_PYTHON in Makefile or .env to the Windows python.exe executable using its WSL path."; exit 1; }; \
+		"$(WINDOWS_PYTHON)" -m pip install psutil pywin32; \
+	elif [ "$(REGISTRY)" = "true" ]; then \
 		$(MAKE) fetch-benchmark; \
 	else \
 		cd performance-tools && $(MAKE) build-benchmark-docker; \
@@ -380,7 +400,9 @@ benchmark-stream-density: build-benchmark download-sample-videos download-models
 benchmark-quickstart: download-models download-sample-videos
 	@$(PRINT_CAMERA_ABOUT); \
 	print_camera_about "configs/$(CAMERA_STREAM)"
-	@if [ "$(REGISTRY)" = "true" ]; then \
+	@if [ "$(WSL2)" = "true" ]; then \
+		$(MAKE) build-benchmark; \
+	elif [ "$(REGISTRY)" = "true" ]; then \
 		echo "Using registry mode - skipping benchmark container build..."; \
 	else \
 		echo "Building benchmark container locally..."; \
