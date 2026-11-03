@@ -94,6 +94,24 @@ results written after it starts into the log every few seconds while the
 pipeline runs (see section 7). VLM runs are ingested from their results file
 once each run finishes.
 
+### Start / stop only the MCP service
+
+To manage the MCP on its own, e.g. to restart it, or to add it to a stack that
+was started without the `mcp` profile, use the dedicated targets from the
+repository root:
+
+```bash
+make mcp-up      # start only lp-mcp-service (http://localhost:9100/mcp)
+make mcp-down    # stop and remove only lp-mcp-service
+```
+
+`mcp-up` starts the container with `--no-deps`, so it does not touch the pipeline
+containers. With `REGISTRY=true` (default) it pulls `intel/lp-mcp:$(LP_TAG)` and
+falls back to a local build if the image is not in the registry; `REGISTRY=false`
+always builds from `mcp-service/`. Set `LP_MCP_PORT` to change the host port.
+`mcp-down` removes only the MCP container; its `lp-mcp-data` volume, and so the
+event log, is kept.
+
 
 ## 5. Configuration
 
