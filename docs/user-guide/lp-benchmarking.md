@@ -200,8 +200,47 @@ make benchmark-stream-density \
 | `INIT_DURATION`             | warmup period before measurement starts                   | `10` (default), `120`, `60`       |
 | `OOM_PROTECTION`            | Prevent out-of-memory crashes                           | `1` (enabled), `0` (disabled)     |
 | `PASS_TOLERANCE_RATIO`      | Fraction of each target FPS required to pass            | `0.95` (default), up to `1.0`     |
+| `CORE_PINNING`              | Pin all services to one core type (stream density only) | `false` (default), `true`         |
+| `CORE_TYPE`                 | Core type used when `CORE_PINNING=true`                 | `ECORE` (default), `PCORE`, `LPECORE` |
+| `ROUND_ROBIN_COUNT`         | Number of round-robin model instances (stream density only) | `128` (default)                    |
 
 > **Warning:** Setting `OOM_PROTECTION=0` may crash your system requiring a hard reboot.
+
+### Core Pinning
+
+`benchmark-stream-density` can pin all services to a single core type (P-cores, E-cores or LP E-cores) on hybrid Intel CPUs. Core pinning is disabled by default and applies only to `benchmark-stream-density`.
+
+```bash
+# Pin to E-cores (default core type)
+make benchmark-stream-density CORE_PINNING=true
+
+# Override the round-robin model instance count (default: 128)
+make benchmark-stream-density ROUND_ROBIN_COUNT=64
+
+# Pin to P-cores or LP E-cores
+make benchmark-stream-density CORE_PINNING=true CORE_TYPE=PCORE
+make benchmark-stream-density CORE_PINNING=true CORE_TYPE=LPECORE
+```
+
+When `CORE_PINNING=true`:
+
+1. `src/get-core-types.sh <CORE_TYPE>` returns the comma-separated core IDs for the selected core type. It reads `/etc/core-types` when present; otherwise it downloads [`obtain_cores.sh`](https://github.com/open-edge-platform/edge-workloads-and-benchmarks/blob/e7401a31d8ae40886ea5e8c608809895b1ce93ac/utils/obtain_cores.sh) at a pinned commit, verifies its SHA-256 checksum and runs it.
+2. The result is exported as `CPUSET`, and `src/docker-compose-core_pinning.yml` is applied as an override on top of `src/docker-compose.yml`. The override sets `cpuset` for every service. `ROUND_ROBIN_COUNT` is configurable with `make benchmark-stream-density ROUND_ROBIN_COUNT=<count>` and defaults to `128`.
+3. The selected core type, CPU set, and `ROUND_ROBIN_COUNT` are written to `core_pinning.txt` in the run's results directory.
+
+The benchmark stops with an error if `CORE_TYPE` is invalid, the selected core type is not present on the system, or `CORE_PINNING` is not `true`/`false`.
+
+> **Note:** Install `cpuid` (`sudo apt install cpuid`) for the most reliable core-type detection; without it, detection falls back to sysfs and `lscpu`. Detection also requires `curl` and internet access unless `/etc/core-types` exists.
+
+To check the detected cores without running the benchmark:
+
+```bash
+src/get-core-types.sh            # all core types, e.g. PCORE=0,1,2,3
+src/get-core-types.sh ECORE      # E-core IDs only, e.g. 4,5,6,7
+src/get-core-types.sh --reinstall PCORE   # ignore /etc/core-types and detect again
+```
+
+> **Note:** When adding a service to `src/docker-compose.yml`, add a matching `cpuset` entry to `src/docker-compose-core_pinning.yml` so it is pinned as well.
 
 Note: stream-density caches camera-target mappings using `(config_path, file_mtime)` and auto-refreshes when the camera config changes; unit tests for this behavior are in the `performance-tools` repository at `benchmark-scripts/stream_density_test.py`.
 
