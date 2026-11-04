@@ -85,7 +85,7 @@ make run-lp CAMERA_STREAM=camera_to_workload_asc_age_verification.json \
   WORKLOAD_DIST=workload_to_pipeline_asc_age_verification_gpu.json
 ```
 
-`run-lp` enables the profile, so one `docker compose up` starts the MCP after the
+`run-lp` (and `make run`) enable the profile, so one `docker compose up` starts the MCP after the
 pipeline; `make down-lp` stops it with the rest of the stack. `make benchmark` and
 `make benchmark-stream-density` run the file without the profile, so the MCP
 never adds load to measurements and its log survives their `down --volumes`. There is
@@ -93,6 +93,24 @@ no wait or import step: a background watcher inside the MCP service streams
 results written after it starts into the log every few seconds while the
 pipeline runs (see section 7). VLM runs are ingested from their results file
 once each run finishes.
+
+### Start / stop only the MCP service
+
+To manage the MCP on its own, e.g. to restart it, or to add it to a stack that
+was started without the `mcp` profile, use the dedicated targets from the
+repository root:
+
+```bash
+make mcp-up      # start only lp-mcp-service (http://localhost:9100/mcp)
+make mcp-down    # stop and remove only lp-mcp-service
+```
+
+`mcp-up` starts the container with `--no-deps`, so it does not touch the pipeline
+containers. With `REGISTRY=true` (default) it pulls `intel/lp-mcp:$(LP_TAG)` and
+falls back to a local build if the image is not in the registry; `REGISTRY=false`
+always builds from `mcp-service/`. Set `LP_MCP_PORT` to change the host port.
+`mcp-down` removes only the MCP container; its `lp-mcp-data` volume, and so the
+event log, is kept.
 
 
 ## 5. Configuration
