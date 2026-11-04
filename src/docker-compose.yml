@@ -346,7 +346,9 @@ services:
       - PIPELINE_COUNT=${PIPELINE_COUNT:-1}
       - GST_DEBUG=GST_TRACER:7,gvafpscounter:4
       - GST_TRACERS=latency_tracer(flags=pipeline)
-      - ROUND_ROBIN_COUNT=4
+      # Workaround for uneven GPU work distribution when streams share a DL Streamer model instance.
+      # Once fixed, the default can return to shared model instances.
+      - ROUND_ROBIN_COUNT=${ROUND_ROBIN_COUNT:-128}
     volumes:
       - ../models:/home/pipeline-server/models
       - ../performance-tools/sample-media:/home/pipeline-server/sample-media
@@ -360,7 +362,7 @@ services:
 
   lp-mcp-service:
     container_name: lp-mcp-service
-    # Enabled by make run-lp / down-lp; benchmarks run this file without it.
+    # Enabled by make run / run-lp / down-lp; benchmarks run this file without it.
     profiles: ["mcp"]
     build:
       context: ../mcp-service
