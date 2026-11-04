@@ -12,7 +12,9 @@
   - [NPU](https://docs.openedgeplatform.intel.com/dev/edge-ai-libraries/dlstreamer/dev_guide/advanced_install/advanced_install_guide_prerequisites.html#optional-prerequisite-2-install-intel-npu-drivers)
 - Sufficient disk space for models, videos, and results
 
-> **Note:** First-time setup downloads AI models, sample videos, and Docker images - this may take 5-15 minutes depending on your internet connection.
+> [!NOTE]
+> First-time setup downloads AI models, sample videos, and Docker images - this may take 5-15
+  minutes depending on your internet connection.
 
 ## Choose Your Workload Type
 
@@ -74,11 +76,11 @@ make run-lp CAMERA_STREAM=camera_to_workload_asc_age_verification.json WORKLOAD_
 make run-lp CAMERA_STREAM=camera_to_workload_asc_object_detection_classification.json WORKLOAD_DIST=workload_to_pipeline_asc_object_detection_classification_gpu.json RENDER_MODE=1
 ```
 
-> **Note:**
+> [!NOTE]
 >
-> **Hardware Selection**: Replace `_gpu` with `_cpu` or `_npu` in any command above based on your available hardware.
+> - **Hardware Selection**: Replace `_gpu` with `_cpu` or `_npu` in any command above based on your available hardware.
 >
-> **Complete Reference**: For the full configuration matrix with all hardware combinations and detailed specifications, see [Complete Workload Configuration Matrix](./get-started/advanced.md#complete-workload-configuration-matrix) in Advanced Settings.
+> - **Complete Reference**: For the full configuration matrix with all hardware combinations and detailed specifications, see [Complete Workload Configuration Matrix](./get-started/advanced.md#complete-workload-configuration-matrix) in Advanced Settings.
 
 ## Step by step instructions
 
@@ -88,7 +90,7 @@ make run-lp CAMERA_STREAM=camera_to_workload_asc_object_detection_classification
    git clone -b <release-or-tag> --single-branch https://github.com/intel-retail/loss-prevention
    ```
 
-   > Replace <release-or-tag> with the version you want to clone (for example, **release-2026.2.0**).
+   > Replace `<release-or-tag>` with the version you want to clone (for example, **release-2026.2.0**).
 
    ```bash
    git clone -b release-2026.2.0 --single-branch https://github.com/intel-retail/loss-prevention
@@ -274,7 +276,9 @@ Sample `r<time>\_gst.jsonl` output:
 }
 ```
 
-> **Note:** If unable to see results folder or files, please refer to the [Troubleshooting](#troubleshooting) section for more details.
+> [!NOTE]
+> If unable to see results folder or files, please refer to the [Troubleshooting](#troubleshooting)
+  section for more details.
 
 ## Stop the containers
 

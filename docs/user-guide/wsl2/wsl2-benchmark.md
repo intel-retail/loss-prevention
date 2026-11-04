@@ -1,14 +1,14 @@
-# Benchmark metrics on WSL2
+# Benchmark Metrics on WSL2
 
 On WSL2, the benchmark automatically launches Windows Python through WSL
 interoperability for GPU activity and hardware power/bandwidth collection. The
 Makefile detects WSL2 automatically; native Linux collection remains unchanged.
-This helper does not change Compose arguments, pipeline execution, or
+This helper does not change Docker Compose arguments, pipeline execution, or
 stream-density calculations.
 
 ## Prerequisites
 
-Follow the [hardware metrics setup guide](wsl_hardware_metrics.md) for complete
+Follow the [hardware metrics setup guide](./wsl-hardware-metrics.md) for complete
 Windows/WSL checks, native Windows PCM installation, optional GPU power setup,
 permissions, and per-machine configuration.
 
@@ -30,7 +30,7 @@ The collector and dependency setup use that executable directly. There is no
 automatic discovery or launcher fallback. The default `python.exe` requires a
 real installation on WSL's `PATH`, not the Microsoft Store placeholder.
 Windows Python must be able to read the repository through its `wslpath -w`
-path. Linux virtualenv dependencies are still installed by the Make targets.
+path. Linux virtual environment dependencies are still installed by the Makefile targets.
 
 GPU activity requires Windows GPU Engine performance counters exposed by the
 graphics driver. PDH queries use English names through `AddEnglishCounter`.
@@ -49,14 +49,14 @@ make benchmark CAMERA_STREAM=camera_to_workload_asc_object_detection_classificat
 make consolidate-metrics
 ```
 
-For stream density, pass an explicit supported config pair as well:
+For stream density, pass an explicit supported configuration pair as well:
 
 ```bash
 make benchmark-stream-density CAMERA_STREAM=camera_to_workload_asc_object_detection_classification.json WORKLOAD_DIST=workload_to_pipeline_asc_object_detection_classification_gpu.json
 ```
 
-Use a CPU or GPU config pair for WSL2; do not use the default configs, `_npu`,
-`_gpu-npu`, or `_hetero` configs, which include unsupported NPU workloads. The
+Use a CPU or GPU configuration pair for WSL2; do not use the default configurations, `_npu`,
+`_gpu-npu`, or `_hetero` configurations, which include unsupported NPU workloads. The
 Makefile detects and exports `WSL2` automatically on a Microsoft kernel.
 Keep optional collector settings exported in the same WSL shell.
 
@@ -107,25 +107,25 @@ engine, capped at 100%, and the busiest engine per category is used for each
 sample. Measurements are host-wide, including unrelated Windows applications.
 
 GPU indices start at 1 and are recorded in the JSON adapter mapping. They need
-not match Task Manager indices or Linux DRM card numbers. A configured
-GPU-power adapter is assigned `GPU_1`. Verify sensor/adapter association on
+not match Task Manager indices or Linux Direct Rendering Manager (DRM) card numbers.
+A configured GPU-power adapter is assigned `GPU_1`. Verify sensor/adapter association on
 each host, especially after reboot or driver changes.
 
 Unavailable measurements are `NA` in the diagnostic JSON and remain `NA` in the
 WSL CSV. Valid zero readings are retained as zero.
 The WSL consolidator ignores old Linux NPU, PCM, power/bandwidth, qmassa, and
-XPUM inputs to avoid stale hardware results. Native Linux parsing is unchanged.
+Intel® XPU Manager inputs to avoid stale hardware results. Native Linux parsing is unchanged.
 
 ## Automatic lifecycle and failures
 
-After successful Compose startup, the benchmark launches the worker; sampling
-starts after the configured warm-up. Before Compose teardown, closing worker
+After successful Docker Compose startup, the benchmark launches the worker; sampling
+starts after the configured warm-up. Before Docker Compose teardown, closing worker
 stdin requests shutdown and finalizes the summary. A timeout forces worker
 termination. Normal interpreter exit also requests cleanup; abrupt host/process
 termination is not a validated shutdown path.
 
 Each start resets previous collector results. Stream-density collection follows
-the existing shared Compose lifecycle, including auxiliary starts through that
+the existing shared Docker Compose lifecycle, including auxiliary starts through that
 helper. The summary represents the latest collected run, not a best-density
 capture or an average across iterations. There is no per-scenario archive or
 automatic best-iteration selection. The density algorithm is unchanged.
@@ -141,13 +141,13 @@ Linux tests cover WSL guards, native no-op behavior, GPU aggregation, optional
 GPU power sensor filtering, missing values, PCM units, and mocked lifecycle
 failures.
 
-### Windows/WSL2 Validation
+### Windows/WSL2 validation
 
-All workloads ran successfully on both CPU and GPU on an Intel Arrow Lake
-(ARL) Windows host running WSL2. The Windows metrics collector also ran
+All workloads ran successfully on both CPU and GPU on an Intel® Core™ Ultra Series 2
+Windows host running WSL2. The Windows metrics collector also ran
 successfully during benchmarking.
 
 No source edits should normally be needed on another supported host. Installed
 paths, GPU sensor/adapter identifiers, permissions, and hardware support require
-per-machine setup. Follow the [prerequisite and verification
-guide](wsl_hardware_metrics.md) before relying on the measurements.
+per-machine setup. Follow the [prerequisite and verification guide](./wsl-hardware-metrics.md)
+before relying on the measurements.
