@@ -41,6 +41,8 @@ USER_GROUP_ID ?= $(shell id -g)
 export USER_GROUP_ID
 # Default values for benchmark
 PIPELINE_COUNT ?= 1
+ROUND_ROBIN_COUNT ?= 128
+export ROUND_ROBIN_COUNT
 INIT_DURATION ?= 10
 MEASUREMENT_WINDOW_SECONDS ?= 100
 TARGET_FPS_ARG := $(if $(strip $(TARGET_FPS)),--target_fps $(TARGET_FPS),)
@@ -389,7 +391,7 @@ benchmark-stream-density: build-benchmark download-sample-videos download-models
 			export CPUSET; \
 			CORE_PINNING_COMPOSE_ARG="--compose_file ../../src/$(CORE_PINNING_COMPOSE)"; \
 			echo "Core pinning enabled: CORE_TYPE=$(CORE_TYPE) CPUSET=$$CPUSET override=$(CORE_PINNING_COMPOSE)"; \
-			printf 'CORE_TYPE=%s\nCPUSET=%s\nROUND_ROBIN_COUNT=128\n' "$(CORE_TYPE)" "$$CPUSET" > "$$RUN_DIR/core_pinning.txt" ;; \
+			printf 'CORE_TYPE=%s\nCPUSET=%s\nROUND_ROBIN_COUNT=%s\n' "$(CORE_TYPE)" "$$CPUSET" "$(ROUND_ROBIN_COUNT)" > "$$RUN_DIR/core_pinning.txt" ;; \
 		false|False|FALSE|0|"") ;; \
 		*) echo "ERROR: invalid CORE_PINNING='$(CORE_PINNING)' (expected true or false)"; exit 1 ;; \
 	esac; \
@@ -589,4 +591,3 @@ mcp-bench: mcp-image
 
 mcp-test:
 	cd mcp-service && python3 -m pytest -q
-
