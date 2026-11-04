@@ -15,7 +15,7 @@
         "fps": 15,
         "width": 1080,
         "height": 1920,
-        "fileSrc":"age_prediction-1920-15-bench.mp4|https://www.pexels.com/download/video/3249935", 
+        "fileSrc":"age_prediction-1920-15-bench.mp4|https://videos.pexels.com/video-files/3249935/3249935-hd_1920_1080_25fps.mp4", 
         "workloads": ["asc_face_detection_age_prediction"]
       },
       {
@@ -23,7 +23,7 @@
         "fps": 15,
         "width": 1080,
         "height": 1920,
-        "fileSrc":"obj_classification-1920-15-bench.mp4|https://www.pexels.com/download/video/6891009", 
+        "fileSrc":"obj_classification-1920-15-bench.mp4|https://videos.pexels.com/video-files/6891009/6891009-hd_1920_1080_30fps.mp4", 
         "workloads": ["asc_product_detection_classification"]
       }
     ]

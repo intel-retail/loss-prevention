@@ -15,7 +15,7 @@
         "fps": 15,
         "width": 1080,
         "height": 1920,
-        "fileSrc":"items-in-basket-32658421.mp4|https://www.pexels.com/download/video/32658421", 
+        "fileSrc":"items-in-basket-32658421.mp4|https://videos.pexels.com/video-files/32658421/13924145_1080_1920_30fps.mp4", 
         "workloads": ["items_in_basket"],
         "region_of_interest": {
           "x": 335,
@@ -29,7 +29,7 @@
         "fps": 15,
         "width": 1080,
         "height": 1920,
-        "fileSrc":"hidden-items-product-switching-32658426.mp4|https://www.pexels.com/download/video/32658426", 
+        "fileSrc":"hidden-items-product-switching-32658426.mp4|https://videos.pexels.com/video-files/32658426/13924121_1080_1920_30fps.mp4", 
         "workloads": ["hidden_items"],
         "region_of_interest": {
           "x": 335,
@@ -43,7 +43,7 @@
         "fps": 15,
         "width": 1920,
         "height": 1080,
-        "fileSrc":"fake-scan-detection-32658425.mp4|https://www.pexels.com/download/video/32658425", 
+        "fileSrc":"fake-scan-detection-32658425.mp4|https://videos.pexels.com/video-files/32658425/13924133_1920_1080_30fps.mp4", 
         "workloads": ["fake_scan_detection"],
         "region_of_interest": {
           "x": 25,
@@ -57,7 +57,7 @@
         "fps": 15,
         "width": 1080,
         "height": 1920,
-        "fileSrc":"items-in-basket-32658421.mp4|https://www.pexels.com/download/video/32658421", 
+        "fileSrc":"items-in-basket-32658421.mp4|https://videos.pexels.com/video-files/32658421/13924145_1080_1920_30fps.mp4", 
         "workloads": ["multi_product_identification"],
         "region_of_interest": {
           "x": 335,
@@ -71,7 +71,7 @@
         "fps": 15,
         "width": 1080,
         "height": 1920,
-        "fileSrc":"hidden-items-product-switching-32658426.mp4|https://www.pexels.com/download/video/32658426", 
+        "fileSrc":"hidden-items-product-switching-32658426.mp4|https://videos.pexels.com/video-files/32658426/13924121_1080_1920_30fps.mp4", 
         "workloads": ["product_switching"],
         "region_of_interest": {
           "x": 335,
@@ -85,7 +85,7 @@
         "fps": 15,
         "width": 1080,
         "height": 1920,
-        "fileSrc":"face-detection-3249935.mp4|https://www.pexels.com/download/video/3249935", 
+        "fileSrc":"face-detection-3249935.mp4|https://videos.pexels.com/video-files/3249935/3249935-hd_1920_1080_25fps.mp4", 
         "workloads": ["sweet_heartening"]
       }
       

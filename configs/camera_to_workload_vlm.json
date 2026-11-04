@@ -15,7 +15,7 @@
         "fps": 15,
         "width": 1080,
         "height": 1920,
-        "fileSrc":"lp-vlm.mp4|https://www.pexels.com/download/video/35256160", 
+        "fileSrc":"lp-vlm.mp4|https://videos.pexels.com/video-files/35256160/14936073_1920_1080_30fps.mp4", 
         "workloads": ["lp_vlm"]
       }
     ]
