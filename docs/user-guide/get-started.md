@@ -88,10 +88,10 @@ make run-lp CAMERA_STREAM=camera_to_workload_asc_object_detection_classification
    git clone -b <release-or-tag> --single-branch https://github.com/intel-retail/loss-prevention
    ```
 
-   > Replace <release-or-tag> with the version you want to clone (for example, **release-2026.2.0**).
+   > Replace <release-or-tag> with the version you want to clone (for example, **release-2026.3.0**).
 
    ```bash
-   git clone -b release-2026.2.0 --single-branch https://github.com/intel-retail/loss-prevention
+   git clone -b release-2026.3.0 --single-branch https://github.com/intel-retail/loss-prevention
    ```
 
 2. **Run Loss Prevention (Recommended for First Time)**

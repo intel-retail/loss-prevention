@@ -92,7 +92,7 @@ OVMS_HOST_PORT ?= 8002
 export OVMS_HOST_PORT
 
 
-TAG ?= latest
+TAG ?= 2026.3.0-rc1
 RENDER_MODE ?=0
 REGISTRY ?= true
 # Registry image references

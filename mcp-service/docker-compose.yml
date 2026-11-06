@@ -5,7 +5,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: intel/lp-mcp:${TAG:-latest}
+    image: intel/lp-mcp:${LP_TAG:-latest}
     ports:
       - "${LP_MCP_PORT:-9100}:9100"
     environment:

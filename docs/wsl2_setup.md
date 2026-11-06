@@ -903,7 +903,7 @@ docker run --rm \
   --device=/dev/dxg \
   -v /usr/lib/wsl/lib:/usr/lib/wsl/lib:ro \
   -v /usr/lib/wsl/drivers:/usr/lib/wsl/drivers:ro \
-  intel/dlstreamer:2026.2.0-ubuntu24 \
+  intel/dlstreamer:2026.3.0-ubuntu24-rc1 \
   bash -lc '. /opt/intel/openvino/setupvars.sh 2>/dev/null || true; \
     export LD_LIBRARY_PATH=/usr/lib/wsl/lib:/usr/lib/wsl/drivers:/usr/lib/openvino-2026.2.0${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}; \
     python3 -c "import openvino as ov; print(ov.Core().available_devices)"'
@@ -919,7 +919,7 @@ docker run --rm \
   --device=/dev/dxg \
   -v /usr/lib/wsl/lib:/usr/lib/wsl/lib:ro \
   -v /usr/lib/wsl/drivers:/usr/lib/wsl/drivers:ro \
-  intel/dlstreamer:2026.2.0-ubuntu24 \
+  intel/dlstreamer:2026.3.0-ubuntu24-rc1 \
   bash -lc 'export LD_LIBRARY_PATH=/usr/lib/wsl/lib:/usr/lib/wsl/drivers:/usr/lib/openvino-2026.2.0${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}; \
     ldd /usr/lib/openvino-2026.2.0/libopenvino_intel_gpu_plugin.so | grep "not found" || true; \
     python3 -c "import openvino as ov; print(ov.Core().available_devices)"'
