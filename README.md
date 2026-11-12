@@ -134,7 +134,7 @@ The stream-density benchmark resolves the effective target FPS for each camera u
 - **Python 3** (`sudo apt install python3`) - required for video download and validation scripts
 - Intel hardware (CPU, iGPU, dGPU, NPU) + drivers:
     - [Intel GPU drivers](https://dgpu-docs.intel.com/driver/client/overview.html)
-    - [NPU](https://dlstreamer.github.io/dev_guide/advanced_install/advanced_install_guide_prerequisites.html#prerequisite-2-install-intel-npu-drivers)
+    - [NPU](https://docs.openedgeplatform.intel.com/dev/edge-ai-libraries/dlstreamer/dev_guide/advanced_install/advanced_install_guide_prerequisites.html#optional-prerequisite-2-install-intel-npu-drivers)
 - 32 GB RAM . 300 GB Storage
 - Corporate proxy / optional RTSP config:
 
