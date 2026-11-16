@@ -136,15 +136,15 @@ The application is highly configurable via JSON files in the `configs/` director
 
 4. Run validate configs command, to verify configuration files
 
-```sh
-make validate-all-configs
-```
+   ```sh
+   make validate-all-configs
+   ```
 
 5. Re-run the pipeline as described above.
 
 > [!NOTE]
-> Since the GStreamer pipeline is generated dynamically based on the provided configuration(camera_to_workload and workload_to_pipeline json),
-> the pipeline.sh file gets updated every time the user runs make run-lp or make benchmark. This ensures that the pipeline reflects the latest changes.
+> Since the GStreamer pipeline is generated dynamically based on the provided configuration (`camera_to_workload` and `workload_to_pipeline` json),
+> the `pipeline.sh` file gets updated every time the user runs `make run-lp` or `make benchmark`. This ensures that the pipeline reflects the latest changes.
 >
 > ```sh
 > src/pipelines/pipeline.sh
@@ -152,7 +152,9 @@ make validate-all-configs
 
 ## Complete Workload Configuration Matrix
 
-The preconfigured workloads support multiple hardware configurations out of the box. Use the `CAMERA_STREAM` and `WORKLOAD_DIST` variables to customize which cameras and hardware (CPU, GPU, NPU) are used by your pipeline.
+The preconfigured workloads support multiple hardware configurations out of the box. Use the
+`CAMERA_STREAM` and `WORKLOAD_DIST` variables to customize which cameras and hardware
+(CPU, GPU, NPU) are used by your pipeline.
 
 **Usage Pattern:**
 
