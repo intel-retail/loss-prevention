@@ -19,33 +19,6 @@ permissions:
   checks: write
 
 jobs:
-  validate-title:
-    name: Validate PR title (Conventional Commits)
-    runs-on: ubuntu-latest
-    steps:
-      - name: Validate PR title
-        uses: amannn/action-semantic-pull-request@v6
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          types: |
-            feat
-            fix
-            perf
-            refactor
-            docs
-            test
-            build
-            ci
-            style
-            chore
-            revert
-          requireScope: false
-          # Skip title validation for bot PRs carrying these labels.
-          ignoreLabels: |
-            dependencies
-            submodule-update
-
   validate-body:
     name: Validate PR body
     runs-on: ubuntu-latest
@@ -58,9 +31,22 @@ jobs:
             const body = pr.body || '';
             const botLabels = new Set(['dependencies', 'submodule-update']);
             const labels = (pr.labels || []).map(label => label.name.toLowerCase());
+            const title = pr.title || '';
+            const titlePattern = /^(feat|fix|perf|refactor|docs|test|build|ci|style|chore|revert)(?:\(([^()\r\n]+)\))?!?: (\S.*)$/;
+            const isTitleExempt = labels.some(label => botLabels.has(label));
             const isBotPR =
               pr.user?.type === 'Bot' ||
               labels.some(label => botLabels.has(label));
+
+            if (!isTitleExempt) {
+              if (!titlePattern.test(title)) {
+                core.setFailed(
+                  'PR title must use Conventional Commits: <type>(<optional scope>)<optional !>: <subject>.'
+                );
+              } else if (title.length > 72) {
+                core.setFailed('PR title header must be 72 characters or fewer.');
+              }
+            }
 
             if (isBotPR) {
               console.log('Skipping PR body validation for bot PR.');
