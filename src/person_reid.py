@@ -52,22 +52,20 @@ class PersonReID:
                     config.get("lane_config", {})
                     .get("cameras", [])
                 )
-
+                target_workload = "sweet_heartening"
                 if cameras:
-                    camera = cameras[0]
+                    camera = next(
+                                    (entry for entry in cameras
+                                    if target_workload in entry.get("workloads", [])),
+                                        None,
+                                )
 
                     camera_id = camera.get(
                         "camera_id",
                         camera_id
                     )
 
-                    workloads = camera.get(
-                        "workloads",
-                        []
-                    )
-
-                    if workloads:
-                        workload = workloads[0]
+                    workload = target_workload
 
             except Exception as e:
                 print(
@@ -91,9 +89,7 @@ class PersonReID:
             "timestamp": timestamp,
             "frame_id": f"frame_{self.frame_counter:06d}",
             "stream_id": self.stream_id,
-            "station_id": "self_checkout_01",
             "camera_id": camera_id,
-            "camera_name": "self_checkout_overhead",
             "workload": workload,
             "persons": []
         }
