@@ -367,6 +367,9 @@ services:
     build:
       context: ../mcp-service
       dockerfile: Dockerfile
+      args:
+        - HTTP_PROXY=${HTTP_PROXY}
+        - HTTPS_PROXY=${HTTPS_PROXY}
     image: intel/lp-mcp:${LP_TAG:-latest}
     # Start last; the runners already wait on the rest of the stack.
     depends_on:
