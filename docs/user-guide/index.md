@@ -20,6 +20,7 @@ The Loss Prevention Pipeline System is an open-source reference implementation f
 ./get-started
 How It Works <./how-it-works>
 Benchmarking <./lp-benchmarking>
+Loss Prevention on WSL2 <./wsl2-guides>
 
 :::
 hide_directive-->
