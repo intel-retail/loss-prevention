@@ -9,7 +9,7 @@
 - Intel hardware (CPU, iGPU, dGPU, NPU)
 - Intel drivers:
   - [Intel GPU drivers](https://dgpu-docs.intel.com/driver/client/overview.html)
-  - [NPU](https://docs.openedgeplatform.intel.com/dev/edge-ai-libraries/dlstreamer/dev_guide/advanced_install/advanced_install_guide_prerequisites.html#optional-prerequisite-2-install-intel-npu-drivers)
+  - [NPU](https://docs.openedgeplatform.intel.com/2026.3/edge-ai-libraries/dlstreamer/dev_guide/advanced_install/advanced_install_guide_prerequisites.html#optional-prerequisite-2-install-intel-npu-drivers)
 - Sufficient disk space for models, videos, and results
 
 > [!NOTE]
