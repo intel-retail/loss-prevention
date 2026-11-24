@@ -1,13 +1,13 @@
-# Running Loss Prevention on Windows 11 + WSL2
+# Set Up Loss Prevention on Windows 11 with WSL2
 
 This guide takes a clean Windows 11 machine to a working Loss Prevention environment
 under WSL2. It is written for someone who has never used WSL before.
 
-Before `make benchmark`, also complete the [hardware metrics prerequisites](wsl_hardware_metrics.md).
-Windows GPU counters, optional GPU power sensors, and native Windows PCM need
-separate host-side setup. Collection then starts and stops automatically with
-the benchmark; no separate collector command is needed during a run. See
-[WSL benchmark metrics](wsl2_benchmark.md) for outputs and limitations. The
+Before `make benchmark`, also complete the [hardware metrics prerequisites](./wsl-hardware-metrics.md).
+Windows GPU counters, optional GPU power sensors, and native Windows Performance Counter
+Monitor (PCM) need separate host-side setup. Collection then starts and stops automatically
+with the benchmark; no separate collector command is needed during a run. See
+[WSL benchmark metrics](./wsl2-benchmark.md) for outputs and limitations. The
 Makefile detects WSL2 automatically from the Microsoft kernel; no flag is needed.
 
 Follow the steps **in order**. Several of them fail in confusing ways if done out of
@@ -35,12 +35,12 @@ sequence — particularly the proxy configuration, which must come before any do
 
 ## Conventions
 
-Commands are labelled by where they run:
+Commands are labeled by where they run:
 
 | Label | Where |
-|---|---|
+| --- | --- |
 | **PowerShell** | Windows PowerShell or Terminal, on the Windows side |
-| **Ubuntu** | Inside the WSL2 Ubuntu distro |
+| **Ubuntu** | Inside the WSL2 Ubuntu distribution |
 
 Getting these mixed up is the single most common early mistake.
 
@@ -53,7 +53,7 @@ machine. A small number are **site-specific** and are the most likely reason the
 fails somewhere else. Every occurrence below is marked with a ⚙️ note.
 
 | Placeholder used here | What it is | How to find yours |
-|---|---|---|
+| --- | --- | --- |
 | `http://proxy.example.com:PORT` | Example proxy URL; replace the host and port with your site's values | `netsh winhttp show proxy` or `ProxyServer` (Windows), `echo $HTTP_PROXY` (Ubuntu) |
 | `.example.com`, `192.0.2.0/24` | Reserved example values for the `NO_PROXY` internal domain and network range | Your own internal DNS suffix and network ranges |
 | PAC URL | Proxy auto-configuration file | `AutoConfigURL` (Windows), `echo $WSL_PAC_URL` (Ubuntu) |
@@ -67,7 +67,7 @@ Get-ItemProperty "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Setti
   Select-Object ProxyServer, AutoConfigURL
 ```
 
-In **Ubuntu**, once a distro exists:
+In **Ubuntu**, once a distribution exists:
 
 ```bash
 echo "$HTTP_PROXY"
@@ -77,7 +77,7 @@ echo "$WSL_PAC_URL"
 These are **constant everywhere** — never edit them: `api.github.com`,
 `download.docker.com`, `archive.ubuntu.com`, `github.com/intel-retail/loss-prevention`,
 `openvino/ubuntu24_dev`. The service names `rabbitmq`, `minio-service`,
-`rtsp-streamer`, `ovms-vlm` and `model-downloader` in every `NO_PROXY` are Docker
+`rtsp-streamer`, `ovms-vlm`, and `model-downloader` in every `NO_PROXY` are Docker
 Compose service names from `src/docker-compose.yml` and must be kept as-is.
 
 ---
@@ -88,36 +88,37 @@ WSL2 is a lightweight virtual machine. Getting it installed means satisfying thr
 independent requirements, in this order:
 
 | Layer | What it is | How to enable | Reboot |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | **VT-x** | CPU feature, a firmware setting | BIOS/UEFI **only** | Yes, into BIOS |
 | **Windows features** | `VirtualMachinePlatform`, `Microsoft-Windows-Subsystem-Linux` | `dism` or `wsl --install` | Yes, normal reboot |
 | **WSL package** | the `wsl.exe` runtime itself | `wsl --install` download, or the MSI | No |
 
 These are **not** alternatives. `dism` cannot switch on VT-x, and enabling the Windows
 features while VT-x is off leaves you with a WSL that installs cleanly and then refuses
-to boot a distro.
+to boot a distribution.
 
 ### 1a. Open an elevated PowerShell
 
 Everything in this section fails with `Error: 740 — Elevated permissions are required`
 from a normal shell.
 
-Start menu → type `powershell` → right-click **Windows PowerShell** → **Run as
-administrator**. Or from an existing window:
+Select Windows **Start** menu, type `powershell`, right-click **Windows PowerShell**, and
+**Run as administrator**. Or from an existing window:
 
 ```powershell
 Start-Process powershell -Verb RunAs
 ```
 
-Confirm it worked:
+To confirm it worked:
 
 ```powershell
 whoami /groups | findstr /i "High Mandatory"
 ```
 
-Must print a line containing `High Mandatory Level`. Nothing printed means the window is
-not elevated.
+The result must print a line containing `High Mandatory Level`. Nothing printed means the
+window is not elevated.
 
+> [!CAUTION]
 > **Remote machines:** an SSH session (MobaXterm, OpenSSH) **cannot elevate** — UAC needs
 > an interactive desktop to draw the consent dialog, and there is no CLI workaround. Use
 > **RDP**, which creates a real interactive session and supports UAC normally. If the
@@ -140,6 +141,7 @@ If it still reports `Direct access (no proxy server)`, set it explicitly:
 netsh winhttp set proxy proxy-server="http=proxy.example.com:PORT;https=proxy.example.com:PORT" bypass-list="*.example.com;localhost;127.0.0.1;<local>"
 ```
 
+> [!NOTE]
 > ⚙️ **Site-specific.** Replace `proxy.example.com:PORT` and the bypass list with your
 > own. Find them with:
 >
@@ -163,16 +165,18 @@ it refuses that destination.
 
 ### 1c. Check firmware virtualization
 
+Run this to check virtualization:
+
 ```powershell
 systeminfo | findstr /i "Hyper-V"
 ```
 
 | Output | Meaning | Action |
-|---|---|---|
+| --- | --- | --- |
 | `A hypervisor has been detected.` | VT-x is on and a hypervisor is running | Continue to 1d |
-| A list ending `Virtualization Enabled In Firmware: No` | VT-x is off | Reboot into BIOS/UEFI, enable *Intel Virtualization Technology (VT-x)*, then return here |
+| A list ending `Virtualization Enabled In Firmware: No` | VT-x is off | Reboot into BIOS/UEFI, enable *Intel Virtualization Technology (VT-x)*, then resume here |
 
-Only a BIOS change fixes the second case. No Windows command can.
+If virtualization is off, you have to enable it in BIOS — there is no Windows command for it.
 
 ### 1d. Enable the Windows features and install the WSL package
 
@@ -187,7 +191,8 @@ On a corporate network this often fails at the **download** half with
 downloader performs its own strict certificate validation and rejects the TLS-inspected
 chain, even when the corporate CA is trusted machine-wide. Retrying will not help.
 
-Split the two jobs instead. DISM enables the features and needs no network:
+Split the two jobs instead. The Deployment Image Servicing and Management (DISM) tool enables
+the features and needs no network:
 
 ```powershell
 dism.exe /online /enable-feature /featurename:Microsoft-Windows-Subsystem-Linux /all /norestart
@@ -207,15 +212,18 @@ curl.exe -L -x http://proxy.example.com:PORT -o "$env:TEMP\wsl.msi" $url
 msiexec /i "$env:TEMP\wsl.msi" /qn /norestart
 ```
 
-The length check matters: expect roughly 100–150 MB. A few kilobytes means you downloaded
+Expect roughly a 100–150 MB download. A few kilobytes means you downloaded
 the proxy's block page rather than the installer.
 
+> [!NOTE]
 > ⚙️ **Site-specific.** Replace `http://proxy.example.com:PORT` with the proxy URL
-> confirmed in 1b. The `api.github.com` URL is universal, and the MSI URL is
-> deliberately *not* hardcoded: the API query resolves the current version's
-> `browser_download_url`, so it stays correct as WSL releases change. Do not replace it
-> with a literal filename.
-
+> confirmed in [step 1b](#1b-point-winhttp-at-the-proxy). The `api.github.com` URL is
+> universal, and the MSI URL is deliberately *not* hardcoded: the API query resolves the
+> current version's `browser_download_url`, so it stays correct as WSL releases change. Do not
+> replace it with a literal filename.
+>
+> ---
+>
 > `winget install --id Microsoft.WSL` is a third option. It uses yet another HTTP stack
 > and sometimes succeeds where both others fail.
 
@@ -245,11 +253,11 @@ wsl --status
 ```
 
 | `wsl --status` output | Meaning | Action |
-|---|---|---|
+| --- | --- | --- |
 | `Default Version: 2` | Step 1 complete | Go to step 2 |
-| `The Windows Subsystem for Linux is not installed` | The 1d download half did not land | Install the MSI |
+| `The Windows Subsystem for Linux is not installed` | The [step 1d](#1d-enable-the-windows-features-and-install-the-wsl-package) download half did not succeed | Install the MSI |
 | `WSL2 is unable to start since virtualization is not enabled on this machine` | The **package** is installed but the **Windows features** are not | Run the command below, then reboot |
-| `WSL2 is not supported with your current machine configuration` | VT-x is off in firmware | Back to 1c, BIOS |
+| `WSL2 is not supported with your current machine configuration` | VT-x is off in firmware | See [step 1c](#1c-check-firmware-virtualization), enable in BIOS |
 
 The third row is the common one after installing via MSI. `wsl.exe` is now present and
 reporting on its own environment. Its full message is:
@@ -305,7 +313,7 @@ Direct3D version: 1.611.1-81528511
 Windows version: 10.0.26200.9168
 ```
 
-**Ubuntu** — confirm the distro launched and identify itself:
+**Ubuntu** — confirm the distribution launched and identifies itself:
 
 ```bash
 lsb_release -a
@@ -314,6 +322,7 @@ uname -r
 
 Expected: `Ubuntu 24.04 LTS` (codename `noble`).
 
+> [!IMPORTANT]
 > Do **not** run `apt update` or `apt upgrade` yet. On a corporate network those will
 > partially fail in ways that are hard to interpret. Configure the proxy first — the
 > system update is the last part of step 3.
@@ -347,9 +356,10 @@ If you are not behind a proxy, skip to [step 4](#4-base-packages).
 By default WSL2 uses NAT, and corporate endpoint-security agents frequently drop that
 traffic. Mirrored networking makes WSL share the Windows network stack directly.
 
+> [!NOTE]
 > **Mirrored networking requires WSL 2.0.0+ and Windows build 22621+.**
 > Check with `wsl --version` and `[System.Environment]::OSVersion.Version` if unsure.
-> On older builds, omit `networkingMode`, `dnsTunneling` and `firewall`, and set the
+> On older builds, omit `networkingMode`, `dnsTunneling`, and `firewall`, and set the
 > proxy manually in step 3b.
 
 Create or edit `C:\Users\<YourName>\.wslconfig`:
@@ -362,6 +372,7 @@ autoProxy=true
 firewall=true
 ```
 
+> [!NOTE]
 > ⚙️ **Machine-specific path.** Rather than typing your username, let PowerShell resolve
 > it — this writes the same file on any machine:
 >
@@ -424,23 +435,27 @@ curl -sI --max-time 15 https://download.docker.com/linux/ubuntu/gpg | head -1
 The `curl` must return `HTTP/1.1 200` or `HTTP/2 200`. A hang means HTTPS is still
 going direct.
 
+> [!NOTE]
 > Find your proxy URL from `echo $HTTP_PROXY`, or inspect the PAC file WSL exposes as
 > `$WSL_PAC_URL`. On Windows, `netsh winhttp show proxy` and the Internet Settings
 > `ProxyServer` and `AutoConfigURL` values show the configured proxy or PAC URL. If only
 > a PAC URL is available, inspect its script to find the proxy host and port.
-
+>
+> ---
+>
 > ⚙️ **Site-specific.** The `NO_PROXY` list above mixes two kinds of entry. Replace
 > `.example.com` and `192.0.2.0/24` with your own internal domain and network ranges.
-> Keep `rabbitmq`, `minio-service`, `rtsp-streamer`, `ovms-vlm` and `model-downloader` —
+> Keep `rabbitmq`, `minio-service`, `rtsp-streamer`, `ovms-vlm`, and `model-downloader` —
 > those are Compose service names from `src/docker-compose.yml`, identical on every
 > machine, and routing them through a proxy breaks inter-container traffic.
+> Check your current values with:
 >
 > ```bash
 > echo "$HTTP_PROXY"
 > echo "$WSL_PAC_URL"
 > ```
 
-### 3c. apt — its own config file
+### 3c. apt — its own configuration file
 
 **`apt` does not read shell environment variables.** It needs its own file. This is
 separate from step 3b and both are required:
@@ -452,6 +467,7 @@ Acquire::https::Proxy "http://proxy.example.com:PORT";
 EOF
 ```
 
+> [!NOTE]
 > ⚙️ **Site-specific.** Substitute your own proxy. Because the heredoc is quoted
 > (`<<'EOF'`), `$HTTP_PROXY` would be written literally rather than expanded — so if you
 > want it filled in from the environment, drop the quotes:
@@ -467,8 +483,8 @@ EOF
 
 ### 3d. Force IPv4
 
-WSL2 has no IPv6 route. Without this, every apt download wastes ~30 seconds failing
-over eight IPv6 addresses before trying IPv4:
+WSL2 has no IPv6 route, so every apt download wastes around 30 seconds failing
+over eight IPv6 addresses before trying IPv4. Force IPv4 with:
 
 ```bash
 sudo tee /etc/apt/apt.conf.d/99force-ipv4 > /dev/null <<'EOF'
@@ -500,14 +516,15 @@ Proxy settings live in four unrelated places. Configuring one tells you nothing 
 the others:
 
 | Context | Consumer | Location | Step |
-|---|---|---|---|
-| Shell | `curl`, `git`, `pip`, `wget` | `~/.bashrc` | 3b |
-| apt | `sudo apt` | `/etc/apt/apt.conf.d/95proxies` | 3c |
-| Daemon | `docker pull` | `/etc/systemd/system/docker.service.d/proxy.conf` | 7 |
-| Build | `docker build` RUN steps | `~/.docker/config.json` | 8 |
+| --- | --- | --- | --- |
+| Shell | `curl`, `git`, `pip`, `wget` | `~/.bashrc` | [step 3b](#3b-ubuntu-shell--bashrc) |
+| apt | `sudo apt` | `/etc/apt/apt.conf.d/95proxies` | [step 3c](#3c-apt--its-own-configuration-file) |
+| Daemon | `docker pull` | `/etc/systemd/system/docker.service.d/proxy.conf` | [step 7](#7-docker-daemon-proxy) |
+| Build | `docker build` RUN steps | `~/.docker/config.json` | [step 8](#8-docker-build-time-proxy) |
 
 Steps 7 and 8 come later because those paths do not exist until Docker is installed.
 
+> [!CAUTION]
 > `sudo` strips proxy environment variables. Use `sudo -E` for any command that needs
 > network access.
 
@@ -523,12 +540,12 @@ sudo apt install -y \
 ```
 
 | Package | Used by |
-|---|---|
+| --- | --- |
 | `make` | every workflow command (`make run-lp`, `make benchmark`) |
 | `jq` | `model-downloader.sh` and `check-device-env` parse `configs/*.json` |
-| `python3` + `venv` | `download-video.py`, config validators, benchmark scripts |
+| `python3` + `venv` | `download-video.py`, configuration validators, benchmark scripts |
 | `curl` / `wget` | model and video downloads |
-| `git` | the repo and the `performance-tools` submodule |
+| `git` | the repository and the `performance-tools` submodule |
 | `x11-xserver-utils` | `xhost`, required by `make run-render-mode` for X11 display access |
 
 Verify:
@@ -541,7 +558,8 @@ make --version && jq --version && python3 --version && git --version
 
 ## 5. Enable systemd
 
-Docker Engine runs as a systemd service. WSL2 does not enable systemd by default.
+Docker Engine runs as a systemd service. WSL2 does not enable systemd by default, so
+enable it in `/etc/wsl.conf`:
 
 ```bash
 sudo tee /etc/wsl.conf > /dev/null <<'EOF'
@@ -559,7 +577,7 @@ EOF
 wsl --shutdown
 ```
 
-Reopen Ubuntu and verify:
+Reopen **Ubuntu** and verify:
 
 ```bash
 ps -p 1 -o comm=
@@ -575,12 +593,13 @@ systemctl list-units --type=service | head
 
 ### Why Docker Engine and not Docker Desktop
 
-Docker Desktop runs its daemon in a **separate hidden distro** (`docker-desktop`), not
-in your Ubuntu. For the GPU work in step 11 you will bind-mount `/usr/lib/wsl/lib` and
-pass `--device=/dev/dxg`; cross-distro path translation makes failures much harder to
-diagnose. With Docker Engine installed inside Ubuntu-24.04, the daemon sees exactly the
+Docker Desktop runs its daemon in a **separate hidden distribution** (`docker-desktop`),
+not in your Ubuntu. For the GPU work in step 11 you will bind-mount `/usr/lib/wsl/lib`
+and pass `--device=/dev/dxg`; cross-distribution path translation makes failures much
+harder to diagnose. With Docker Engine installed inside Ubuntu-24.04, the daemon sees exactly the
 same devices and filesystem you do.
 
+> [!CAUTION]
 > Do not install both. Two daemons will conflict.
 
 ### Add Docker's GPG key
@@ -626,7 +645,7 @@ Group membership is only read at login. **PowerShell:**
 wsl --shutdown
 ```
 
-Reopen Ubuntu and confirm the group and the service. These are local checks and need no
+Reopen **Ubuntu** and confirm the group and the service. These are local checks and need no
 network:
 
 ```bash
@@ -636,6 +655,7 @@ systemctl is-active docker
 
 Expect `docker` and `active`. If the group is missing, the shutdown did not take effect.
 
+> [!CAUTION]
 > Do not work around permission errors with `sudo docker`. Running as root creates
 > root-owned files in `models/` and `results/`, which breaks later steps.
 
@@ -662,6 +682,7 @@ sudo systemctl daemon-reload
 sudo systemctl restart docker
 ```
 
+> [!NOTE]
 > ⚙️ **Site-specific.** Replace `http://proxy.example.com:PORT` and the `.example.com`
 > entry with your own;
 > keep the Compose service names. Confirm the values you are about to write first with
@@ -673,7 +694,7 @@ Verify:
 docker info | grep -i proxy
 ```
 
-You should see `HTTP Proxy`, `HTTPS Proxy` and `No Proxy` lines. If they are absent,
+You should see `HTTP Proxy`, `HTTPS Proxy`, and `No Proxy` lines. If they are absent,
 the drop-in did not load.
 
 ---
@@ -683,21 +704,21 @@ the drop-in did not load.
 Each `RUN` instruction in a Dockerfile executes in a throwaway container with a clean
 environment. It does not inherit your shell's proxy settings.
 
-The Makefile and compose file already pass `HTTP_PROXY`/`HTTPS_PROXY` as build args for
-the project's own images, but coverage has gaps:
+The Makefile and Compose file already pass `HTTP_PROXY`/`HTTPS_PROXY` as build arguments
+for the project's own images, but coverage has gaps:
 
 - With `WSL2=false REGISTRY=false`, `make build-benchmark` delegates to the
-  `performance-tools` submodule's Makefile, which is outside this repo's proxy
+  `performance-tools` submodule's Makefile, which is outside this repository's proxy
   plumbing. On WSL2, it instead uses the Windows Python executable
   configured by `WINDOWS_PYTHON` in the root Makefile and installs
   its Python dependencies; Windows Python needs its own working network/proxy
   configuration. Docker proxy settings do not configure Windows pip.
 - Only `rtsp-streamer` passes the lowercase `http_proxy`/`https_proxy` variants;
   `curl` reads lowercase `http_proxy` **only**, so `RUN curl http://...` in the other
-  images would bypass the proxy
-- `NO_PROXY` is not passed as a build arg anywhere
+  images would bypass the proxy.
+- `NO_PROXY` is not passed as a build argument anywhere.
 
-Setting the CLI-level config covers all of these uniformly:
+Setting the CLI-level configuration covers all of these uniformly:
 
 ```bash
 mkdir -p ~/.docker
@@ -714,7 +735,9 @@ cat > ~/.docker/config.json <<'EOF'
 EOF
 ```
 
-> ⚙️ **Site-specific.** Same substitution as step 7 — proxy host, port and `.example.com`.
+> [!NOTE]
+> ⚙️ **Site-specific.** Same substitution as [step 7](#7-docker-daemon-proxy) — proxy host,
+> port, and `.example.com`.
 > This file is JSON, so a trailing comma or an unescaped value breaks every `docker`
 > command, not just builds. Validate it after writing:
 >
@@ -741,13 +764,13 @@ or did not load; re-check `docker info | grep -i proxy`.
 `docker compose` (space, not hyphen) throughout, and `src/docker-compose-wsl2.yml`
 relies on the `include` top-level element and the `!override` merge tag, which earlier
 v2 releases reject. If your version is older, upgrade `docker-compose-plugin` from
-the Docker apt repository configured in step 6.
+the Docker apt repository configured in [step 6](#6-install-docker-engine).
 
 ---
 
 ## 9. Memory and CPU tuning
 
-The VLM workload loads a 7B parameter model. Defaults are not sufficient.
+The Vision Language Model (VLM) workload loads a 7B parameter model. Defaults are not sufficient.
 
 Edit `C:\Users\<YourName>\.wslconfig` on the **Windows** side, merging with the
 networking settings from step 3a:
@@ -763,10 +786,13 @@ autoProxy=true
 firewall=true
 ```
 
+> [!NOTE]
 > `localhostForwarding` is unnecessary when `networkingMode=mirrored` is set.
-
-> ⚙️ **Machine-specific.** The path again — use `$env:USERPROFILE\.wslconfig`. The
-> `memory`, `processors` and `swap` values must suit *your* hardware: check with
+>
+> ---
+>
+> ⚙️ **Machine-specific.** Use `$env:USERPROFILE\.wslconfig` for the path. The
+> `memory`, `processors`, and `swap` values must suit *your* hardware: check with
 > `Get-CimInstance Win32_ComputerSystem | Select TotalPhysicalMemory` and
 > `$env:NUMBER_OF_PROCESSORS`, then leave headroom for Windows — roughly 75% of RAM and
 > total cores is a safe ceiling.
@@ -787,8 +813,8 @@ df -h /
 
 The repository plus models needs roughly **300 GB**. `df -h /` reports free space inside
 the WSL filesystem, not free space on the Windows drive storing its virtual disk. Check
-that host drive separately in **PowerShell** (for example, `Get-PSDrive C` if the distro
-is stored on `C:`). Both the WSL filesystem and its Windows host drive need sufficient
+that host drive separately in **PowerShell** (for example, `Get-PSDrive C` if the
+distribution is stored on `C:`). Both the WSL filesystem and its Windows host drive need sufficient
 space.
 
 ---
@@ -802,11 +828,11 @@ cd loss-prevention
 git submodule update --init --recursive
 ```
 
-Two things to get right:
-
-1. **Never clone into `/mnt/c/...`.** Windows drives are reached through a slow
-   translation layer. Always use `~`, which is the native Linux filesystem.
-2. **The submodule is mandatory.** `performance-tools/` holds every benchmark script.
+> [!IMPORTANT]
+>
+> 1. **Never clone into `/mnt/c/...`.** Windows drives are reached through a slow
+>    translation layer. Always use `~`, which is the native Linux filesystem.
+> 2. **The submodule is mandatory.** `performance-tools/` holds every benchmark script.
 
 Verify the submodule checked out:
 
@@ -846,7 +872,7 @@ because the device is selected by the workload JSON.
 
 ## 11. GPU and NPU verification
 
-This is the go/no-go check for the whole port.
+This is the decisive check for the whole adaptation of Loss Prevention to WSL2.
 
 ### Windows drivers and container userspace runtimes
 
@@ -871,8 +897,11 @@ Compose parsing alone does not establish runtime compatibility.
 
 If the Windows-provided WSL libraries or `/dev/dxg` are missing, update the Intel
 graphics driver on Windows, then run `wsl --shutdown`. If the device exists but
-OpenVINO cannot enumerate a GPU, inspect the container's runtime and ICD files.
-NPU workloads remain unsupported by this WSL setup.
+OpenVINO™ Toolkit (OpenVINO™) cannot enumerate a GPU, inspect the container's runtime
+and ICD files.
+
+> [!NOTE]
+> NPU workloads remain unsupported by this WSL setup.
 
 ### 11a. Host device check
 
@@ -887,16 +916,16 @@ ls /dev/accel 2>&1
 Expected results:
 
 | Path | Expected | Meaning |
-|---|---|---|
+| --- | --- | --- |
 | `/dev/dxg` | **exists** | the WSL GPU device — replaces `/dev/dri` |
 | `/usr/lib/wsl/lib/` | populated | WSL graphics bridge libraries such as `libd3d12.so` and `libdxcore.so`; not a substitute for the container's OpenCL runtime |
 | `/usr/lib/wsl/drivers/` | populated | WSL GPU driver helpers such as `libwsl_compute_helper.so` |
-| `/dev/dri` | **absent** | expected; this is why the compose device mappings need changing |
+| `/dev/dri` | **absent** | expected; this is why the Compose device mappings need changing |
 | `/dev/accel` | likely absent | the NPU finding |
 
 If `/dev/dxg` is missing, stop here and update the Windows graphics driver.
 
-### 11b. OpenVINO device enumeration
+### 11b. OpenVINO™ device enumeration
 
 ```bash
 docker run --rm \
@@ -932,7 +961,7 @@ ls /dev/accel 2>&1
 lsmod | grep -i vpu
 ```
 
-If `NPU` does not appear in the OpenVINO device list, that is the expected result on
+If `NPU` does not appear in the OpenVINO™ device list, that is the expected result on
 current WSL2 builds, not a mistake on your part. Intel NPU passthrough uses a different
 mechanism from GPU passthrough and may not be available for your driver and kernel
 combination. A documented "not supported" is a valid outcome.
@@ -977,7 +1006,8 @@ make download-sample-videos
 ### Optional: render mode
 
 WSLg can display the annotated stream for CPU workloads. `xhost` is provided by
-`x11-xserver-utils`, which is installed in step 4. Confirm that WSLg set a display:
+`x11-xserver-utils`, which is installed in [step 4](#4-base-packages). Confirm that WSLg set
+a display:
 
 ```bash
 echo "$DISPLAY"
@@ -1012,6 +1042,7 @@ docker compose -f src/docker-compose-wsl2.yml exec lp-pipeline-runner \
   grep -n 'gvawatermark.*videoconvert.*ximagesink' \
   /home/pipeline-server/pipelines/pipeline.sh
 ```
+
 ---
 
 ## Troubleshooting
@@ -1039,55 +1070,55 @@ If your Compose project uses another name, substitute the actual names.
 
 1. Confirm the error, the mounted volume, and the image's runtime UID/GID:
 
-  ```bash
-  docker logs --tail 100 src-minio-service-1
-  docker inspect src-minio-service-1 --format 'User={{.Config.User}} Mounts={{json .Mounts}}'
-  MINIO_IMAGE=$(docker inspect src-minio-service-1 --format '{{.Image}}')
-  docker run --rm --network none --entrypoint /bin/sh "$MINIO_IMAGE" -c 'id'
-  ```
+   ```bash
+   docker logs --tail 100 src-minio-service-1
+   docker inspect src-minio-service-1 --format 'User={{.Config.User}} Mounts={{json .Mounts}}'
+   MINIO_IMAGE=$(docker inspect src-minio-service-1 --format '{{.Image}}')
+   docker run --rm --network none --entrypoint /bin/sh "$MINIO_IMAGE" -c 'id'
+   ```
 
-  For the pinned Chainguard image, the verified values are `User=65532`,
-  `uid=65532(nonroot) gid=65532(nonroot)`, and the named volume mounted at `/data`
-  is `src_minio_data` with `RW=true`. The temporary container used for `id` does
-  not mount your data. Do not use the repair command unchanged if these values
-  differ; use the actual volume name and the UID/GID that the service runs as.
+   For the pinned Chainguard image, the verified values are `User=65532`,
+   `uid=65532(nonroot) gid=65532(nonroot)`, and the named volume mounted at `/data`
+   is `src_minio_data` with `RW=true`. The temporary container used for `id` does
+   not mount your data. Do not use the repair command unchanged if these values
+   differ; use the actual volume name and the UID/GID that the service runs as.
 
 2. Stop MinIO before modifying its storage. Back up the volume first if it
-  contains important data:
+   contains important data:
 
-  ```bash
-  docker stop src-minio-service-1
-  ```
+   ```bash
+   docker stop src-minio-service-1
+   ```
 
 3. Repair ownership and owner permissions without deleting stored data:
 
-  ```bash
-  docker run --rm --user 0:0 --network none \
-    --mount type=volume,source=src_minio_data,target=/data \
-    alpine:3.22 \
-    sh -c 'chown -R 65532:65532 /data && chmod -R u+rwX /data'
-  ```
+   ```bash
+   docker run --rm --user 0:0 --network none \
+     --mount type=volume,source=src_minio_data,target=/data \
+     alpine:3.22 \
+     sh -c 'chown -R 65532:65532 /data && chmod -R u+rwX /data'
+   ```
 
-  Docker may need to pull `alpine:3.22`; its daemon proxy must already be
-  configured. Root is used only in this temporary repair container. MinIO
-  continues to run as non-root. Stop here if the repair command fails.
+   Docker may need to pull `alpine:3.22`; its daemon proxy must already be
+   configured. Root is used only in this temporary repair container. MinIO
+   continues to run as non-root. Stop here if the repair command fails.
 
 4. Start MinIO and inspect recent startup logs:
 
-  ```bash
-  docker start src-minio-service-1
-  docker logs --since 1m --tail 50 src-minio-service-1
-  ```
+   ```bash
+   docker start src-minio-service-1
+   docker logs --since 1m --tail 50 src-minio-service-1
+   ```
 
-  Allow approximately 30 seconds for the health check, then inspect its result:
+   Allow approximately 30 seconds for the health check, then inspect its result:
 
-  ```bash
-  docker inspect src-minio-service-1 --format '{{json .State.Health}}'
-  ```
+   ```bash
+   docker inspect src-minio-service-1 --format '{{json .State.Health}}'
+   ```
 
-  Once it reports `healthy`, rerun your original `make run-lp` command to start
-  the services that were blocked by MinIO. If it remains unhealthy, inspect the
-  new server logs and health-check output before making further changes.
+   Once it reports `healthy`, rerun your original `make run-lp` command to start
+   the services that were blocked by MinIO. If it remains unhealthy, inspect the
+   new server logs and health-check output before making further changes.
 
 This is a **one-time repair for the affected volume**, not a step required on every
 run. Ownership persists across container restarts, recreation, and normal Compose

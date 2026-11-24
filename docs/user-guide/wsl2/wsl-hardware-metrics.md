@@ -1,10 +1,10 @@
 # WSL Benchmark Hardware Metrics: Prerequisites and Operation
 
-For initial environment installation, see [WSL setup](wsl2_setup.md).
+For initial environment installation, see [WSL setup](./wsl2-setup.md).
 For a concise description of automatic collection and report fields, see
-[WSL benchmark metrics](wsl2_benchmark.md).
+[WSL benchmark metrics](./wsl2-benchmark.md).
 
-## Scope and Portability
+## Scope and portability
 
 Run the benchmark from the loss-prevention repository root inside WSL2. The Makefile detects WSL2 from the Microsoft kernel automatically; no flag is needed. Windows collection is disabled for `WSL2=false`.
 
@@ -21,7 +21,7 @@ Unavailable measurements remain `NA` in `windows_metrics.json` for diagnostics a
 
 GPU activity uses Windows counterparts of CCS/RCS/VCS/VECS/Copy, not identical Intel hardware counters. Processes are summed per physical engine; the busiest engine in each category is used, including the busiest decode/encode engine for Video. Measurements are host-wide and include unrelated Windows applications. Valid zero activity is distinct from an unavailable measurement.
 
-## 1. Windows Host
+## 1. Windows host
 
 In Windows PowerShell, check WSL and the installed GPU driver:
 
@@ -45,7 +45,7 @@ If `winget` is unavailable, use an approved Windows Python installer from [pytho
 
 Close and reopen PowerShell after installation. If Python is already installed, continue with the next step to verify it.
 
-### Step 2: Find the Installed python.exe
+### Step 2: Find the installed python.exe
 
 In **Windows PowerShell**, run:
 
@@ -94,7 +94,7 @@ Alternatively, put `WINDOWS_PYTHON = /mnt/c/.../python.exe` with your full path 
 
 Make's export only affects its child processes; it does not set variables in your parent terminal. The shell `export` above is needed for manual commands in this guide and must be repeated in a new terminal. The collector uses the configured executable directly, with no interpreter discovery or launcher fallback. Use a WSL executable path or an executable name on WSL's `PATH`, not a Windows drive path or launcher arguments.
 
-### Step 4: Configure Windows Pip's Proxy
+### Step 4: Configure Windows pip's proxy
 
 If your network requires a proxy, find the existing settings in your **WSL terminal**:
 
@@ -110,9 +110,9 @@ Use the actual HTTP/HTTPS proxy URL reported for your network. For example, a va
 
 This writes Windows pip's user configuration, normally `%APPDATA%\pip\pip.ini`. It is a one-time setting for that Windows user and interpreter configuration; no proxy command needs to be added to the Makefile. Docker and Linux pip proxy settings do not necessarily configure Windows pip. The proxy must be reachable from Windows, not only from WSL.
 
-If no proxy is listed, check **Windows Settings > Network & internet > Proxy**, or ask IT for the approved proxy endpoint or Python package mirror. A PAC setup-script URL is not a proxy endpoint that pip can use directly. Do not guess a proxy, and do not store proxy credentials in shell history or repository files. Skip proxy configuration when your network permits direct access.
+If no proxy is listed, check **Windows Settings > Network & internet > Proxy**, or ask IT for the approved proxy endpoint or Python package mirror. A Proxy Auto-Configuration (PAC) setup-script URL is not a proxy endpoint that pip can use directly. Do not guess a proxy, and do not store proxy credentials in shell history or repository files. Skip proxy configuration when your network permits direct access.
 
-### Step 5: Install Dependencies and Verify
+### Step 5: Install dependencies and verify
 
 In the same **WSL terminal**, install packages into Windows Python:
 
@@ -131,7 +131,7 @@ In WSL mode, this target verifies the configured Windows interpreter and install
 
 Saving proxy configuration does not prove connectivity. If installation fails, inspect the error for proxy connection, authentication, or certificate failures. Connection timeouts can lead to misleading "No matching distribution found" messages. For certificate failures, use your organization's approved CA configuration rather than disabling TLS verification.
 
-### Verify GPU Counters
+### Verify GPU counters
 
 For an English Windows installation, inspect counters in PowerShell while a GPU workload is active:
 
@@ -139,9 +139,9 @@ For an English Windows installation, inspect counters in PowerShell while a GPU 
 Get-Counter '\GPU Engine(*)\Utilization Percentage' -SampleInterval 1 -MaxSamples 3
 ```
 
-PowerShell counter names can be localized. The collector uses `AddEnglishCounter` to resolve the localized path. No engine instances while idle is not proof of a broken driver; check under load. Confirm that the WSL workload is visible in these counters on the actual host.
+PowerShell counter names can be localized. The collector uses `AddEnglishCounter` to resolve the localized path. The absence of engine instances while idle is not proof of a broken driver; check under load. Confirm that the WSL workload is visible in these counters on the actual host.
 
-## 2. WSL and Shared Output Access
+## 2. WSL and shared output access
 
 From the repository root in WSL:
 
@@ -160,9 +160,9 @@ Windows interoperability must be enabled. The Windows process must be able to re
 
 Keep the existing model, video, workload mapping, container registry, and GPU-runtime prerequisites used by your working benchmark. These telemetry changes do not provision the workload itself.
 
-## 3. Optional Native Windows PCM
+## 3. Optional native Windows PCM
 
-Obtain Intel PCM from the [official project](https://github.com/intel/pcm) and follow its Windows build/driver requirements. A Linux `pcm` binary is not sufficient. Keep the executable and its required Windows driver/runtime files together.
+Obtain Intel Performance Counter Monitor (PCM) from the [official project](https://github.com/intel/pcm) and follow its Windows build/driver requirements. A Linux `pcm` binary is not sufficient. Keep the executable and its required Windows driver/runtime files together.
 
 In Windows PowerShell, test the native binary from its installation folder:
 
@@ -181,7 +181,7 @@ export WINDOWS_PCM_EXE='C:\Tools\pcm\pcm.exe'
 
 If omitted, the Windows worker searches its Windows PATH for `pcm.exe`. The worker starts PCM automatically after warm-up and writes its CSV-formatted raw output to `windows_pcm_raw.log` in the timestamped benchmark run directory printed by Make; no manually running PCM process is required during benchmarking. Package energy is divided by elapsed sample time to obtain watts. READ+WRITE GB/s is converted to MB/s. The first PCM sample is discarded because its preceding timestamp is unavailable.
 
-## 4. Optional GPU Power
+## 4. Optional GPU power
 
 Use the [official Libre Hardware Monitor release](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor/releases) or a trusted build. Extract the complete distribution, not just the DLL; retain companion assemblies and driver files. The implementation uses the library's `Computer`, `Hardware`, and typed `Power` sensor API, not WMI values that may hide missing readings. Library/runtime and hardware compatibility must be validated on the target host.
 
@@ -204,7 +204,7 @@ mkdir -p benchmark
   --lhm-dll "$WINDOWS_LHM_DLL" --list-gpu-power-sensors
 ```
 
-This writes `benchmark/windows_gpu_power_sensors.json` directly in the repository's `benchmark/` directory and prints the GPU hardware names, sensor identifiers, and readings. It is a one-time discovery file, not a benchmark run output. A null value means unavailable. Only `Power` sensors attached to GPU hardware are eligible; CPU package sensors are excluded. Select the sensor representing the intended GPU power domain, not a GPU rail or subcomponent if you need total GPU power. Not every GPU exposes a suitable total-power sensor. An empty list or persistent null values means this provider cannot supply that measurement with the current hardware/driver/permissions.
+This writes `benchmark/windows_gpu_power_sensors.json` directly in the repository's `benchmark/` directory and prints the GPU hardware names, sensor identifiers, and readings. It is a one-time discovery file, not a benchmark run output. A null value means unavailable. Only `Power` sensors attached to GPU hardware are eligible; CPU package sensors are excluded. Select the sensor representing the intended GPU power domain, not a GPU rail or subcomponent if you need total GPU power. Not every GPU exposes a suitable total-power sensor. An empty list or persistent null values mean this provider cannot supply that measurement with the current hardware/driver/permissions.
 
 Configure the exact identifiers found on this machine:
 
@@ -213,11 +213,11 @@ export WINDOWS_GPU_POWER_SENSOR='<sensor_id from windows_gpu_power_sensors.json>
 export WINDOWS_GPU_POWER_ADAPTER='<luid_..._phys_... for the same physical GPU>'
 ```
 
-Obtain the PDH adapter identifier from GPU Engine counter instance names or the `adapters` object in `windows_metrics.json` in the timestamped run directory printed by Make, after an initial benchmark without GPU-power settings. Verify that it is the same physical GPU as the selected Libre Hardware Monitor sensor. On multi-GPU machines, do not guess from enumeration order: use Windows adapter diagnostics to resolve the LUID, or leave GPU power unconfigured if the association is uncertain. LUIDs can change after reboot. The configured power adapter is assigned `GPU_1`; other observed adapters receive subsequent numbers. These numbers need not match Task Manager or Linux qmassa numbering.
+Obtain the PDH adapter identifier from GPU Engine counter instance names or the `adapters` object in `windows_metrics.json` in the timestamped run directory printed by Make, after an initial benchmark without GPU-power settings. Verify that it is the same physical GPU as the selected Libre Hardware Monitor sensor. On multi-GPU machines, do not guess from enumeration order: use Windows adapter diagnostics to resolve the Local Unique Identifier (LUID), or leave GPU power unconfigured if the association is uncertain. LUIDs can change after reboot. The configured power adapter is assigned `GPU_1`; other observed adapters receive subsequent numbers. These numbers need not match Task Manager or Linux qmassa numbering.
 
 The discovery command is setup only. During benchmarking the collector opens the library, updates sensors, and closes it automatically. The Libre Hardware Monitor GUI does not need to run. Missing samples are skipped; if no valid reading exists, GPU watts remain `NA`. No CPU-package-to-GPU substitution is performed. Driver contention with PCM is possible and must be checked on the target machine.
 
-## 5. Run and Check Results
+## 5. Run and check results
 
 Run in the same WSL shell as the optional exports:
 
@@ -226,9 +226,9 @@ make benchmark CAMERA_STREAM=camera_to_workload_asc_object_detection_classificat
 make consolidate-metrics
 ```
 
-Use an explicit CPU or GPU config pair for WSL2 benchmarks. Do not use the
-default configs, `_npu`, `_gpu-npu`, or `_hetero` configs, which include
-unsupported NPU workloads.
+Use an explicit CPU or GPU configuration pair for WSL2 benchmarks. Do not use the
+default configurations, `_npu`, `_gpu-npu`, or `_hetero` configurations, which
+include unsupported NPU workloads.
 
 The ordinary benchmark target does not automatically invoke consolidation; `benchmark-quickstart` does. The existing benchmark and stream-density Compose lifecycle starts and stops the Windows worker automatically. It begins sampling after the configured warm-up. Stream-density iterations replace telemetry with the latest collected run rather than accumulating all iterations. Auxiliary Compose starts through the same helper also trigger collection; there is no archive or automatic best-iteration selection. The regular `run-lp` target does not launch this benchmark collector. The existing plotting command has no new integration for the Windows hardware summary.
 
@@ -238,19 +238,19 @@ Benchmark telemetry files are saved in the timestamped run directory under
 The one-time `windows_gpu_power_sensors.json` discovery file is separate and is
 written directly to `benchmark/` by the discovery command. Run output files:
 
-```text
-windows_metrics.json          Final summary, sources and adapter mapping
-windows_metrics.log           Worker warnings and errors
-windows_pcm_raw.log           PCM CSV-formatted samples, when available
-windows_pcm.log               PCM stdout/stderr, when launched
-windows_gpu_power_sensors.json  Optional one-time sensor discovery
-metrics.csv                  Produced by consolidation
-```
+| File | Function |
+| --- | --- |
+| `RESULTS_DIR/windows_metrics.json` | Final summary, sources and adapter mapping |
+| `RESULTS_DIR/windows_metrics.log` | Worker warnings and errors |
+| `RESULTS_DIR/windows_pcm_raw.log` | PCM CSV-formatted samples, when available |
+| `RESULTS_DIR/windows_pcm.log` | PCM stdout/stderr, when launched |
+| `RESULTS_DIR/metrics.csv` | Produced by consolidation |
+| `windows_gpu_power_sensors.json` | Optional one-time sensor discovery |
 
 If you override `RESULTS_DIR`, pass the same absolute directory to benchmark and consolidation. Outputs then go there intentionally; there is no random output directory. Telemetry from a preceding run is reset. Worker failure does not stop the workload; inspect logs when fields remain `NA`. The existing Makefile dependency-install step can still fail if Windows Python or network access is missing, so complete prerequisites before benchmarking.
 
-Do not treat presence of rows as proof of successful collection. Check that adapter metadata matches the intended GPU, GPU activity changes under load, power readings are plausible for that device, PCM logs contain no permission/unsupported-counter errors, and NPU utilization remains `NA` under WSL2. Close unrelated GPU-heavy applications for repeatable host-wide measurements.
+Do not treat the presence of rows as proof of successful collection. Check that adapter metadata matches the intended GPU, GPU activity changes under load, power readings are plausible for that device, PCM logs contain no permission/unsupported-counter errors, and NPU utilization remains `NA` under WSL2. Close unrelated GPU-heavy applications for repeatable host-wide measurements.
 
-## Automated Tests
+## Automated tests
 
 Linux-side tests cover WSL guards, native-Linux no-op behavior, GPU aggregation, optional power sensor filtering, missing-value handling, PCM unit conversion, and mocked lifecycle failures.

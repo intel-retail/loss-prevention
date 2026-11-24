@@ -46,13 +46,13 @@ make benchmark
 
 ### Environment Variables Reference
 
-| Category         | Variable         | Description                            | Common Values                                                                                         |
-| ---------------- | ---------------- | -------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| **Display**      | `RENDER_MODE`    | Show/hide visual output                | `0` (headless), `1` (visual)                                                                          |
-| **Performance**  | `PIPELINE_COUNT` | Number of parallel pipeline instances | `1`, `2`, `4` (higher = more stress)                                                                  |
-| **Hardware**     | `WORKLOAD_DIST`  | Target processing hardware             | `workload_to_pipeline_cpu.json`, `workload_to_pipeline_gpu.json`, `workload_to_pipeline_gpu-npu.json`, `workload_to_pipeline_hetero.json` |
-| **Camera Setup** | `CAMERA_STREAM`  | Camera configuration                   | `camera_to_workload.json`                                                                             |
-| **Build**        | `REGISTRY`       | Use pre-built vs local images          | `true` (faster), `false` (custom builds)                                                              |
+| Category         | Variable         | Description                           | Common Values                                                                                                                             |
+| ---------------- | ---------------- | ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| **Display**      | `RENDER_MODE`    | Show/hide visual output               | `0` (headless), `1` (visual)                                                                                                              |
+| **Performance**  | `PIPELINE_COUNT` | Number of parallel pipeline instances | `1`, `2`, `4` (higher = more stress)                                                                                                      |
+| **Hardware**     | `WORKLOAD_DIST`  | Target processing hardware            | `workload_to_pipeline_cpu.json`, `workload_to_pipeline_gpu.json`, `workload_to_pipeline_gpu-npu.json`, `workload_to_pipeline_hetero.json` |
+| **Camera Setup** | `CAMERA_STREAM`  | Camera configuration                  | `camera_to_workload.json`                                                                                                                 |
+| **Build**        | `REGISTRY`       | Use pre-built vs local images         | `true` (faster), `false` (custom builds)                                                                                                  |
 
 ## Workload Configuration Options
 
@@ -71,12 +71,12 @@ make benchmark
 
 ### Hardware Distribution Options
 
-| Configuration     | File                                | Best For                                |
-| :---------------- | :---------------------------------- | :-------------------------------------- |
-| **CPU Only**      | `workload_to_pipeline_cpu.json`     | Testing, development environments       |
-| **GPU Only**      | `workload_to_pipeline_gpu.json`     | Production, high performance            |
-| **Mixed GPU/NPU** | `workload_to_pipeline_gpu-npu.json` | Assign selected workloads to GPU or NPU |
-| **Heterogeneous** | `workload_to_pipeline_hetero.json`  | Maximum performance across all hardware |
+| Configuration     | File                                | Best For                                 |
+| :---------------- | :---------------------------------- | :--------------------------------------- |
+| **CPU Only**      | `workload_to_pipeline_cpu.json`     | Testing, development environments        |
+| **GPU Only**      | `workload_to_pipeline_gpu.json`     | Production, high performance             |
+| **Mixed GPU/NPU** | `workload_to_pipeline_gpu-npu.json` | Assign selected workloads to GPU or NPU  |
+| **Heterogeneous** | `workload_to_pipeline_hetero.json`  | Maximum performance across all hardware  |
 | **Default Mixed** | `workload_to_pipeline.json`         | CPU/GPU/NPU distribution used by default |
 
 ## Advanced Performance Testing (15-30 minutes)
@@ -193,18 +193,19 @@ make benchmark-stream-density \
 
 ### Stream Density Environment Variables
 
-| Variable                    | Description                                             | Values                            |
-| :-------------------------- | :------------------------------------------------------ | :-------------------------------- |
-| `TARGET_FPS`                | Override the target FPS for all streams; unset uses camera configuration | Unset by default, `13.5`, `20.0` |
-| `MEASUREMENT_WINDOW_SECONDS` | Duration FPS samples are collected per density step (minimum 100 seconds) | `100` (default), `120` |
-| `INIT_DURATION`             | warmup period before measurement starts                   | `10` (default), `120`, `60`       |
-| `OOM_PROTECTION`            | Prevent out-of-memory crashes                           | `1` (enabled), `0` (disabled)     |
-| `PASS_TOLERANCE_RATIO`      | Fraction of each target FPS required to pass            | `0.95` (default), up to `1.0`     |
-| `CORE_PINNING`              | Pin all services to one core type (stream density only) | `false` (default), `true`         |
-| `CORE_TYPE`                 | Core type used when `CORE_PINNING=true`                 | `ECORE` (default), `PCORE`, `LPECORE` |
-| `ROUND_ROBIN_COUNT`         | Number of round-robin model instances (stream density only) | `128` (default)                    |
+| Variable                     | Description                                                               | Values                                |
+| :--------------------------- | :------------------------------------------------------------------------ | :------------------------------------ |
+| `TARGET_FPS`                 | Override the target FPS for all streams; unset uses camera configuration  | Unset by default, `13.5`, `20.0`      |
+| `MEASUREMENT_WINDOW_SECONDS` | Duration FPS samples are collected per density step (minimum 100 seconds) | `100` (default), `120`                |
+| `INIT_DURATION`              | warmup period before measurement starts                                   | `10` (default), `120`, `60`           |
+| `OOM_PROTECTION`             | Prevent out-of-memory crashes                                             | `1` (enabled), `0` (disabled)         |
+| `PASS_TOLERANCE_RATIO`       | Fraction of each target FPS required to pass                              | `0.95` (default), up to `1.0`         |
+| `CORE_PINNING`               | Pin all services to one core type (stream density only)                   | `false` (default), `true`             |
+| `CORE_TYPE`                  | Core type used when `CORE_PINNING=true`                                   | `ECORE` (default), `PCORE`, `LPECORE` |
+| `ROUND_ROBIN_COUNT`          | Number of round-robin model instances (stream density only)               | `128` (default)                       |
 
-> **Warning:** Setting `OOM_PROTECTION=0` may crash your system requiring a hard reboot.
+> [!WARNING]
+> Setting `OOM_PROTECTION=0` may crash your system requiring a hard reboot.
 
 ### Core Pinning
 
@@ -230,7 +231,10 @@ When `CORE_PINNING=true`:
 
 The benchmark stops with an error if `CORE_TYPE` is invalid, the selected core type is not present on the system, or `CORE_PINNING` is not `true`/`false`.
 
-> **Note:** Install `cpuid` (`sudo apt install cpuid`) for the most reliable core-type detection; without it, detection falls back to sysfs and `lscpu`. Detection also requires `curl` and internet access unless `/etc/core-types` exists.
+> [!TIP]
+> Install `cpuid` (`sudo apt install cpuid`) for the most reliable core-type detection; without
+> it, detection falls back to sysfs and `lscpu`. Detection also requires `curl` and internet
+> access unless `/etc/core-types` exists.
 
 To check the detected cores without running the benchmark:
 
@@ -240,13 +244,15 @@ src/get-core-types.sh ECORE      # E-core IDs only, e.g. 4,5,6,7
 src/get-core-types.sh --reinstall PCORE   # ignore /etc/core-types and detect again
 ```
 
-> **Note:** When adding a service to `src/docker-compose.yml`, add a matching `cpuset` entry to `src/docker-compose-core_pinning.yml` so it is pinned as well.
+> [!NOTE]
+> When adding a service to `src/docker-compose.yml`, add a matching `cpuset` entry to
+> `src/docker-compose-core_pinning.yml` so it is pinned as well.
 
 Note: stream-density caches camera-target mappings using `(config_path, file_mtime)` and auto-refreshes when the camera config changes; unit tests for this behavior are in the `performance-tools` repository at `benchmark-scripts/stream_density_test.py`.
 
 ### Expected Output
 
-```
+```text
 Stream density completed: use case density <lanes> lanes, stream density <streams> streams. For the detailed report, see benchmark/stream_density.log.
 ```
 
@@ -290,7 +296,7 @@ The application is highly configurable via JSON files in the `configs/` director
         "fileSrc": "sample-media/video1.mp4",
         "targetFps": 12.5,
         "workloads": ["items_in_basket", "multi_product_identification"],
-        "region_of_interest": {"x": 100, "y": 100, "x2": 800, "y2": 600}
+        "region_of_interest": { "x": 100, "y": 100, "x2": 800, "y2": 600 }
       }
     ]
   }
@@ -310,7 +316,7 @@ The application is highly configurable via JSON files in the `configs/` director
 }
 ```
 
-### To Add Custom Workloads:
+### Add Custom Workloads
 
 1. Edit `configs/camera_to_workload.json` to add your camera and assign workloads
 2. Edit `configs/workload_to_pipeline.json` to define the pipeline for your workload
@@ -381,6 +387,7 @@ NO_PROXY=localhost,127.0.0.1,::1
 ```
 
 #### Docker Proxy Configuration
+
 Create `/etc/systemd/system/docker.service.d/http-proxy.conf`:
 
 ```bash
