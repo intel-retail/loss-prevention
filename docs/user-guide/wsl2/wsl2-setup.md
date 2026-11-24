@@ -823,7 +823,7 @@ space.
 
 ```bash
 cd ~
-git clone https://github.com/intel-retail/loss-prevention.git
+git clone -b release-2026.3.0 https://github.com/intel-retail/loss-prevention.git
 cd loss-prevention
 git submodule update --init --recursive
 ```

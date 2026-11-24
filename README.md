@@ -134,7 +134,7 @@ The stream-density benchmark resolves the effective target FPS for each camera u
 - **Python 3** (`sudo apt install python3`) - required for video download and validation scripts
 - Intel hardware (CPU, iGPU, dGPU, NPU) + drivers:
     - [Intel GPU drivers](https://dgpu-docs.intel.com/driver/client/overview.html)
-    - [NPU](https://docs.openedgeplatform.intel.com/dev/edge-ai-libraries/dlstreamer/dev_guide/advanced_install/advanced_install_guide_prerequisites.html#optional-prerequisite-2-install-intel-npu-drivers)
+    - [NPU](https://docs.openedgeplatform.intel.com/2026.3/edge-ai-libraries/dlstreamer/dev_guide/advanced_install/advanced_install_guide_prerequisites.html#optional-prerequisite-2-install-intel-npu-drivers)
 - 32 GB RAM . 300 GB Storage
 - Corporate proxy / optional RTSP config:
 
@@ -153,7 +153,7 @@ The stream-density benchmark resolves the effective target FPS for each camera u
 ## QuickStart
 
 ```sh
-git clone -b <release-or-tag> --single-branch https://github.com/intel-retail/loss-prevention  # e.g. v4.0.0
+git clone -b release-2026.3.0 --single-branch https://github.com/intel-retail/loss-prevention  # e.g. v4.0.0
 cd loss-prevention
 RENDER_MODE=1 DISPLAY=:0 make run-lp      # visual: see detections live (recommended first run)
 make run-lp                               # headless
@@ -177,7 +177,7 @@ Each use case supports three actions: **run** it, **benchmark** a fixed load, an
 Run `ls configs/workload_to_pipeline_*` to confirm what your checkout provides. Passing a variant that doesn't exist fails fast — `make run-lp` validates the pair first and reports `Configuration file not found: configs/<name>.json`.
 
 > **View results for any benchmark/density run:** runs are saved under `benchmark/<config>__<device>__<timestamp>/` (for example, `lp__hetero__<timestamp>` for the default loss-prevention configuration and `lp_vlm__<device>__<timestamp>` for the VLM configuration). `make consolidate-metrics` and `make plot-metrics` use the latest run folder by default. Read its `metrics.csv` and `stream_density.log` (for density runs); `make benchmark-quickstart` consolidates its own run automatically. For a density run with a recorded status, `metrics.csv` uses the final confirming measurement interval for camera FPS and latency percentiles. If no density was confirmed, it reports `Result: no confirmed density` and omits FPS and latency metrics. Older runs without a recorded status may still use the whole logs.
->For Advanced Benchmark settings, :point_right: [Benchmarking Guide](https://docs.openedgeplatform.intel.com/dev/edge-ai-suites/ai-suite-retail/loss-prevention/lp-benchmarking.html)
+>For Advanced Benchmark settings, :point_right: [Benchmarking Guide](https://docs.openedgeplatform.intel.com/2026.3/edge-ai-suites/ai-suite-retail/loss-prevention/lp-benchmarking.html)
 
 **Windows/WSL2:** Follow the [WSL setup guide](./docs/user-guide/wsl2/wsl2-setup.md), complete the [hardware metrics prerequisites](./docs/user-guide/wsl2/wsl-hardware-metrics.md), and use the [WSL benchmark metrics guide](./docs/user-guide/wsl2/wsl2-benchmark.md) when benchmarking. The Makefile detects WSL2 automatically. Use an explicit CPU or GPU config pair for every WSL workload command; do not use default configs, `_npu`, `_gpu-npu`, or `_hetero` configs because they include unsupported NPU workloads. For example: `make benchmark CAMERA_STREAM=camera_to_workload_asc_object_detection_classification.json WORKLOAD_DIST=workload_to_pipeline_asc_object_detection_classification_gpu.json`.
 
@@ -343,7 +343,7 @@ make benchmark \
     - Files exist with content
     - Files are non-empty
 
-If a run fails, see [TroubleShooting](https://docs.openedgeplatform.intel.com/dev/edge-ai-suites/ai-suite-retail/loss-prevention/get-started.html#troubleshooting)
+If a run fails, see [TroubleShooting](https://docs.openedgeplatform.intel.com/2026.3/edge-ai-suites/ai-suite-retail/loss-prevention/get-started.html#troubleshooting)
 
 **Stop the application**:
 
@@ -404,7 +404,7 @@ For example, `make benchmark-stream-density CORE_PINNING=true CORE_TYPE=ECORE RO
 
 ### Configuration & user-defined workloads
 
-- Workloads are configured by JSON in `configs/` plus the `CAMERA_STREAM` / `WORKLOAD_DIST` env vars (CPU/GPU/NPU/hetero variants, [availability varies by use case](#per-use-case-walkthroughs)). You can also **define your own**: map cameras to custom pipelines by editing `camera_to_workload_*.json` (which cameras run which workloads) and `workload_to_pipeline_*.json` (each workload’s *pipeline*, a sequence of GStreamer elements + models, e.g. `gvadetect` / `gvaclassify`, on a chosen device). See the [Get Started Guide](https://docs.openedgeplatform.intel.com/dev/edge-ai-suites/ai-suite-retail/loss-prevention/get-started.html) for pre-configured workloads and [User-Defined Workloads](https://docs.openedgeplatform.intel.com/dev/edge-ai-suites/ai-suite-retail/loss-prevention/get-started/advanced.html#user-defined-workloads) for the full definitions.
+- Workloads are configured by JSON in `configs/` plus the `CAMERA_STREAM` / `WORKLOAD_DIST` env vars (CPU/GPU/NPU/hetero variants, [availability varies by use case](#per-use-case-walkthroughs)). You can also **define your own**: map cameras to custom pipelines by editing `camera_to_workload_*.json` (which cameras run which workloads) and `workload_to_pipeline_*.json` (each workload’s *pipeline*, a sequence of GStreamer elements + models, e.g. `gvadetect` / `gvaclassify`, on a chosen device). See the [Get Started Guide](https://docs.openedgeplatform.intel.com/2026.3/edge-ai-suites/ai-suite-retail/loss-prevention/get-started.html) for pre-configured workloads and [User-Defined Workloads](https://docs.openedgeplatform.intel.com/2026.3/edge-ai-suites/ai-suite-retail/loss-prevention/get-started/advanced.html#user-defined-workloads) for the full definitions.
 
 - Camera configs can include an optional `_about` block describing the scenario, cameras, and purpose of the workload; the stream-density report prints this description to give the results context.
 
@@ -500,4 +500,4 @@ See [mcp-service/README.md](mcp-service/README.md) for the event schema, full to
 
 ## Getting help
 
-Pick the use case closest to your needs, run the included benchmarks, and **reach out to your Intel Solution Manager to talk about what you found.** Full docs: the [Loss Prevention Get Started Guide](https://docs.openedgeplatform.intel.com/dev/edge-ai-suites/ai-suite-retail/loss-prevention/get-started.html). In case of failure, see [Troubleshooting](https://docs.openedgeplatform.intel.com/dev/edge-ai-suites/ai-suite-retail/loss-prevention/get-started.html#troubleshooting).
+Pick the use case closest to your needs, run the included benchmarks, and **reach out to your Intel Solution Manager to talk about what you found.** Full docs: the [Loss Prevention Get Started Guide](https://docs.openedgeplatform.intel.com/2026.3/edge-ai-suites/ai-suite-retail/loss-prevention/get-started.html). In case of failure, see [Troubleshooting](https://docs.openedgeplatform.intel.com/2026.3/edge-ai-suites/ai-suite-retail/loss-prevention/get-started.html#troubleshooting).
